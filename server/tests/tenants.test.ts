@@ -14,6 +14,8 @@ let receptionistCookie: string;
 let tenant1Id: number;
 
 beforeAll(async () => {
+  await prisma.payment.deleteMany();
+  await prisma.booking.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.user.deleteMany();
 
@@ -227,5 +229,12 @@ describe('PUT /api/v1/tenants/:id', () => {
       .send({ phone: '+971507777777' });
     expect(res.status).toBe(200);
     expect(res.body.phone).toBe('+971507777777');
+  });
+
+  it('returns 401 without auth for update', async () => {
+    const res = await request(app)
+      .put(`/api/v1/tenants/${tenant1Id}`)
+      .send({ phone: '+971500000000' });
+    expect(res.status).toBe(401);
   });
 });

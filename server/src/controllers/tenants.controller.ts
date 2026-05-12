@@ -32,7 +32,7 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
     idNumber?: string;
   };
 
-  if (!fullName || !phone || !idNumber) {
+  if (!fullName?.trim() || !phone?.trim() || !idNumber?.trim()) {
     res.status(400).json({ message: 'fullName, phone, and idNumber are required' });
     return;
   }
