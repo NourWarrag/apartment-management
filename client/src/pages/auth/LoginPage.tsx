@@ -39,39 +39,39 @@ export default function LoginPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#fffbf5] flex items-center justify-center">
-      <div className="bg-white border border-amber-200 rounded-xl shadow-sm p-8 w-full max-w-sm">
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-8 w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-xl font-bold text-amber-900">Hotel Apartments</h1>
-          <p className="text-sm text-amber-700 mt-1">{t('auth.login')}</p>
+          <h1 className="text-xl font-bold text-primary">LuxStay Admin</h1>
+          <p className="text-sm text-on-surface-variant mt-1">{t('auth.login')}</p>
         </div>
         <form onSubmit={handleSubmit((d) => loginMutation.mutate(d))} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-amber-900 mb-1">
+            <label className="block text-xs font-semibold text-primary mb-1">
               {t('auth.email')}
             </label>
             <input
               {...register('email')}
               type="email"
-              className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-[#fffbf5]"
+              className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
             />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+            {errors.email && <p className="text-error text-xs mt-1">{errors.email.message}</p>}
           </div>
           <div>
-            <label className="block text-xs font-semibold text-amber-900 mb-1">
+            <label className="block text-xs font-semibold text-primary mb-1">
               {t('auth.password')}
             </label>
             <input
               {...register('password')}
               type="password"
-              className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-[#fffbf5]"
+              className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
             />
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+            {errors.password && <p className="text-error text-xs mt-1">{errors.password.message}</p>}
           </div>
           <button
             type="submit"
             disabled={loginMutation.isPending}
-            className="w-full bg-[#b45309] hover:bg-[#92400e] text-white font-semibold rounded-lg py-2 text-sm transition disabled:opacity-60"
+            className="w-full bg-primary hover:bg-primary-container text-on-primary font-semibold rounded-lg py-2 text-sm transition disabled:opacity-60"
           >
             {loginMutation.isPending ? t('common.loading') : t('auth.loginButton')}
           </button>
