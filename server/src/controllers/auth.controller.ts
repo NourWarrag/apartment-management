@@ -1,10 +1,10 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { comparePassword } from '../lib/password';
 import { signToken } from '../lib/jwt';
 
-const prisma = new PrismaClient();
+const DUMMY_HASH = '$2a$10$dummy.hash.to.prevent.timing.attacks.xxxxxxxxxxxxxxxxx';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -14,12 +14,22 @@ const COOKIE_OPTIONS = {
 };
 
 export async function login(req: AuthRequest, res: Response): Promise<void> {
-  const { email, password } = req.body as { email: string; password: string };
+  const { email, password } = req.body as { email?: string; password?: string };
+
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+    res.status(400).json({ message: 'Email and password are required' });
+    return;
+  }
+
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await comparePassword(password, user.password))) {
+  // Always run comparePassword to prevent timing attacks
+  const passwordMatch = await comparePassword(password, user?.password ?? DUMMY_HASH);
+
+  if (!user || !passwordMatch) {
     res.status(401).json({ message: 'Invalid credentials' });
     return;
   }
+
   const token = signToken({ id: user.id, role: user.role });
   res.cookie('token', token, COOKIE_OPTIONS);
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
