@@ -1,0 +1,57 @@
+export enum Role {
+  ADMIN = 'ADMIN',
+  RECEPTIONIST = 'RECEPTIONIST',
+  MAINTENANCE = 'MAINTENANCE',
+  FINANCE = 'FINANCE',
+}
+
+export enum ApartmentStatus {
+  AVAILABLE = 'AVAILABLE',
+  OCCUPIED = 'OCCUPIED',
+  MAINTENANCE = 'MAINTENANCE',
+  RESERVED = 'RESERVED',
+  CLEANING = 'CLEANING',
+  PENDING_CHECKOUT = 'PENDING_CHECKOUT',
+}
+
+export enum PaymentMethod {
+  CASH = 'CASH',
+  CARD = 'CARD',
+  INSTALLMENT = 'INSTALLMENT',
+}
+
+export enum PaymentStatus {
+  PAID = 'PAID',
+  PENDING = 'PENDING',
+  FAILED = 'FAILED',
+}
+
+export enum Priority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+}
+
+export enum TicketStatus {
+  OPEN = 'OPEN',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CLOSED = 'CLOSED',
+}
+
+export interface ApiError {
+  message: string;
+  field?: string;
+}
+
+export interface LoginDto {
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+}
