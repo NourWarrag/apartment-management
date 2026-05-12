@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
