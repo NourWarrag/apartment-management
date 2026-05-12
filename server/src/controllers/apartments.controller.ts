@@ -1,30 +1,39 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { ApartmentStatus } from '@hotel/shared';
+import { ApartmentStatus, ApartmentType } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
 
-export async function list(req: AuthRequest, res: Response): Promise<void> {
-  const { status, search } = req.query as { status?: string; search?: string };
+const VALID_STATUSES = Object.values(ApartmentStatus);
+const VALID_TYPES = Object.values(ApartmentType);
 
-  const VALID_STATUSES = Object.values(ApartmentStatus);
+export async function list(req: AuthRequest, res: Response): Promise<void> {
+  const { status, type, search } = req.query as { status?: string; type?: string; search?: string };
+
   if (status && !VALID_STATUSES.includes(status as ApartmentStatus)) {
     res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+    return;
+  }
+  if (type && !VALID_TYPES.includes(type as ApartmentType)) {
+    res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
     return;
   }
 
   const where: Prisma.ApartmentWhereInput = {};
   if (status) where.status = status as ApartmentStatus;
+  if (type) where.type = type as ApartmentType;
   if (search) where.number = { contains: search, mode: 'insensitive' };
+
+  const now = new Date();
 
   const apartments = await prisma.apartment.findMany({
     where,
     orderBy: { number: 'asc' },
     include: {
       bookings: {
-        where: { checkIn: { lte: new Date() }, checkOut: { gte: new Date() } },
-        take: 1,
-        orderBy: { checkIn: 'desc' },
+        where: { checkOut: { gte: now } },
+        orderBy: { checkIn: 'asc' },
+        take: 2,
         include: {
           tenant: { select: { id: true, fullName: true, phone: true } },
           payments: { select: { method: true, amount: true, status: true, paidAt: true } },
@@ -38,29 +47,46 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     },
   });
 
-  const result = apartments.map((a) => ({
-    id: a.id,
-    number: a.number,
-    floor: a.floor,
-    status: a.status,
-    currentBooking: a.bookings[0] ?? null,
-    activeTicket: a.tickets[0] ?? null,
-  }));
+  const result = apartments.map((a) => {
+    const currentBooking = a.bookings.find(
+      (b) => new Date(b.checkIn) <= now && new Date(b.checkOut) >= now
+    ) ?? null;
+    const upcomingBooking = a.bookings.find((b) => new Date(b.checkIn) > now) ?? null;
+
+    return {
+      id: a.id,
+      number: a.number,
+      floor: a.floor,
+      type: a.type,
+      status: a.status,
+      currentBooking,
+      upcomingBooking,
+      activeTicket: a.tickets[0] ?? null,
+    };
+  });
 
   res.json(result);
 }
 
 export async function create(req: AuthRequest, res: Response): Promise<void> {
-  const { number, floor } = req.body as { number: string; floor: number };
+  const { number, floor, type } = req.body as { number: string; floor: number; type?: string };
 
   if (!number || floor === undefined) {
     res.status(400).json({ message: 'number and floor are required' });
     return;
   }
+  if (type !== undefined && !VALID_TYPES.includes(type as ApartmentType)) {
+    res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
+    return;
+  }
 
   try {
     const apartment = await prisma.apartment.create({
-      data: { number: String(number).trim(), floor: Number(floor) },
+      data: {
+        number: String(number).trim(),
+        floor: Number(floor),
+        ...(type ? { type: type as ApartmentType } : {}),
+      },
     });
     res.status(201).json(apartment);
   } catch (err) {
@@ -118,15 +144,19 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
     return;
   }
 
-  const { number, floor, status } = req.body as {
+  const { number, floor, status, type } = req.body as {
     number?: string;
     floor?: number;
     status?: ApartmentStatus;
+    type?: ApartmentType;
   };
 
-  const VALID_STATUSES = Object.values(ApartmentStatus);
   if (status !== undefined && !VALID_STATUSES.includes(status)) {
     res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+    return;
+  }
+  if (type !== undefined && !VALID_TYPES.includes(type)) {
+    res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
     return;
   }
 
@@ -134,6 +164,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
   if (number !== undefined) data.number = String(number).trim();
   if (floor !== undefined) data.floor = Number(floor);
   if (status !== undefined) data.status = status;
+  if (type !== undefined) data.type = type;
 
   try {
     const apartment = await prisma.apartment.update({ where: { id }, data });

@@ -86,6 +86,32 @@ describe('POST /api/v1/apartments', () => {
       .send({ number: '777', floor: 7 });
     expect(res.status).toBe(403);
   });
+
+  it('creates apartment with explicit type', async () => {
+    const res = await request(app)
+      .post('/api/v1/apartments')
+      .set('Cookie', adminCookie)
+      .send({ number: '102', floor: 1, type: 'ONE_BEDROOM' });
+    expect(res.status).toBe(201);
+    expect(res.body.type).toBe('ONE_BEDROOM');
+  });
+
+  it('defaults type to STUDIO when not provided', async () => {
+    const res = await request(app)
+      .post('/api/v1/apartments')
+      .set('Cookie', adminCookie)
+      .send({ number: '103', floor: 1 });
+    expect(res.status).toBe(201);
+    expect(res.body.type).toBe('STUDIO');
+  });
+
+  it('returns 400 for invalid type', async () => {
+    const res = await request(app)
+      .post('/api/v1/apartments')
+      .set('Cookie', adminCookie)
+      .send({ number: '999', floor: 1, type: 'INVALID_TYPE' });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('GET /api/v1/apartments', () => {
@@ -114,6 +140,25 @@ describe('GET /api/v1/apartments', () => {
       .set('Cookie', adminCookie);
     expect(res.status).toBe(200);
     expect(res.body.some((a: { number: string }) => a.number === '101')).toBe(true);
+  });
+
+  it('list items include type and upcomingBooking fields', async () => {
+    const res = await request(app)
+      .get('/api/v1/apartments')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toHaveProperty('type');
+    expect(res.body[0]).toHaveProperty('upcomingBooking');
+  });
+
+  it('filters by type', async () => {
+    const res = await request(app)
+      .get('/api/v1/apartments?type=ONE_BEDROOM')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    res.body.forEach((a: { type: string }) => {
+      expect(a.type).toBe('ONE_BEDROOM');
+    });
   });
 });
 
@@ -169,5 +214,14 @@ describe('PUT /api/v1/apartments/:id', () => {
       .set('Cookie', maintenanceCookie)
       .send({ status: 'AVAILABLE' });
     expect(res.status).toBe(403);
+  });
+
+  it('updates apartment type', async () => {
+    const res = await request(app)
+      .put(`/api/v1/apartments/${apt1Id}`)
+      .set('Cookie', adminCookie)
+      .send({ type: 'PENTHOUSE' });
+    expect(res.status).toBe(200);
+    expect(res.body.type).toBe('PENTHOUSE');
   });
 });
