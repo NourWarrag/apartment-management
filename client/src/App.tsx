@@ -3,6 +3,10 @@ import { Role } from '@hotel/shared';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
+import ApartmentsPage from './pages/apartments/ApartmentsPage';
+import ApartmentDetailPage from './pages/apartments/ApartmentDetailPage';
+import TenantsPage from './pages/tenants/TenantsPage';
+import TenantDetailPage from './pages/tenants/TenantDetailPage';
 
 const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
 const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
@@ -26,23 +30,39 @@ export default function App() {
             path="dashboard"
             element={
               <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
-                <div className="text-amber-900 font-semibold">Dashboard — coming in Phase 5</div>
+                <div className="text-on-surface font-semibold p-4">Dashboard — coming in Phase 5</div>
               </ProtectedRoute>
             }
           />
           <Route
-            path="apartments/*"
+            path="apartments"
             element={
               <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                <div className="text-amber-900 font-semibold">Apartments — coming in Phase 2</div>
+                <ApartmentsPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="tenants/*"
+            path="apartments/:id"
             element={
               <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                <div className="text-amber-900 font-semibold">Tenants — coming in Phase 2</div>
+                <ApartmentDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="tenants"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+                <TenantsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="tenants/:id"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+                <TenantDetailPage />
               </ProtectedRoute>
             }
           />
@@ -50,7 +70,7 @@ export default function App() {
             path="payments/*"
             element={
               <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
-                <div className="text-amber-900 font-semibold">Payments — coming in Phase 3</div>
+                <div className="text-on-surface font-semibold p-4">Payments — coming in Phase 3</div>
               </ProtectedRoute>
             }
           />
@@ -58,7 +78,7 @@ export default function App() {
             path="tickets/*"
             element={
               <ProtectedRoute allowedRoles={TICKETS_ROLES}>
-                <div className="text-amber-900 font-semibold">Tickets — coming in Phase 4</div>
+                <div className="text-on-surface font-semibold p-4">Tickets — coming in Phase 4</div>
               </ProtectedRoute>
             }
           />
@@ -66,7 +86,7 @@ export default function App() {
             path="reports/*"
             element={
               <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
-                <div className="text-amber-900 font-semibold">Reports — coming in Phase 5</div>
+                <div className="text-on-surface font-semibold p-4">Reports — coming in Phase 5</div>
               </ProtectedRoute>
             }
           />
