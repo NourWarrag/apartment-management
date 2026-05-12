@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  tickets   MaintenanceTicket[]
+  auditLogs AuditLog[]
+}
+
+model Apartment {
+  id       Int             @id @default(autoincrement())
+  number   String          @unique
+  floor    Int
+  status   ApartmentStatus @default(AVAILABLE)
+  bookings Booking[]
+  tickets  MaintenanceTicket[]
+}
+
+model Tenant {
+  id        Int       @id @default(autoincrement())
+  fullName  String
+  phone     String
+  idNumber  String    @unique
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+}
+
+model Booking {
+  id          Int       @id @default(autoincrement())
+  apartmentId Int
+  tenantId    Int
+  checkIn     DateTime
+  checkOut    DateTime
+  totalAmount Decimal   @db.Decimal(10, 2)
+  apartment   Apartment @relation(fields: [apartmentId], references: [id])
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  payments    Payment[]
+  createdAt   DateTime  @default(now())
+}
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  bookingId       Int
+  method          PaymentMethod
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  referenceNumber String?
+  paidAt          DateTime?
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  createdAt       DateTime      @default(now())
+}
+
+model MaintenanceTicket {
+  id           Int          @id @default(autoincrement())
+  apartmentId  Int
+  description  String
+  priority     Priority
+  status       TicketStatus @default(OPEN)
+  assignedToId Int?
+  notes        String?
+  apartment    Apartment    @relation(fields: [apartmentId], references: [id])
+  assignedTo   User?        @relation(fields: [assignedToId], references: [id])
+  createdAt    DateTime     @default(now())
+  resolvedAt   DateTime?
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  entity    String
+  entityId  Int
+  action    String
+  userId    Int
+  metadata  Json?
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  RECEPTIONIST
+  MAINTENANCE
+  FINANCE
+}
+
+enum ApartmentStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
+  CLEANING
+  PENDING_CHECKOUT
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  INSTALLMENT
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  FAILED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+}
