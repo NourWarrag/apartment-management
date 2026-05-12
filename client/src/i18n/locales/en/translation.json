@@ -52,6 +52,42 @@
     "CLOSED": "Closed",
     "PAID": "Paid",
     "PENDING": "Pending",
-    "FAILED": "Failed"
+    "FAILED": "Failed",
+    "LOW": "Low",
+    "MEDIUM": "Medium",
+    "HIGH": "High"
+  },
+  "apartments": {
+    "title": "Apartments",
+    "addApartment": "Add Apartment",
+    "editApartment": "Edit Apartment",
+    "number": "Apartment No.",
+    "floor": "Floor",
+    "status": "Status",
+    "currentTenant": "Current Tenant",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "paymentStatus": "Payment Status",
+    "maintenanceStatus": "Maintenance",
+    "noCurrentBooking": "Vacant",
+    "bookingHistory": "Booking History",
+    "maintenanceHistory": "Maintenance History",
+    "changeStatus": "Change Status",
+    "dailyStatus": "Daily Status Report",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All Statuses"
+  },
+  "tenants": {
+    "title": "Tenants",
+    "addTenant": "Add Tenant",
+    "editTenant": "Edit Tenant",
+    "fullName": "Full Name",
+    "phone": "Phone",
+    "idNumber": "ID / Passport No.",
+    "registeredOn": "Registered",
+    "bookingHistory": "Booking History",
+    "paymentHistory": "Payment History",
+    "totalBookings": "Total Bookings",
+    "noBookings": "No bookings yet"
   }
 }

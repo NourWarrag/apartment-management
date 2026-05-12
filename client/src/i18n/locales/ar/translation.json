@@ -40,10 +40,10 @@
     "recentPayments": "المدفوعات الأخيرة"
   },
   "status": {
-    "AVAILABLE": "متاح",
-    "OCCUPIED": "مشغول",
+    "AVAILABLE": "متاحة",
+    "OCCUPIED": "مشغولة",
     "MAINTENANCE": "صيانة",
-    "RESERVED": "محجوز",
+    "RESERVED": "محجوزة",
     "CLEANING": "تنظيف",
     "PENDING_CHECKOUT": "في انتظار المغادرة",
     "OPEN": "مفتوح",
@@ -52,6 +52,42 @@
     "CLOSED": "مغلق",
     "PAID": "مدفوع",
     "PENDING": "معلق",
-    "FAILED": "فاشل"
+    "FAILED": "فشل",
+    "LOW": "منخفض",
+    "MEDIUM": "متوسط",
+    "HIGH": "عالي"
+  },
+  "apartments": {
+    "title": "الشقق",
+    "addApartment": "إضافة شقة",
+    "editApartment": "تعديل شقة",
+    "number": "رقم الشقة",
+    "floor": "الطابق",
+    "status": "الحالة",
+    "currentTenant": "المستأجر الحالي",
+    "checkIn": "تاريخ الدخول",
+    "checkOut": "تاريخ المغادرة",
+    "paymentStatus": "حالة الدفع",
+    "maintenanceStatus": "الصيانة",
+    "noCurrentBooking": "شاغرة",
+    "bookingHistory": "سجل الحجوزات",
+    "maintenanceHistory": "سجل الصيانة",
+    "changeStatus": "تغيير الحالة",
+    "dailyStatus": "تقرير الحالة اليومي",
+    "filterByStatus": "تصفية حسب الحالة",
+    "allStatuses": "جميع الحالات"
+  },
+  "tenants": {
+    "title": "المستأجرون",
+    "addTenant": "إضافة مستأجر",
+    "editTenant": "تعديل مستأجر",
+    "fullName": "الاسم الكامل",
+    "phone": "الهاتف",
+    "idNumber": "رقم الهوية / الجواز",
+    "registeredOn": "تاريخ التسجيل",
+    "bookingHistory": "سجل الحجوزات",
+    "paymentHistory": "سجل المدفوعات",
+    "totalBookings": "إجمالي الحجوزات",
+    "noBookings": "لا توجد حجوزات بعد"
   }
 }
