@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD: hotel123
+      POSTGRES_DB: hotel_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD: hotel123
+      POSTGRES_DB: hotel_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_test:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+  pgdata_test:

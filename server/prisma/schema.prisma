@@ -43,10 +43,14 @@ model Booking {
   checkIn     DateTime
   checkOut    DateTime
   totalAmount Decimal   @db.Decimal(10, 2)
-  apartment   Apartment @relation(fields: [apartmentId], references: [id])
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  apartment   Apartment @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   payments    Payment[]
   createdAt   DateTime  @default(now())
+
+  @@index([apartmentId])
+  @@index([tenantId])
+  @@index([checkOut])
 }
 
 model Payment {
@@ -57,8 +61,11 @@ model Payment {
   status          PaymentStatus @default(PENDING)
   referenceNumber String?
   paidAt          DateTime?
-  booking         Booking       @relation(fields: [bookingId], references: [id])
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   createdAt       DateTime      @default(now())
+
+  @@index([bookingId, status])
+  @@index([createdAt])
 }
 
 model MaintenanceTicket {
@@ -69,21 +76,27 @@ model MaintenanceTicket {
   status       TicketStatus @default(OPEN)
   assignedToId Int?
   notes        String?
-  apartment    Apartment    @relation(fields: [apartmentId], references: [id])
-  assignedTo   User?        @relation(fields: [assignedToId], references: [id])
+  apartment    Apartment    @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
+  assignedTo   User?        @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   createdAt    DateTime     @default(now())
   resolvedAt   DateTime?
+
+  @@index([status, priority])
+  @@index([assignedToId])
 }
 
 model AuditLog {
-  id        Int      @id @default(autoincrement())
-  entity    String
+  id        Int            @id @default(autoincrement())
+  entity    AuditLogEntity
   entityId  Int
   action    String
   userId    Int
   metadata  Json?
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  user      User           @relation(fields: [userId], references: [id])
+  createdAt DateTime       @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
 enum Role {
@@ -125,4 +138,13 @@ enum TicketStatus {
   IN_PROGRESS
   COMPLETED
   CLOSED
+}
+
+enum AuditLogEntity {
+  PAYMENT
+  TICKET
+  BOOKING
+  APARTMENT
+  TENANT
+  USER
 }
