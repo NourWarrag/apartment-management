@@ -10,6 +10,7 @@ const prisma = new PrismaClient({
 
 let adminCookie: string;
 let maintenanceCookie: string;
+let receptionistCookie: string;
 let tenant1Id: number;
 
 beforeAll(async () => {
@@ -34,6 +35,19 @@ beforeAll(async () => {
     },
   });
 
+  await prisma.user.create({
+    data: {
+      name: 'Receptionist',
+      email: 'reception@test.com',
+      password: await hashPassword('password123'),
+      role: 'RECEPTIONIST',
+    },
+  });
+
+  await prisma.tenant.create({
+    data: { fullName: 'Second Tenant', phone: '+971502222222', idNumber: 'B99999999' },
+  });
+
   const loginRes = await request(app)
     .post('/api/v1/auth/login')
     .send({ email: 'admin@test.com', password: 'password123' });
@@ -43,6 +57,11 @@ beforeAll(async () => {
     .post('/api/v1/auth/login')
     .send({ email: 'maintenance@test.com', password: 'password123' });
   maintenanceCookie = maintenanceLoginRes.headers['set-cookie'][0];
+
+  const receptionLoginRes = await request(app)
+    .post('/api/v1/auth/login')
+    .send({ email: 'reception@test.com', password: 'password123' });
+  receptionistCookie = receptionLoginRes.headers['set-cookie'][0];
 });
 
 afterAll(async () => {
@@ -94,6 +113,15 @@ describe('POST /api/v1/tenants', () => {
       .send({ fullName: 'Blocked', phone: '+97150000', idNumber: 'BLOCKED01' });
     expect(res.status).toBe(403);
   });
+
+  it('allows RECEPTIONIST role to create tenant', async () => {
+    const res = await request(app)
+      .post('/api/v1/tenants')
+      .set('Cookie', receptionistCookie)
+      .send({ fullName: 'Reception Tenant', phone: '+971503333333', idNumber: 'C11111111' });
+    expect(res.status).toBe(201);
+    expect(res.body.fullName).toBe('Reception Tenant');
+  });
 });
 
 describe('GET /api/v1/tenants', () => {
@@ -120,6 +148,14 @@ describe('GET /api/v1/tenants', () => {
       .set('Cookie', adminCookie);
     expect(res.status).toBe(200);
     expect(res.body.some((t: { idNumber: string }) => t.idNumber === 'A12345678')).toBe(true);
+  });
+
+  it('searches by phone', async () => {
+    const res = await request(app)
+      .get('/api/v1/tenants?search=501234567')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.some((t: { phone: string }) => t.phone.includes('501234567'))).toBe(true);
   });
 });
 
@@ -173,5 +209,23 @@ describe('PUT /api/v1/tenants/:id', () => {
       .set('Cookie', maintenanceCookie)
       .send({ phone: '+971508888888' });
     expect(res.status).toBe(403);
+  });
+
+  it('returns 409 when updating to a duplicate idNumber', async () => {
+    const res = await request(app)
+      .put(`/api/v1/tenants/${tenant1Id}`)
+      .set('Cookie', adminCookie)
+      .send({ idNumber: 'B99999999' });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe('ID number already registered');
+  });
+
+  it('allows RECEPTIONIST role to update tenant', async () => {
+    const res = await request(app)
+      .put(`/api/v1/tenants/${tenant1Id}`)
+      .set('Cookie', receptionistCookie)
+      .send({ phone: '+971507777777' });
+    expect(res.status).toBe(200);
+    expect(res.body.phone).toBe('+971507777777');
   });
 });
