@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "apartments": "الشقق",
+    "tenants": "المستأجرون",
+    "payments": "المدفوعات",
+    "tickets": "الصيانة",
+    "reports": "التقارير"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "loginButton": "دخول"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "loading": "جار التحميل...",
+    "noData": "لا توجد بيانات",
+    "viewAll": "عرض الكل",
+    "exportPdf": "تصدير PDF",
+    "print": "طباعة"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "totalApartments": "إجمالي الشقق",
+    "occupied": "مشغولة",
+    "available": "متاحة",
+    "todayRevenue": "إيرادات اليوم",
+    "pendingInstallments": "الأقساط المعلقة",
+    "openTickets": "التذاكر المفتوحة",
+    "weeklyRevenue": "الإيرادات الأسبوعية (درهم)",
+    "occupancyRate": "معدل الإشغال",
+    "recentPayments": "المدفوعات الأخيرة"
+  },
+  "status": {
+    "AVAILABLE": "متاح",
+    "OCCUPIED": "مشغول",
+    "MAINTENANCE": "صيانة",
+    "RESERVED": "محجوز",
+    "CLEANING": "تنظيف",
+    "PENDING_CHECKOUT": "في انتظار المغادرة",
+    "OPEN": "مفتوح",
+    "IN_PROGRESS": "قيد التنفيذ",
+    "COMPLETED": "مكتمل",
+    "CLOSED": "مغلق",
+    "PAID": "مدفوع",
+    "PENDING": "معلق",
+    "FAILED": "فاشل"
+  }
+}

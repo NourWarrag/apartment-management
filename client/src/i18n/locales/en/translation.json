@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "apartments": "Apartments",
+    "tenants": "Tenants",
+    "payments": "Payments",
+    "tickets": "Maintenance",
+    "reports": "Reports"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "loginButton": "Sign In"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "noData": "No data found",
+    "viewAll": "View all",
+    "exportPdf": "Export PDF",
+    "print": "Print"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalApartments": "Total Apartments",
+    "occupied": "Occupied",
+    "available": "Available",
+    "todayRevenue": "Today's Revenue",
+    "pendingInstallments": "Pending Installments",
+    "openTickets": "Open Tickets",
+    "weeklyRevenue": "Weekly Revenue (AED)",
+    "occupancyRate": "Occupancy Rate",
+    "recentPayments": "Recent Payments"
+  },
+  "status": {
+    "AVAILABLE": "Available",
+    "OCCUPIED": "Occupied",
+    "MAINTENANCE": "Maintenance",
+    "RESERVED": "Reserved",
+    "CLEANING": "Cleaning",
+    "PENDING_CHECKOUT": "Pending Checkout",
+    "OPEN": "Open",
+    "IN_PROGRESS": "In Progress",
+    "COMPLETED": "Completed",
+    "CLOSED": "Closed",
+    "PAID": "Paid",
+    "PENDING": "Pending",
+    "FAILED": "Failed"
+  }
+}
