@@ -160,6 +160,13 @@ describe('GET /api/v1/apartments', () => {
       expect(a.type).toBe('ONE_BEDROOM');
     });
   });
+
+  it('returns 400 for invalid type query param', async () => {
+    const res = await request(app)
+      .get('/api/v1/apartments?type=INVALID_TYPE')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('GET /api/v1/apartments/:id', () => {

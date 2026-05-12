@@ -81,13 +81,13 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
   }
 
   try {
-    const apartment = await prisma.apartment.create({
-      data: {
-        number: String(number).trim(),
-        floor: Number(floor),
-        ...(type ? { type: type as ApartmentType } : {}),
-      },
-    });
+    const data: Prisma.ApartmentCreateInput = {
+      number: String(number).trim(),
+      floor: Number(floor),
+    };
+    if (type) data.type = type as ApartmentType;
+
+    const apartment = await prisma.apartment.create({ data });
     res.status(201).json(apartment);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
