@@ -22,18 +22,22 @@ model Apartment {
   id       Int             @id @default(autoincrement())
   number   String          @unique
   floor    Int
+  type     ApartmentType   @default(STUDIO)
   status   ApartmentStatus @default(AVAILABLE)
   bookings Booking[]
   tickets  MaintenanceTicket[]
 }
 
 model Tenant {
-  id        Int       @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   fullName  String
   phone     String
-  idNumber  String    @unique
+  idNumber  String      @unique
+  kycStatus KycStatus   @default(PENDING)
+  tier      TenantTier  @default(NEW)
+  notes     String?
   bookings  Booking[]
-  createdAt DateTime  @default(now())
+  createdAt DateTime    @default(now())
 }
 
 model Booking {
@@ -147,4 +151,24 @@ enum AuditLogEntity {
   APARTMENT
   TENANT
   USER
+}
+
+enum ApartmentType {
+  STUDIO
+  ONE_BEDROOM
+  TWO_BEDROOM
+  PENTHOUSE
+}
+
+enum KycStatus {
+  VERIFIED
+  PENDING
+  ACTION_REQUIRED
+}
+
+enum TenantTier {
+  NEW
+  SILVER
+  GOLD
+  PLATINUM
 }

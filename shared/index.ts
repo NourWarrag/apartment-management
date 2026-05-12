@@ -14,6 +14,26 @@ export enum ApartmentStatus {
   PENDING_CHECKOUT = 'PENDING_CHECKOUT',
 }
 
+export enum ApartmentType {
+  STUDIO = 'STUDIO',
+  ONE_BEDROOM = 'ONE_BEDROOM',
+  TWO_BEDROOM = 'TWO_BEDROOM',
+  PENTHOUSE = 'PENTHOUSE',
+}
+
+export enum KycStatus {
+  VERIFIED = 'VERIFIED',
+  PENDING = 'PENDING',
+  ACTION_REQUIRED = 'ACTION_REQUIRED',
+}
+
+export enum TenantTier {
+  NEW = 'NEW',
+  SILVER = 'SILVER',
+  GOLD = 'GOLD',
+  PLATINUM = 'PLATINUM',
+}
+
 export enum PaymentMethod {
   CASH = 'CASH',
   CARD = 'CARD',
