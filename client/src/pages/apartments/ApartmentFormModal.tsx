@@ -28,11 +28,11 @@ export default function ApartmentFormModal({ apartment, onClose }: Props) {
   const { t } = useTranslation();
   const isEdit = !!apartment;
   const create = useCreateApartment();
-  const update = useUpdateApartment(apartment?.id ?? 0);
+  const update = useUpdateApartment(apartment?.id ?? -1);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { number: '', floor: 1 },
+    defaultValues: { number: '', floor: 0 },
   });
 
   useEffect(() => {
@@ -43,11 +43,10 @@ export default function ApartmentFormModal({ apartment, onClose }: Props) {
     try {
       if (isEdit) {
         await update.mutateAsync(data);
-        toast.success(t('apartments.editApartment') + ' saved');
       } else {
         await create.mutateAsync({ number: data.number, floor: data.floor });
-        toast.success(t('apartments.addApartment') + ' created');
       }
+      toast.success(isEdit ? t('common.savedSuccessfully', 'Saved successfully') : t('common.createdSuccessfully', 'Created successfully'));
       onClose();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
