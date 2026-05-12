@@ -7,6 +7,12 @@ import { Prisma } from '@prisma/client';
 export async function list(req: AuthRequest, res: Response): Promise<void> {
   const { status, search } = req.query as { status?: string; search?: string };
 
+  const VALID_STATUSES = Object.values(ApartmentStatus);
+  if (status && !VALID_STATUSES.includes(status as ApartmentStatus)) {
+    res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+    return;
+  }
+
   const where: Prisma.ApartmentWhereInput = {};
   if (status) where.status = status as ApartmentStatus;
   if (search) where.number = { contains: search, mode: 'insensitive' };
@@ -16,7 +22,7 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     orderBy: { number: 'asc' },
     include: {
       bookings: {
-        where: { checkOut: { gte: new Date() } },
+        where: { checkIn: { lte: new Date() }, checkOut: { gte: new Date() } },
         take: 1,
         orderBy: { checkIn: 'desc' },
         include: {
@@ -69,6 +75,11 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
 export async function getById(req: AuthRequest, res: Response): Promise<void> {
   const id = Number(req.params.id);
 
+  if (isNaN(id)) {
+    res.status(400).json({ message: 'Invalid id' });
+    return;
+  }
+
   const apartment = await prisma.apartment.findUnique({
     where: { id },
     include: {
@@ -101,11 +112,23 @@ export async function getById(req: AuthRequest, res: Response): Promise<void> {
 
 export async function update(req: AuthRequest, res: Response): Promise<void> {
   const id = Number(req.params.id);
+
+  if (isNaN(id)) {
+    res.status(400).json({ message: 'Invalid id' });
+    return;
+  }
+
   const { number, floor, status } = req.body as {
     number?: string;
     floor?: number;
     status?: ApartmentStatus;
   };
+
+  const VALID_STATUSES = Object.values(ApartmentStatus);
+  if (status !== undefined && !VALID_STATUSES.includes(status)) {
+    res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+    return;
+  }
 
   const data: Prisma.ApartmentUpdateInput = {};
   if (number !== undefined) data.number = String(number).trim();

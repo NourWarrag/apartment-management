@@ -9,6 +9,7 @@ const prisma = new PrismaClient({
 });
 
 let adminCookie: string;
+let maintenanceCookie: string;
 let apt1Id: number;
 
 beforeAll(async () => {
@@ -28,6 +29,20 @@ beforeAll(async () => {
     .post('/api/v1/auth/login')
     .send({ email: 'admin@test.com', password: 'password123' });
   adminCookie = loginRes.headers['set-cookie'][0];
+
+  await prisma.user.create({
+    data: {
+      name: 'Maintenance',
+      email: 'maintenance@test.com',
+      password: await hashPassword('password123'),
+      role: 'MAINTENANCE',
+    },
+  });
+
+  const maintenanceLoginRes = await request(app)
+    .post('/api/v1/auth/login')
+    .send({ email: 'maintenance@test.com', password: 'password123' });
+  maintenanceCookie = maintenanceLoginRes.headers['set-cookie'][0];
 });
 
 afterAll(async () => {
@@ -62,6 +77,14 @@ describe('POST /api/v1/apartments', () => {
       .post('/api/v1/apartments')
       .send({ number: '999', floor: 9 });
     expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for MAINTENANCE role', async () => {
+    const res = await request(app)
+      .post('/api/v1/apartments')
+      .set('Cookie', maintenanceCookie)
+      .send({ number: '777', floor: 7 });
+    expect(res.status).toBe(403);
   });
 });
 
@@ -130,5 +153,21 @@ describe('PUT /api/v1/apartments/:id', () => {
       .send({ number: '101A', floor: 1 });
     expect(res.status).toBe(200);
     expect(res.body.number).toBe('101A');
+  });
+
+  it('returns 404 for unknown id', async () => {
+    const res = await request(app)
+      .put('/api/v1/apartments/99999')
+      .set('Cookie', adminCookie)
+      .send({ status: 'AVAILABLE' });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 403 for MAINTENANCE role', async () => {
+    const res = await request(app)
+      .put(`/api/v1/apartments/${apt1Id}`)
+      .set('Cookie', maintenanceCookie)
+      .send({ status: 'AVAILABLE' });
+    expect(res.status).toBe(403);
   });
 });
