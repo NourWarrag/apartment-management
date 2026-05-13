@@ -8,6 +8,7 @@ import ApartmentDetailPage from './pages/apartments/ApartmentDetailPage';
 import TenantsPage from './pages/tenants/TenantsPage';
 import TenantDetailPage from './pages/tenants/TenantDetailPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import PaymentsPage from './pages/payments/PaymentsPage';
 
 const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
 const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
@@ -68,10 +69,10 @@ export default function App() {
             }
           />
           <Route
-            path="payments/*"
+            path="payments"
             element={
               <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
-                <div className="text-on-surface font-semibold p-4">Payments — coming in Phase 3</div>
+                <PaymentsPage />
               </ProtectedRoute>
             }
           />

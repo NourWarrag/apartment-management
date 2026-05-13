@@ -5,6 +5,7 @@ import { ApartmentStatus, ApartmentType, Role } from '@hotel/shared';
 import { useApartments, ApartmentListItem } from '../../hooks/useApartments';
 import ApartmentStatusBadge from '../../components/apartments/ApartmentStatusBadge';
 import ApartmentFormModal from './ApartmentFormModal';
+import PaymentFormModal from '../payments/PaymentFormModal';
 import { useAuth } from '../../hooks/useAuth';
 
 const PAGE_SIZE = 10;
@@ -51,6 +52,10 @@ export default function ApartmentsPage() {
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<ApartmentListItem | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<{
+    bookingId: number;
+    summary: { tenantName: string; apartmentNumber: string; checkIn: string; checkOut: string };
+  } | null>(null);
 
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
 
@@ -312,12 +317,33 @@ export default function ApartmentsPage() {
                       </td>
                       <td className="px-table-cell-padding-x py-table-cell-padding-y text-right">
                         {canEdit ? (
-                          <button
-                            onClick={() => { setEditTarget(apt); setShowModal(true); }}
-                            className="p-1 hover:bg-surface-container rounded-full"
-                          >
-                            <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            {apt.currentBooking && (
+                              <button
+                                onClick={() =>
+                                  setPaymentTarget({
+                                    bookingId: apt.currentBooking!.id,
+                                    summary: {
+                                      tenantName: apt.currentBooking!.tenant.fullName,
+                                      apartmentNumber: apt.number,
+                                      checkIn: apt.currentBooking!.checkIn,
+                                      checkOut: apt.currentBooking!.checkOut,
+                                    },
+                                  })
+                                }
+                                className="p-1 hover:bg-surface-container rounded-full"
+                                title="Record payment"
+                              >
+                                <span className="material-symbols-outlined text-[20px] text-green-600">payments</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setEditTarget(apt); setShowModal(true); }}
+                              className="p-1 hover:bg-surface-container rounded-full"
+                            >
+                              <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                            </button>
+                          </div>
                         ) : (
                           apt.status === ApartmentStatus.AVAILABLE && (
                             <button className="text-primary font-bold hover:underline text-body-sm">Check In</button>
@@ -445,6 +471,14 @@ export default function ApartmentsPage() {
         <ApartmentFormModal
           apartment={editTarget}
           onClose={() => setShowModal(false)}
+        />
+      )}
+      {paymentTarget && (
+        <PaymentFormModal
+          open={!!paymentTarget}
+          onClose={() => setPaymentTarget(null)}
+          bookingId={paymentTarget.bookingId}
+          bookingSummary={paymentTarget.summary}
         />
       )}
     </div>
