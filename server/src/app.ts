@@ -5,6 +5,8 @@ import apartmentsRoutes from './routes/apartments.routes';
 import tenantsRoutes from './routes/tenants.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import paymentsRoutes from './routes/payments.routes';
+import ticketsRoutes from './routes/tickets.routes';
+import usersRoutes from './routes/users.routes';
 
 const app = express();
 
@@ -16,6 +18,8 @@ app.use('/api/v1/apartments', apartmentsRoutes);
 app.use('/api/v1/tenants', tenantsRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/payments', paymentsRoutes);
+app.use('/api/v1/tickets', ticketsRoutes);
+app.use('/api/v1/users', usersRoutes);
 
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
