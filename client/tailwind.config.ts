@@ -8,6 +8,15 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      fontSize: {
+        'display-lg': ['30px', { lineHeight: '38px', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'headline-md': ['20px', { lineHeight: '28px', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'body-base': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+        'body-sm': ['13px', { lineHeight: '18px', fontWeight: '400' }],
+        'table-data': ['13px', { lineHeight: '16px', fontWeight: '500' }],
+        'status-pill': ['12px', { lineHeight: '16px', fontWeight: '600' }],
+        'label-caps': ['11px', { lineHeight: '12px', letterSpacing: '0.05em', fontWeight: '700' }],
+      },
       colors: {
         primary: 'var(--color-primary)',
         'on-primary': 'var(--color-on-primary)',
@@ -67,6 +76,8 @@ export default {
         'widget-gap': '1.5rem',
         'stack-base': '1rem',
         'stack-tight': '0.5rem',
+        'table-cell-padding-y': '0.75rem',
+        'table-cell-padding-x': '1rem',
       },
     },
   },
