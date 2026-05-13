@@ -6,7 +6,7 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <div className="ml-[280px] flex flex-col min-h-screen">
+      <div className="ltr:ml-[280px] rtl:mr-[280px] flex flex-col min-h-screen">
         <TopBar />
         <main className="flex-1 p-container-padding">
           <Outlet />
