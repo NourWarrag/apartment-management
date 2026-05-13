@@ -5,11 +5,8 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { ApartmentStatus, ApartmentType } from '@hotel/shared';
-import {
-  useCreateApartment,
-  useUpdateApartment,
-  ApartmentListItem,
-} from '../../hooks/useApartments';
+import { useCreateApartment, useUpdateApartment } from '../../hooks/useApartments';
+import type { ApartmentListItem } from '../../hooks/useApartments';
 
 const schema = z.object({
   number: z.string().min(1, 'Required'),

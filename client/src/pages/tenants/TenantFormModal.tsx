@@ -5,7 +5,8 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { KycStatus, TenantTier } from '@hotel/shared';
-import { useCreateTenant, useUpdateTenant, TenantListItem } from '../../hooks/useTenants';
+import { useCreateTenant, useUpdateTenant } from '../../hooks/useTenants';
+import type { TenantListItem } from '../../hooks/useTenants';
 
 const schema = z.object({
   fullName: z.string().min(2, 'Required'),
