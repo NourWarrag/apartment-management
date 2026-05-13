@@ -16,7 +16,7 @@ export default function TopBar() {
     <header className="flex justify-between items-center h-16 px-8 bg-surface border-b border-outline-variant sticky top-0 z-10">
       {/* Search */}
       <div className="flex items-center bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant w-80">
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px] mr-2">search</span>
+        <span className="material-symbols-outlined text-on-surface-variant text-[20px] ltr:mr-2 rtl:ml-2">search</span>
         <input
           className="bg-transparent border-none outline-none text-sm w-full placeholder-on-surface-variant/60 text-on-surface"
           placeholder={t('common.search')}
@@ -40,8 +40,8 @@ export default function TopBar() {
         </button>
 
         {/* User menu */}
-        <div className="flex items-center gap-3 ml-1 pl-3 border-l border-outline-variant">
-          <div className="text-right">
+        <div className="flex items-center gap-3 ltr:ml-1 rtl:mr-1 ltr:pl-3 rtl:pr-3 ltr:border-l rtl:border-r border-outline-variant">
+          <div className="ltr:text-right rtl:text-left">
             <p className="text-sm font-semibold text-primary leading-tight">{user?.name ?? '...'}</p>
             <p className="text-[10px] text-on-surface-variant">{user?.role ?? ''}</p>
           </div>
@@ -49,10 +49,10 @@ export default function TopBar() {
             <button className="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-sm text-primary border border-outline-variant">
               {initials}
             </button>
-            <div className="hidden group-hover:block absolute right-0 top-full mt-2 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg py-1 min-w-32 z-50">
+            <div className="hidden group-hover:block absolute ltr:right-0 rtl:left-0 top-full mt-2 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg py-1 min-w-32 z-50">
               <button
                 onClick={() => logout.mutate()}
-                className="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
+                className="w-full ltr:text-left rtl:text-right px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
               >
                 {t('auth.logout')}
               </button>
