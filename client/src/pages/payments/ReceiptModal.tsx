@@ -55,7 +55,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
           <div className="space-y-2 mb-4">
             <div className="flex justify-between text-sm">
               <span className="text-on-surface-variant">Apartment</span>
-              <span className="text-on-surface font-bold">{payment.booking.apartment.number}</span>
+              <span className="text-on-surface font-bold">{payment.booking.apartment.number} — Floor {payment.booking.apartment.floor}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-on-surface-variant">Tenant</span>
