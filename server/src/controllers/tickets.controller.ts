@@ -104,6 +104,12 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
     };
 
     const isMaintenance = req.user?.role === Role.MAINTENANCE;
+    const isAdminOrReceptionist = req.user?.role === Role.ADMIN || req.user?.role === Role.RECEPTIONIST;
+
+    if (!isMaintenance && !isAdminOrReceptionist) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
 
     // Field restriction check against request body only — no DB read needed
     if (isMaintenance && (priority !== undefined || assignedToId !== undefined || apartmentId !== undefined)) {
@@ -167,6 +173,10 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       }
       // updateMany doesn't return the record — fetch it for the response
       const updated = await prisma.maintenanceTicket.findUnique({ where: { id }, include: ticketInclude });
+      if (!updated) {
+        res.status(404).json({ message: 'Ticket not found' });
+        return;
+      }
       res.json(updated);
     } else {
       // ADMIN/RECEPTIONIST: update by unique id, surface P2025 as 404
