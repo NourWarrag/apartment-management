@@ -124,6 +124,26 @@ describe('POST /api/v1/tenants', () => {
     expect(res.status).toBe(201);
     expect(res.body.fullName).toBe('Reception Tenant');
   });
+
+  it('creates tenant with explicit kycStatus and tier', async () => {
+    const res = await request(app)
+      .post('/api/v1/tenants')
+      .set('Cookie', adminCookie)
+      .send({ fullName: 'KYC Test', phone: '+971501112222', idNumber: 'KYC-001', kycStatus: 'VERIFIED', tier: 'GOLD' });
+    expect(res.status).toBe(201);
+    expect(res.body.kycStatus).toBe('VERIFIED');
+    expect(res.body.tier).toBe('GOLD');
+  });
+
+  it('defaults kycStatus to PENDING and tier to NEW', async () => {
+    const res = await request(app)
+      .post('/api/v1/tenants')
+      .set('Cookie', adminCookie)
+      .send({ fullName: 'Default Test', phone: '+971509998888', idNumber: 'DEF-001' });
+    expect(res.status).toBe(201);
+    expect(res.body.kycStatus).toBe('PENDING');
+    expect(res.body.tier).toBe('NEW');
+  });
 });
 
 describe('GET /api/v1/tenants', () => {
@@ -158,6 +178,16 @@ describe('GET /api/v1/tenants', () => {
       .set('Cookie', adminCookie);
     expect(res.status).toBe(200);
     expect(res.body.some((t: { phone: string }) => t.phone.includes('501234567'))).toBe(true);
+  });
+
+  it('list items include kycStatus, tier, and currentBooking fields', async () => {
+    const res = await request(app)
+      .get('/api/v1/tenants')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toHaveProperty('kycStatus');
+    expect(res.body[0]).toHaveProperty('tier');
+    expect(res.body[0]).toHaveProperty('currentBooking');
   });
 });
 
@@ -236,5 +266,23 @@ describe('PUT /api/v1/tenants/:id', () => {
       .put(`/api/v1/tenants/${tenant1Id}`)
       .send({ phone: '+971500000000' });
     expect(res.status).toBe(401);
+  });
+
+  it('updates kycStatus', async () => {
+    const res = await request(app)
+      .put(`/api/v1/tenants/${tenant1Id}`)
+      .set('Cookie', adminCookie)
+      .send({ kycStatus: 'VERIFIED' });
+    expect(res.status).toBe(200);
+    expect(res.body.kycStatus).toBe('VERIFIED');
+  });
+
+  it('updates notes', async () => {
+    const res = await request(app)
+      .put(`/api/v1/tenants/${tenant1Id}`)
+      .set('Cookie', adminCookie)
+      .send({ notes: 'Prefers email contact.' });
+    expect(res.status).toBe(200);
+    expect(res.body.notes).toBe('Prefers email contact.');
   });
 });
