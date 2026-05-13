@@ -80,7 +80,7 @@ export function useApartment(id: number) {
       const res = await api.get(`/apartments/${id}`);
       return res.data;
     },
-    enabled: !!id,
+    enabled: id > 0,
   });
 }
 
