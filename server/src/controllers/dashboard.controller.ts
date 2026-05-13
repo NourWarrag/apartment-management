@@ -71,6 +71,7 @@ export async function activity(_req: AuthRequest, res: Response): Promise<void> 
         include: { booking: { include: { tenant: { select: { fullName: true } } } } },
       }),
       prisma.maintenanceTicket.findMany({
+        where: { createdAt: { gte: startOfToday, lt: startOfTomorrow } },
         orderBy: { createdAt: 'desc' },
         take: 20,
         include: { apartment: { select: { number: true } } },

@@ -126,8 +126,8 @@ export default function DashboardPage() {
 
         {!activityLoading && !activityError && activityData && activityData.events.length > 0 && (
           <ul className="space-y-3">
-            {activityData.events.map((event) => (
-              <li key={`${event.type}-${event.timestamp}`} className="flex items-start gap-3">
+            {activityData.events.map((event, i) => (
+              <li key={`${event.type}-${event.timestamp}-${i}`} className="flex items-start gap-3">
                 <span className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${EVENT_COLOR[event.type]}`}>
                   {EVENT_ICON[event.type]}
                 </span>
