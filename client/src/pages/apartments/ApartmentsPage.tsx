@@ -331,43 +331,48 @@ export default function ApartmentsPage() {
         </div>
 
         {/* Pagination */}
-        {tableData.length > PAGE_SIZE && (
+        {tableData.length > 0 && (
           <div className="bg-surface-container-low px-container-padding py-3 border-t border-outline-variant flex items-center justify-between">
             <p className="text-on-surface-variant text-body-sm">
               Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, tableData.length)} of {tableData.length} units
             </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-              </button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`w-8 h-8 flex items-center justify-center rounded text-body-sm font-bold transition-colors ${
-                      page === pageNum
-                        ? 'bg-primary text-on-primary'
-                        : 'border border-outline-variant hover:bg-surface'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-              </button>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface transition-colors disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                </button>
+                {(() => {
+                  const windowSize = 5;
+                  const half = Math.floor(windowSize / 2);
+                  const start = Math.max(1, Math.min(page - half, totalPages - windowSize + 1));
+                  const end = Math.min(totalPages, start + windowSize - 1);
+                  return Array.from({ length: end - start + 1 }, (_, i) => start + i).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-8 h-8 flex items-center justify-center rounded text-body-sm font-bold transition-colors ${
+                        page === pageNum
+                          ? 'bg-primary text-on-primary'
+                          : 'border border-outline-variant hover:bg-surface'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ));
+                })()}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface transition-colors disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
