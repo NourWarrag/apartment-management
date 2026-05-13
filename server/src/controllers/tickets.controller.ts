@@ -137,6 +137,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       notes?: string;
       priority?: Priority;
       assignedToId?: number | null;
+      apartmentId?: number;
     } = {};
     if (status !== undefined) {
       data.status = status as TicketStatus;
@@ -146,6 +147,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
     if (!isMaintenance) {
       if (priority !== undefined) data.priority = priority as Priority;
       if (assignedToId !== undefined) data.assignedToId = assignedToId === null ? null : Number(assignedToId);
+      if (apartmentId !== undefined) data.apartmentId = Number(apartmentId);
     }
 
     if (isMaintenance) {
