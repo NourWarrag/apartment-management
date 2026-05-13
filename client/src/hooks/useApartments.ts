@@ -70,6 +70,7 @@ export function useApartments(filters?: { status?: ApartmentStatus; type?: Apart
       const res = await api.get(`/apartments?${params.toString()}`);
       return res.data;
     },
+    enabled: filters !== undefined,
   });
 }
 

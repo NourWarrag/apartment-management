@@ -8,7 +8,7 @@ import { ApartmentStatus } from '@hotel/shared';
 
 const schema = z.object({
   method: z.enum(['CASH', 'CARD', 'INSTALLMENT']),
-  amount: z.coerce.number().positive('Amount must be greater than 0'),
+  amount: z.coerce.number().min(0.01, 'Amount must be at least 0.01'),
   referenceNumber: z.string().optional(),
 });
 
@@ -106,14 +106,20 @@ export default function PaymentFormModal({ open, onClose, bookingId: prefilledBo
         </div>
 
         {/* Mode A: pre-filled booking summary */}
-        {prefilledBookingId && bookingSummary && (
-          <div className="mb-5 p-3 bg-surface-container rounded-lg border border-outline-variant">
-            <p className="text-sm font-bold text-on-surface">{bookingSummary.tenantName}</p>
-            <p className="text-xs text-on-surface-variant">Apt {bookingSummary.apartmentNumber}</p>
-            <p className="text-xs text-on-surface-variant">
-              {formatDate(bookingSummary.checkIn)} — {formatDate(bookingSummary.checkOut)}
-            </p>
-          </div>
+        {prefilledBookingId && (
+          bookingSummary ? (
+            <div className="mb-5 p-3 bg-surface-container rounded-lg border border-outline-variant">
+              <p className="text-sm font-bold text-on-surface">{bookingSummary.tenantName}</p>
+              <p className="text-xs text-on-surface-variant">Apt {bookingSummary.apartmentNumber}</p>
+              <p className="text-xs text-on-surface-variant">
+                {formatDate(bookingSummary.checkIn)} — {formatDate(bookingSummary.checkOut)}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-5 p-3 bg-surface-container rounded-lg border border-outline-variant">
+              <p className="text-xs text-on-surface-variant">Booking #{prefilledBookingId}</p>
+            </div>
+          )
         )}
 
         {/* Mode B: apartment search */}
