@@ -22,7 +22,7 @@ function StatusBadge({ status }: { status: PaymentListItem['status'] }) {
 }
 
 function formatAed(amount: string): string {
-  return `AED ${Number(amount).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `AED ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDate(iso: string): string {
@@ -43,6 +43,7 @@ export default function PaymentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [receiptTarget, setReceiptTarget] = useState<PaymentListItem | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<number | null>(null);
+  const [markPaidError, setMarkPaidError] = useState<string | null>(null);
 
   const { data, isLoading, isError } = usePayments({
     status: appliedStatus || undefined,
@@ -62,8 +63,12 @@ export default function PaymentsPage() {
 
   const handleMarkPaid = async (id: number) => {
     setMarkingPaidId(id);
+    setMarkPaidError(null);
     try {
       await markPaid.mutateAsync(id);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setMarkPaidError(msg ?? 'Failed to mark payment as paid. Please try again.');
     } finally {
       setMarkingPaidId(null);
     }
@@ -138,6 +143,12 @@ export default function PaymentsPage() {
           </button>
         </div>
       </div>
+
+      {markPaidError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {markPaidError}
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
