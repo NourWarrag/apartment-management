@@ -1,9 +1,43 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import { PrismaClient } from '@prisma/client';
 import app from '../app';
 import { signToken } from '../lib/jwt';
+import prisma from '../lib/prisma';
 
-const adminCookie = `token=${signToken({ id: 1, role: 'ADMIN' })}`;
+const testPrisma = new PrismaClient({
+  datasources: { db: { url: process.env.TEST_DATABASE_URL } },
+});
+
+let adminCookie: string;
+
+beforeAll(async () => {
+  adminCookie = `token=${signToken({ id: 1, role: 'ADMIN' })}`;
+
+  // Seed 12 apartments so the total assertion is deterministic
+  await testPrisma.apartment.deleteMany();
+  const aptData = [
+    { number: '101', floor: 1, type: 'STUDIO' as const,      status: 'OCCUPIED' as const },
+    { number: '102', floor: 1, type: 'ONE_BEDROOM' as const,  status: 'AVAILABLE' as const },
+    { number: '103', floor: 1, type: 'TWO_BEDROOM' as const,  status: 'RESERVED' as const },
+    { number: '201', floor: 2, type: 'ONE_BEDROOM' as const,  status: 'OCCUPIED' as const },
+    { number: '202', floor: 2, type: 'PENTHOUSE' as const,    status: 'MAINTENANCE' as const },
+    { number: '203', floor: 2, type: 'STUDIO' as const,      status: 'AVAILABLE' as const },
+    { number: '301', floor: 3, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const },
+    { number: '302', floor: 3, type: 'ONE_BEDROOM' as const,  status: 'PENDING_CHECKOUT' as const },
+    { number: '401', floor: 4, type: 'PENTHOUSE' as const,    status: 'OCCUPIED' as const },
+    { number: '402', floor: 4, type: 'STUDIO' as const,      status: 'AVAILABLE' as const },
+    { number: '501', floor: 5, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const },
+    { number: '502', floor: 5, type: 'ONE_BEDROOM' as const,  status: 'RESERVED' as const },
+  ];
+  await testPrisma.apartment.createMany({ data: aptData });
+});
+
+afterAll(async () => {
+  await testPrisma.apartment.deleteMany();
+  await testPrisma.$disconnect();
+  await prisma.$disconnect();
+});
 
 describe('GET /api/v1/dashboard/stats', () => {
   it('returns 401 without auth', async () => {
@@ -35,7 +69,7 @@ describe('GET /api/v1/dashboard/stats', () => {
     });
   });
 
-  it('apartment total equals sum of all status counts', async () => {
+  it('apartment total matches seeded count and status buckets are populated', async () => {
     const res = await request(app)
       .get('/api/v1/dashboard/stats')
       .set('Cookie', adminCookie);
@@ -43,9 +77,8 @@ describe('GET /api/v1/dashboard/stats', () => {
     const { apartments } = res.body as {
       apartments: { total: number; occupied: number; available: number; maintenance: number };
     };
-    expect(apartments.total).toBeGreaterThanOrEqual(
-      apartments.occupied + apartments.available + apartments.maintenance
-    );
+    expect(apartments.total).toBe(12);
+    expect(apartments.occupied + apartments.available + apartments.maintenance).toBeGreaterThan(0);
   });
 
   it('revenue total equals sum of cash + card + installment', async () => {
@@ -81,6 +114,7 @@ describe('GET /api/v1/dashboard/activity', () => {
       .get('/api/v1/dashboard/activity')
       .set('Cookie', adminCookie);
 
+    expect(res.status).toBe(200);
     for (const event of res.body.events) {
       expect(event).toHaveProperty('type');
       expect(event).toHaveProperty('label');
