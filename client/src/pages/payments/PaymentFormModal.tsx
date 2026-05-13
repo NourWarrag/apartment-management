@@ -41,7 +41,8 @@ export default function PaymentFormModal({ open, onClose, bookingId: prefilledBo
 
   // Mode B: fetch occupied apartments for booking search
   const { data: apartments = [] } = useApartments(
-    prefilledBookingId ? undefined : { status: ApartmentStatus.OCCUPIED }
+    { status: ApartmentStatus.OCCUPIED },
+    { enabled: !prefilledBookingId }
   );
 
   const {

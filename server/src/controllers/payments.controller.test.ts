@@ -130,6 +130,28 @@ describe('GET /api/v1/payments', () => {
     }
   });
 
+  it('filters by search (tenant name)', async () => {
+    const res = await request(app)
+      .get('/api/v1/payments?search=Test+Tenant')
+      .set('Cookie', adminCookie);
+
+    expect(res.status).toBe(200);
+    for (const item of res.body.data) {
+      expect(item.booking.tenant.fullName.toLowerCase()).toContain('test tenant'.toLowerCase());
+    }
+  });
+
+  it('returns page 2 with empty data when total <= 20', async () => {
+    const res = await request(app)
+      .get('/api/v1/payments?page=2')
+      .set('Cookie', adminCookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.page).toBe(2);
+    expect(res.body.data).toEqual([]);
+    expect(typeof res.body.total).toBe('number');
+  });
+
   it('FINANCE role can list payments', async () => {
     const res = await request(app)
       .get('/api/v1/payments')
@@ -150,6 +172,20 @@ describe('POST /api/v1/payments', () => {
       .set('Cookie', financeCookie)
       .send({ bookingId, method: 'CASH', amount: 1000 });
     expect(res.status).toBe(403);
+  });
+
+  it('RECEPTIONIST role can create a payment', async () => {
+    const receptionistCookie = `token=${signToken({ id: 3, role: 'RECEPTIONIST' })}`;
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Cookie', receptionistCookie)
+      .send({ bookingId, method: 'CASH', amount: 750 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('PAID');
+
+    // Clean up
+    await testPrisma.payment.delete({ where: { id: res.body.id } });
   });
 
   it('returns 400 when required fields are missing', async () => {

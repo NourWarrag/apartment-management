@@ -58,7 +58,10 @@ export interface UpdateApartmentDto {
   status?: ApartmentStatus;
 }
 
-export function useApartments(filters?: { status?: ApartmentStatus; type?: ApartmentType; search?: string }) {
+export function useApartments(
+  filters?: { status?: ApartmentStatus; type?: ApartmentType; search?: string },
+  options?: { enabled?: boolean }
+) {
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.type) params.set('type', filters.type);
@@ -70,7 +73,7 @@ export function useApartments(filters?: { status?: ApartmentStatus; type?: Apart
       const res = await api.get(`/apartments?${params.toString()}`);
       return res.data;
     },
-    enabled: filters !== undefined,
+    enabled: options?.enabled ?? true,
   });
 }
 
