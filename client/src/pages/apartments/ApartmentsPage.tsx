@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ApartmentStatus, ApartmentType, Role } from '@hotel/shared';
 import { useApartments, ApartmentListItem } from '../../hooks/useApartments';
@@ -37,15 +37,17 @@ function isWithinDays(dateStr: string, days: number): boolean {
 
 export default function ApartmentsPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const initialStatus = (searchParams.get('status') as ApartmentStatus | null) ?? '';
   const { data: user } = useAuth();
   const [search, setSearch] = useState('');
   const [floorFilter, setFloorFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<ApartmentType | ''>('');
-  const [statusFilter, setStatusFilter] = useState<ApartmentStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState<ApartmentStatus | ''>(initialStatus);
   const [appliedSearch, setAppliedSearch] = useState('');
   const [appliedFloor, setAppliedFloor] = useState<string>('');
   const [appliedType, setAppliedType] = useState<ApartmentType | ''>('');
-  const [appliedStatus, setAppliedStatus] = useState<ApartmentStatus | ''>('');
+  const [appliedStatus, setAppliedStatus] = useState<ApartmentStatus | ''>(initialStatus);
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<ApartmentListItem | null>(null);

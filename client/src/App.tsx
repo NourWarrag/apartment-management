@@ -7,6 +7,7 @@ import ApartmentsPage from './pages/apartments/ApartmentsPage';
 import ApartmentDetailPage from './pages/apartments/ApartmentDetailPage';
 import TenantsPage from './pages/tenants/TenantsPage';
 import TenantDetailPage from './pages/tenants/TenantDetailPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
 
 const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
 const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
@@ -30,7 +31,7 @@ export default function App() {
             path="dashboard"
             element={
               <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
-                <div className="text-on-surface font-semibold p-4">Dashboard — coming in Phase 5</div>
+                <DashboardPage />
               </ProtectedRoute>
             }
           />
