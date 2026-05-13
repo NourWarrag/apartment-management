@@ -9,6 +9,7 @@ import TenantsPage from './pages/tenants/TenantsPage';
 import TenantDetailPage from './pages/tenants/TenantDetailPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
+import TicketsPage from './pages/tickets/TicketsPage';
 
 const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
 const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
@@ -77,10 +78,10 @@ export default function App() {
             }
           />
           <Route
-            path="tickets/*"
+            path="tickets"
             element={
               <ProtectedRoute allowedRoles={TICKETS_ROLES}>
-                <div className="text-on-surface font-semibold p-4">Tickets — coming in Phase 4</div>
+                <TicketsPage />
               </ProtectedRoute>
             }
           />
