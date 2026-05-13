@@ -21,7 +21,7 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="fixed h-full w-[280px] left-0 top-0 border-r border-outline-variant bg-surface flex flex-col py-6 px-4 z-20">
+    <aside className="fixed h-full w-[280px] ltr:left-0 rtl:right-0 top-0 ltr:border-r rtl:border-l border-outline-variant bg-surface flex flex-col py-6 px-4 z-20">
       {/* Logo */}
       <div className="mb-10 px-2 flex items-center gap-3">
         <div className="w-10 h-10 bg-primary flex items-center justify-center rounded-lg shrink-0">
@@ -44,7 +44,7 @@ export default function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
                 isActive
-                  ? 'text-primary font-bold border-r-4 border-primary bg-secondary-container/30'
+                  ? 'text-primary font-bold ltr:border-r-4 rtl:border-l-4 border-primary bg-secondary-container/30'
                   : 'text-on-surface-variant hover:bg-surface-container-high'
               }`
             }
