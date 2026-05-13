@@ -13,6 +13,8 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+document.documentElement.dir = 'ltr';
+
 export function setLanguage(lang: 'en' | 'ar'): void {
   i18n.changeLanguage(lang);
   document.documentElement.lang = lang;
