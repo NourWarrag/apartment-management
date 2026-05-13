@@ -4,18 +4,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { KycStatus, TenantTier } from '@hotel/shared';
 import { useCreateTenant, useUpdateTenant, TenantListItem } from '../../hooks/useTenants';
 
 const schema = z.object({
   fullName: z.string().min(2, 'Required'),
   phone: z.string().min(5, 'Required'),
   idNumber: z.string().min(3, 'Required'),
+  kycStatus: z.nativeEnum(KycStatus).optional(),
+  tier: z.nativeEnum(TenantTier).optional(),
+  notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
+type TenantFormInput = Pick<TenantListItem, 'id' | 'fullName' | 'phone' | 'idNumber' | 'kycStatus' | 'tier' | 'notes'>;
+
 interface Props {
-  tenant?: TenantListItem | null;
+  tenant?: TenantFormInput | null;
   onClose: () => void;
 }
 
@@ -27,11 +33,27 @@ export default function TenantFormModal({ tenant, onClose }: Props) {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: '', phone: '', idNumber: '' },
+    defaultValues: {
+      fullName: '',
+      phone: '',
+      idNumber: '',
+      kycStatus: KycStatus.PENDING,
+      tier: TenantTier.NEW,
+      notes: '',
+    },
   });
 
   useEffect(() => {
-    if (tenant) reset({ fullName: tenant.fullName, phone: tenant.phone, idNumber: tenant.idNumber });
+    if (tenant) {
+      reset({
+        fullName: tenant.fullName,
+        phone: tenant.phone,
+        idNumber: tenant.idNumber,
+        kycStatus: tenant.kycStatus,
+        tier: tenant.tier,
+        notes: tenant.notes ?? '',
+      });
+    }
   }, [tenant, reset]);
 
   const onSubmit = async (data: FormValues) => {
@@ -49,11 +71,8 @@ export default function TenantFormModal({ tenant, onClose }: Props) {
     }
   };
 
-  const fields: { name: keyof FormValues; labelKey: string; type?: string }[] = [
-    { name: 'fullName', labelKey: 'tenants.fullName' },
-    { name: 'phone', labelKey: 'tenants.phone', type: 'tel' },
-    { name: 'idNumber', labelKey: 'tenants.idNumber' },
-  ];
+  const inputCls = 'w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/30';
+  const labelCls = 'block text-sm font-semibold text-on-surface mb-1.5';
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -68,17 +87,41 @@ export default function TenantFormModal({ tenant, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {fields.map(({ name, labelKey, type = 'text' }) => (
-            <div key={name}>
-              <label className="block text-sm font-semibold text-on-surface mb-1.5">{t(labelKey)}</label>
-              <input
-                {...register(name)}
-                type={type}
-                className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              {errors[name] && <p className="text-error text-xs mt-1">{errors[name]?.message}</p>}
-            </div>
-          ))}
+          <div>
+            <label className={labelCls}>{t('tenants.fullName')}</label>
+            <input {...register('fullName')} className={inputCls} />
+            {errors.fullName && <p className="text-error text-xs mt-1">{errors.fullName.message}</p>}
+          </div>
+          <div>
+            <label className={labelCls}>{t('tenants.phone')}</label>
+            <input {...register('phone')} type="tel" className={inputCls} />
+            {errors.phone && <p className="text-error text-xs mt-1">{errors.phone.message}</p>}
+          </div>
+          <div>
+            <label className={labelCls}>{t('tenants.idNumber')}</label>
+            <input {...register('idNumber')} className={inputCls} />
+            {errors.idNumber && <p className="text-error text-xs mt-1">{errors.idNumber.message}</p>}
+          </div>
+          <div>
+            <label className={labelCls}>{t('tenants.kycStatus')}</label>
+            <select {...register('kycStatus')} className={inputCls}>
+              {Object.values(KycStatus).map((k) => (
+                <option key={k} value={k}>{t(`kycStatus.${k}`)}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>{t('tenants.tier')}</label>
+            <select {...register('tier')} className={inputCls}>
+              {Object.values(TenantTier).map((tr) => (
+                <option key={tr} value={tr}>{t(`tenantTier.${tr}`)}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>{t('tenants.notes')}</label>
+            <textarea {...register('notes')} rows={3} className={inputCls + ' resize-none'} placeholder={t('tenants.notesPlaceholder', 'Optional operational notes...')} />
+          </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 border border-outline-variant text-on-surface-variant rounded-lg py-2 text-sm font-medium hover:bg-surface-container transition-colors">

@@ -64,6 +64,9 @@
     "number": "رقم الشقة",
     "floor": "الطابق",
     "status": "الحالة",
+    "type": "النوع",
+    "allTypes": "جميع الأنواع",
+    "typeFilter": "نوع الشقة",
     "currentTenant": "المستأجر الحالي",
     "checkIn": "تاريخ الدخول",
     "checkOut": "تاريخ المغادرة",
@@ -84,10 +87,34 @@
     "fullName": "الاسم الكامل",
     "phone": "الهاتف",
     "idNumber": "رقم الهوية / الجواز",
+    "kycStatus": "حالة KYC",
+    "tier": "الفئة",
+    "notes": "ملاحظات تشغيلية",
+    "notesPlaceholder": "ملاحظات تشغيلية اختيارية...",
+    "activeApartment": "الشقة الحالية",
+    "rentalPeriod": "فترة الإيجار",
+    "allKycStatuses": "جميع حالات KYC",
     "registeredOn": "تاريخ التسجيل",
     "bookingHistory": "سجل الحجوزات",
     "paymentHistory": "سجل المدفوعات",
     "totalBookings": "إجمالي الحجوزات",
     "noBookings": "لا توجد حجوزات بعد"
+  },
+  "apartmentType": {
+    "STUDIO": "استوديو",
+    "ONE_BEDROOM": "غرفة نوم واحدة",
+    "TWO_BEDROOM": "غرفتا نوم",
+    "PENTHOUSE": "بنتهاوس"
+  },
+  "kycStatus": {
+    "VERIFIED": "موثق",
+    "PENDING": "قيد الانتظار",
+    "ACTION_REQUIRED": "يتطلب إجراء"
+  },
+  "tenantTier": {
+    "NEW": "مستأجر جديد",
+    "SILVER": "مستوى فضي",
+    "GOLD": "مستوى ذهبي",
+    "PLATINUM": "مستوى بلاتيني"
   }
 }

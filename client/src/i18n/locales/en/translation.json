@@ -64,6 +64,9 @@
     "number": "Apartment No.",
     "floor": "Floor",
     "status": "Status",
+    "type": "Type",
+    "allTypes": "All Types",
+    "typeFilter": "Apartment Type",
     "currentTenant": "Current Tenant",
     "checkIn": "Check-in",
     "checkOut": "Check-out",
@@ -84,10 +87,34 @@
     "fullName": "Full Name",
     "phone": "Phone",
     "idNumber": "ID / Passport No.",
+    "kycStatus": "KYC Status",
+    "tier": "Tier",
+    "notes": "Operational Notes",
+    "notesPlaceholder": "Optional operational notes...",
+    "activeApartment": "Active Apartment",
+    "rentalPeriod": "Rental Period",
+    "allKycStatuses": "All KYC Statuses",
     "registeredOn": "Registered",
     "bookingHistory": "Booking History",
     "paymentHistory": "Payment History",
     "totalBookings": "Total Bookings",
     "noBookings": "No bookings yet"
+  },
+  "apartmentType": {
+    "STUDIO": "Studio",
+    "ONE_BEDROOM": "1-Bedroom",
+    "TWO_BEDROOM": "2-Bedroom",
+    "PENTHOUSE": "Penthouse"
+  },
+  "kycStatus": {
+    "VERIFIED": "Verified",
+    "PENDING": "Pending",
+    "ACTION_REQUIRED": "Action Req."
+  },
+  "tenantTier": {
+    "NEW": "New Tenant",
+    "SILVER": "Silver Tier Resident",
+    "GOLD": "Gold Tier Resident",
+    "PLATINUM": "Platinum Tier Resident"
   }
 }

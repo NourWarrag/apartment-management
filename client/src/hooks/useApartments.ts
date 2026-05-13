@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { ApartmentStatus } from '@hotel/shared';
+import { ApartmentStatus, ApartmentType } from '@hotel/shared';
 
 export interface ApartmentListItem {
   id: number;
   number: string;
   floor: number;
+  type: ApartmentType;
   status: ApartmentStatus;
   currentBooking: {
     id: number;
@@ -15,10 +16,16 @@ export interface ApartmentListItem {
     tenant: { id: number; fullName: string; phone: string };
     payments: { method: string; amount: string; status: string; paidAt: string | null }[];
   } | null;
+  upcomingBooking: {
+    id: number;
+    checkIn: string;
+    checkOut: string;
+    tenant: { id: number; fullName: string; phone: string };
+  } | null;
   activeTicket: { id: number; status: string; priority: string } | null;
 }
 
-export interface ApartmentDetail extends ApartmentListItem {
+export interface ApartmentDetail extends Omit<ApartmentListItem, 'upcomingBooking' | 'activeTicket'> {
   bookings: {
     id: number;
     checkIn: string;
@@ -41,17 +48,20 @@ export interface ApartmentDetail extends ApartmentListItem {
 export interface CreateApartmentDto {
   number: string;
   floor: number;
+  type?: ApartmentType;
 }
 
 export interface UpdateApartmentDto {
   number?: string;
   floor?: number;
+  type?: ApartmentType;
   status?: ApartmentStatus;
 }
 
-export function useApartments(filters?: { status?: ApartmentStatus; search?: string }) {
+export function useApartments(filters?: { status?: ApartmentStatus; type?: ApartmentType; search?: string }) {
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
+  if (filters?.type) params.set('type', filters.type);
   if (filters?.search) params.set('search', filters.search);
 
   return useQuery<ApartmentListItem[]>({
