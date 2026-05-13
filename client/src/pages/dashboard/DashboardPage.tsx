@@ -11,6 +11,7 @@ function formatAed(amount: number): string {
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
   if (mins < 60) return `${mins} min ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs} hr ago`;
@@ -125,8 +126,8 @@ export default function DashboardPage() {
 
         {!activityLoading && !activityError && activityData && activityData.events.length > 0 && (
           <ul className="space-y-3">
-            {activityData.events.map((event, i) => (
-              <li key={i} className="flex items-start gap-3">
+            {activityData.events.map((event) => (
+              <li key={`${event.type}-${event.timestamp}`} className="flex items-start gap-3">
                 <span className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${EVENT_COLOR[event.type]}`}>
                   {EVENT_ICON[event.type]}
                 </span>
