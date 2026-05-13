@@ -168,6 +168,14 @@ describe('POST /api/v1/payments', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 for an invalid method value', async () => {
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Cookie', adminCookie)
+      .send({ bookingId, method: 'BITCOIN', amount: 500 });
+    expect(res.status).toBe(400);
+  });
+
   it('returns 404 for non-existent bookingId', async () => {
     const res = await request(app)
       .post('/api/v1/payments')
@@ -186,7 +194,7 @@ describe('POST /api/v1/payments', () => {
     expect(res.body.status).toBe('PAID');
     expect(res.body.method).toBe('CASH');
     expect(res.body.paidAt).not.toBeNull();
-    expect(Number(res.body.amount)).toBe(1000);
+    expect(res.body.amount).toBe('1000');
 
     // Clean up
     await testPrisma.payment.delete({ where: { id: res.body.id } });
@@ -216,6 +224,7 @@ describe('POST /api/v1/payments', () => {
     expect(res.status).toBe(201);
     expect(res.body.referenceNumber).toBe('TXN-NEW-001');
     expect(res.body.status).toBe('PAID');
+    expect(res.body.paidAt).not.toBeNull();
 
     // Clean up
     await testPrisma.payment.delete({ where: { id: res.body.id } });
@@ -250,19 +259,21 @@ describe('PATCH /api/v1/payments/:id', () => {
   });
 
   it('marks PENDING payment as PAID with paidAt set', async () => {
+    // Create a fresh payment for this test
+    const fresh = await testPrisma.payment.create({
+      data: { bookingId, method: 'INSTALLMENT', amount: 500, status: 'PENDING' },
+    });
+
     const res = await request(app)
-      .patch(`/api/v1/payments/${pendingPaymentId}`)
+      .patch(`/api/v1/payments/${fresh.id}`)
       .set('Cookie', adminCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('PAID');
     expect(res.body.paidAt).not.toBeNull();
-    expect(res.body.id).toBe(pendingPaymentId);
+    expect(res.body.id).toBe(fresh.id);
 
-    // Reset for subsequent test runs (if any)
-    await testPrisma.payment.update({
-      where: { id: pendingPaymentId },
-      data: { status: 'PENDING', paidAt: null },
-    });
+    // Clean up
+    await testPrisma.payment.delete({ where: { id: fresh.id } });
   });
 });
