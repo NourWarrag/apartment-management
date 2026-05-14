@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { PaymentMethod, ApartmentStatus } from '@hotel/shared';
+import { PaymentMethod, PaymentStatus, ApartmentStatus } from '@hotel/shared';
 
 const VALID_METHODS = Object.values(PaymentMethod);
 
@@ -85,7 +85,7 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
           method: payment.method as PaymentMethod,
           amount: payment.amount as number,
           referenceNumber: payment.referenceNumber?.trim() || null,
-          status: 'PAID',
+          status: PaymentStatus.PAID,
           paidAt: new Date(),
         },
       });
