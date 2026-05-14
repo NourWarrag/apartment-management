@@ -127,6 +127,26 @@ export async function getById(req: AuthRequest, res: Response): Promise<void> {
   res.json(tenant);
 }
 
+export async function remove(req: AuthRequest, res: Response): Promise<void> {
+  const id = Number(req.params.id);
+
+  if (isNaN(id)) {
+    res.status(400).json({ message: 'Invalid id' });
+    return;
+  }
+
+  try {
+    await prisma.tenant.delete({ where: { id } });
+    res.status(204).send();
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      res.status(404).json({ message: 'Tenant not found' });
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function update(req: AuthRequest, res: Response): Promise<void> {
   const id = Number(req.params.id);
 
