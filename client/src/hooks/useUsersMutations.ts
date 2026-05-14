@@ -20,7 +20,7 @@ export interface UpdateUserDto {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: CreateUserDto) => api.post('/users', dto).then((r) => r.data),
+    mutationFn: (dto: CreateUserDto) => api.post('/users', dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
@@ -28,7 +28,7 @@ export function useCreateUser() {
 export function useUpdateUser(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: UpdateUserDto) => api.patch(`/users/${id}`, dto).then((r) => r.data),
+    mutationFn: (dto: UpdateUserDto) => api.patch(`/users/${id}`, dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
@@ -36,7 +36,7 @@ export function useUpdateUser(id: number) {
 export function useDeactivateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => api.post(`/users/${id}/deactivate`).then((r) => r.data),
+    mutationFn: (id: number) => api.post(`/users/${id}/deactivate`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
@@ -44,7 +44,7 @@ export function useDeactivateUser() {
 export function useReactivateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => api.post(`/users/${id}/reactivate`).then((r) => r.data),
+    mutationFn: (id: number) => api.post(`/users/${id}/reactivate`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
