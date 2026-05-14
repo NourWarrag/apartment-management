@@ -10,6 +10,7 @@ import TenantDetailPage from './pages/tenants/TenantDetailPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
 import TicketsPage from './pages/tickets/TicketsPage';
+import BuildingsPage from './pages/buildings/BuildingsPage';
 
 const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
 const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
@@ -82,6 +83,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={TICKETS_ROLES}>
                 <TicketsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="buildings"
+            element={
+              <ProtectedRoute allowedRoles={[Role.ADMIN]}>
+                <BuildingsPage />
               </ProtectedRoute>
             }
           />

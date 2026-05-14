@@ -5,6 +5,7 @@
     "tenants": "Tenants",
     "payments": "Payments",
     "tickets": "Maintenance",
+    "buildings": "Buildings",
     "reports": "Reports"
   },
   "auth": {

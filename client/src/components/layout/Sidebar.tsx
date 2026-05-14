@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: 'dashboard', key: 'dashboard', roles: [Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE] },
   { to: '/apartments', icon: 'apartment', key: 'apartments', roles: [Role.ADMIN, Role.RECEPTIONIST] },
   { to: '/tenants', icon: 'groups', key: 'tenants', roles: [Role.ADMIN, Role.RECEPTIONIST] },
+  { to: '/buildings', icon: 'business', key: 'buildings', roles: [Role.ADMIN] },
   { to: '/payments', icon: 'payments', key: 'payments', roles: [Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE] },
   { to: '/tickets', icon: 'build', key: 'tickets', roles: [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE] },
   { to: '/reports', icon: 'assessment', key: 'reports', roles: [Role.ADMIN, Role.FINANCE] },
@@ -50,7 +51,7 @@ export default function Sidebar() {
             }
           >
             <span className="material-symbols-outlined text-[22px]">{icon}</span>
-            <span className="text-sm">{t(`nav.${key}`)}</span>
+            <span className="text-sm">{t(`nav.${key}`, key.charAt(0).toUpperCase() + key.slice(1))}</span>
           </NavLink>
         ))}
       </nav>

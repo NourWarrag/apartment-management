@@ -5,6 +5,7 @@
     "tenants": "المستأجرون",
     "payments": "المدفوعات",
     "tickets": "الصيانة",
+    "buildings": "المباني",
     "reports": "التقارير"
   },
   "auth": {
