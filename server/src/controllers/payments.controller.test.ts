@@ -27,7 +27,7 @@ beforeAll(async () => {
 
   // Seed: one apartment, one tenant, one booking, two payments
   const apt = await testPrisma.apartment.create({
-    data: { number: 'P101', floor: 1, type: 'STUDIO', status: 'OCCUPIED' },
+    data: { number: 'P101', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId: 1 },
   });
   const tenant = await testPrisma.tenant.create({
     data: { fullName: 'Test Tenant', phone: '+971500000001', idNumber: 'TEST-001' },

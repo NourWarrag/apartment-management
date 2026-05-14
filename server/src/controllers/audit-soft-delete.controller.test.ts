@@ -40,7 +40,7 @@ describe('Audit columns + soft delete', () => {
       const res = await request(app)
         .post('/api/v1/apartments')
         .set('Cookie', ADMIN_COOKIE)
-        .send({ number: 'AUDIT-101', floor: 9, type: 'STUDIO', status: 'AVAILABLE' });
+        .send({ number: 'AUDIT-101', floor: 9, type: 'STUDIO', status: 'AVAILABLE', buildingId: 1 });
 
       expect(res.status).toBe(201);
       const row = await db.apartment.findFirst({ where: { number: 'AUDIT-101' } });

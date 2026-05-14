@@ -44,7 +44,7 @@ beforeAll(async () => {
 
   // Seed apartment
   const apt = await testPrisma.apartment.create({
-    data: { number: 'TK101', floor: 1, type: 'STUDIO', status: 'AVAILABLE' },
+    data: { number: 'TK101', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: 1 },
   });
   aptId = apt.id;
 

@@ -56,7 +56,7 @@ describe('POST /api/v1/apartments', () => {
     const res = await request(app)
       .post('/api/v1/apartments')
       .set('Cookie', adminCookie)
-      .send({ number: '101', floor: 1 });
+      .send({ number: '101', floor: 1, buildingId: 1 });
     expect(res.status).toBe(201);
     expect(res.body.number).toBe('101');
     expect(res.body.status).toBe('AVAILABLE');
@@ -67,9 +67,9 @@ describe('POST /api/v1/apartments', () => {
     const res = await request(app)
       .post('/api/v1/apartments')
       .set('Cookie', adminCookie)
-      .send({ number: '101', floor: 1 });
+      .send({ number: '101', floor: 1, buildingId: 1 });
     expect(res.status).toBe(409);
-    expect(res.body.message).toBe('Apartment number already exists');
+    expect(res.body.message).toBe('Apartment number already exists in this building');
   });
 
   it('returns 401 without auth', async () => {
@@ -91,7 +91,7 @@ describe('POST /api/v1/apartments', () => {
     const res = await request(app)
       .post('/api/v1/apartments')
       .set('Cookie', adminCookie)
-      .send({ number: '102', floor: 1, type: 'ONE_BEDROOM' });
+      .send({ number: '102', floor: 1, type: 'ONE_BEDROOM', buildingId: 1 });
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('ONE_BEDROOM');
   });
@@ -100,7 +100,7 @@ describe('POST /api/v1/apartments', () => {
     const res = await request(app)
       .post('/api/v1/apartments')
       .set('Cookie', adminCookie)
-      .send({ number: '103', floor: 1 });
+      .send({ number: '103', floor: 1, buildingId: 1 });
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('STUDIO');
   });

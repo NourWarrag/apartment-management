@@ -36,12 +36,12 @@ beforeAll(async () => {
   financeCookie = `token=${signToken({ id: 902, role: 'FINANCE' })}`;
 
   const apt = await testPrisma.apartment.create({
-    data: { number: 'BK101', floor: 1, type: 'STUDIO', status: 'AVAILABLE' },
+    data: { number: 'BK101', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: 1 },
   });
   aptId = apt.id;
 
   const unavailableApt = await testPrisma.apartment.create({
-    data: { number: 'BK102', floor: 1, type: 'STUDIO', status: 'OCCUPIED' },
+    data: { number: 'BK102', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId: 1 },
   });
   unavailableAptId = unavailableApt.id;
 

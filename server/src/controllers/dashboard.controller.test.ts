@@ -18,18 +18,18 @@ describe('dashboard/stats + activity suite setup', () => {
     adminCookieA = `token=${signToken({ id: 1, role: 'ADMIN' })}`;
     await testPrisma.apartment.deleteMany();
     const aptData = [
-      { number: '101', floor: 1, type: 'STUDIO' as const,      status: 'OCCUPIED' as const },
-      { number: '102', floor: 1, type: 'ONE_BEDROOM' as const,  status: 'AVAILABLE' as const },
-      { number: '103', floor: 1, type: 'TWO_BEDROOM' as const,  status: 'RESERVED' as const },
-      { number: '201', floor: 2, type: 'ONE_BEDROOM' as const,  status: 'OCCUPIED' as const },
-      { number: '202', floor: 2, type: 'PENTHOUSE' as const,    status: 'MAINTENANCE' as const },
-      { number: '203', floor: 2, type: 'STUDIO' as const,      status: 'AVAILABLE' as const },
-      { number: '301', floor: 3, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const },
-      { number: '302', floor: 3, type: 'ONE_BEDROOM' as const,  status: 'PENDING_CHECKOUT' as const },
-      { number: '401', floor: 4, type: 'PENTHOUSE' as const,    status: 'OCCUPIED' as const },
-      { number: '402', floor: 4, type: 'STUDIO' as const,      status: 'AVAILABLE' as const },
-      { number: '501', floor: 5, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const },
-      { number: '502', floor: 5, type: 'ONE_BEDROOM' as const,  status: 'RESERVED' as const },
+      { number: '101', floor: 1, type: 'STUDIO' as const,      status: 'OCCUPIED' as const,          buildingId: 1 },
+      { number: '102', floor: 1, type: 'ONE_BEDROOM' as const,  status: 'AVAILABLE' as const,         buildingId: 1 },
+      { number: '103', floor: 1, type: 'TWO_BEDROOM' as const,  status: 'RESERVED' as const,          buildingId: 1 },
+      { number: '201', floor: 2, type: 'ONE_BEDROOM' as const,  status: 'OCCUPIED' as const,          buildingId: 1 },
+      { number: '202', floor: 2, type: 'PENTHOUSE' as const,    status: 'MAINTENANCE' as const,       buildingId: 1 },
+      { number: '203', floor: 2, type: 'STUDIO' as const,      status: 'AVAILABLE' as const,          buildingId: 1 },
+      { number: '301', floor: 3, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const,          buildingId: 1 },
+      { number: '302', floor: 3, type: 'ONE_BEDROOM' as const,  status: 'PENDING_CHECKOUT' as const,  buildingId: 1 },
+      { number: '401', floor: 4, type: 'PENTHOUSE' as const,    status: 'OCCUPIED' as const,          buildingId: 1 },
+      { number: '402', floor: 4, type: 'STUDIO' as const,      status: 'AVAILABLE' as const,          buildingId: 1 },
+      { number: '501', floor: 5, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const,          buildingId: 1 },
+      { number: '502', floor: 5, type: 'ONE_BEDROOM' as const,  status: 'RESERVED' as const,          buildingId: 1 },
     ];
     await testPrisma.apartment.createMany({ data: aptData });
   });
@@ -158,7 +158,7 @@ describe('GET /api/v1/dashboard/revenue-trend', () => {
     adminCookieB = `token=${signToken({ id: admin.id, role: 'ADMIN' })}`;
 
     const apt = await testPrisma.apartment.create({
-      data: { number: 'DASH-RT-101', floor: 1, type: 'STUDIO', status: 'OCCUPIED' },
+      data: { number: 'DASH-RT-101', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId: 1 },
     });
 
     const tenant = await testPrisma.tenant.create({
