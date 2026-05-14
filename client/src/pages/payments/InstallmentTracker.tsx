@@ -27,6 +27,11 @@ function PlanCard({ plan }: { plan: InstallmentPlan }) {
       </p>
       <div className="w-full bg-surface-container-high rounded-full h-2">
         <div
+          role="progressbar"
+          aria-valuenow={Math.round(percent)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${plan.tenantName} – ${Math.round(percent)}% paid`}
           className="bg-primary rounded-full h-2 transition-all"
           style={{ width: `${percent}%` }}
         />
@@ -39,7 +44,7 @@ function PlanCard({ plan }: { plan: InstallmentPlan }) {
 }
 
 export default function InstallmentTracker() {
-  const { data: plans, isLoading } = useInstallmentPlans();
+  const { data: plans, isLoading, isError } = useInstallmentPlans();
 
   if (isLoading) {
     return (
@@ -52,6 +57,17 @@ export default function InstallmentTracker() {
             <div key={i} className="bg-surface-container-low border border-outline-variant rounded-xl p-4 animate-pulse h-32" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-label-caps font-bold text-on-surface-variant uppercase tracking-wider">
+          Installment Plans
+        </h3>
+        <p className="text-body-sm text-on-surface-variant">Failed to load installment plans.</p>
       </div>
     );
   }

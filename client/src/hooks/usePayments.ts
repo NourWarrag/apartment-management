@@ -94,6 +94,7 @@ export function usePaymentStats() {
       const res = await api.get('/payments/stats');
       return res.data;
     },
+    retry: 1,
   });
 }
 
@@ -104,5 +105,6 @@ export function useInstallmentPlans() {
       const res = await api.get('/payments/installment-plans');
       return res.data;
     },
+    retry: 1,
   });
 }
