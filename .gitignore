@@ -4,3 +4,6 @@ dist
 .env.local
 *.tsbuildinfo
 .superpowers
+
+# Server log files
+logs/
