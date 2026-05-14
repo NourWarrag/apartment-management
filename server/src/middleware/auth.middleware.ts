@@ -16,6 +16,9 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   try {
     const payload = verifyToken(token);
     req.user = { id: payload.id as number, role: payload.role as Role };
+    (req as Request & { log?: { setBindings: (b: object) => void } }).log?.setBindings({
+      userId: payload.id as number,
+    });
     requestContext.run({ userId: payload.id as number }, () => next());
   } catch {
     res.status(401).json({ message: 'Invalid or expired token' });
