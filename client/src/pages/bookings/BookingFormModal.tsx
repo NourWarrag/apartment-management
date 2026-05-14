@@ -225,7 +225,7 @@ export default function BookingFormModal({
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => { reset(); onClose(); }}
               className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-bold hover:bg-surface-container transition-colors"
             >
               Cancel
