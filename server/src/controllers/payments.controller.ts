@@ -10,8 +10,8 @@ const PAGE_SIZE = 20;
 const bookingInclude = {
   booking: {
     include: {
-      tenant: { select: { id: true, fullName: true, phone: true } },
-      apartment: { select: { id: true, number: true, floor: true } },
+      tenant: { select: { id: true, fullName: true, phone: true, deletedAt: true } },
+      apartment: { select: { id: true, number: true, floor: true, deletedAt: true } },
     },
   },
 } as const;

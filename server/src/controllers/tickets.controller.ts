@@ -8,7 +8,7 @@ const VALID_PRIORITIES = Object.values(Priority);
 const VALID_NON_CLOSED_STATUSES = [TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.COMPLETED];
 
 const ticketInclude = {
-  apartment: { select: { id: true, number: true, floor: true } },
+  apartment: { select: { id: true, number: true, floor: true, deletedAt: true } },
   assignedTo: { select: { id: true, name: true } },
 } as const;
 
