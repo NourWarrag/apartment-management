@@ -6,6 +6,7 @@ import { useApartments, ApartmentListItem } from '../../hooks/useApartments';
 import ApartmentStatusBadge from '../../components/apartments/ApartmentStatusBadge';
 import ApartmentFormModal from './ApartmentFormModal';
 import PaymentFormModal from '../payments/PaymentFormModal';
+import BookingFormModal from '../bookings/BookingFormModal';
 import { useAuth } from '../../hooks/useAuth';
 
 const PAGE_SIZE = 10;
@@ -57,6 +58,7 @@ export default function ApartmentsPage() {
     summary: { tenantName: string; apartmentNumber: string; checkIn: string; checkOut: string };
   } | null>(null);
 
+  const [bookingAptId, setBookingAptId] = useState<number | null>(null);
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
 
   // Load all apartments (unfiltered) for stats
@@ -337,6 +339,15 @@ export default function ApartmentsPage() {
                                 <span className="material-symbols-outlined text-[20px] text-green-600">payments</span>
                               </button>
                             )}
+                            {apt.status === ApartmentStatus.AVAILABLE && (
+                              <button
+                                onClick={() => setBookingAptId(apt.id)}
+                                className="p-1 hover:bg-surface-container rounded-full"
+                                title="New reservation"
+                              >
+                                <span className="material-symbols-outlined text-[20px] text-primary">add_home</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => { setEditTarget(apt); setShowModal(true); }}
                               className="p-1 hover:bg-surface-container rounded-full"
@@ -479,6 +490,13 @@ export default function ApartmentsPage() {
           onClose={() => setPaymentTarget(null)}
           bookingId={paymentTarget.bookingId}
           bookingSummary={paymentTarget.summary}
+        />
+      )}
+      {canEdit && (
+        <BookingFormModal
+          open={bookingAptId !== null}
+          onClose={() => setBookingAptId(null)}
+          prefilledApartmentId={bookingAptId ?? undefined}
         />
       )}
     </div>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Role } from '@hotel/shared';
 import { useTenant } from '../../hooks/useTenants';
 import TenantFormModal from './TenantFormModal';
+import BookingFormModal from '../bookings/BookingFormModal';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function TenantDetailPage() {
@@ -13,6 +14,7 @@ export default function TenantDetailPage() {
   const { data: user } = useAuth();
   const { data: tenant, isLoading } = useTenant(tenantId);
   const [showEdit, setShowEdit] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
 
@@ -40,13 +42,22 @@ export default function TenantDetailPage() {
         </Link>
         <h2 className="text-3xl font-bold tracking-tight text-primary flex-1">{tenant.fullName}</h2>
         {canEdit && (
-          <button
-            onClick={() => setShowEdit(true)}
-            className="flex items-center gap-2 border border-outline-variant text-on-surface-variant rounded-lg px-4 py-2 text-sm font-medium hover:bg-surface-container transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            {t('common.edit')}
-          </button>
+          <>
+            <button
+              onClick={() => setShowBookingModal(true)}
+              className="flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              New Booking
+            </button>
+            <button
+              onClick={() => setShowEdit(true)}
+              className="flex items-center gap-2 border border-outline-variant text-on-surface-variant rounded-lg px-4 py-2 text-sm font-medium hover:bg-surface-container transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              {t('common.edit')}
+            </button>
+          </>
         )}
       </div>
 
@@ -145,6 +156,13 @@ export default function TenantDetailPage() {
 
       {showEdit && (
         <TenantFormModal tenant={tenant} onClose={() => setShowEdit(false)} />
+      )}
+      {showBookingModal && (
+        <BookingFormModal
+          open={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          prefilledTenantId={tenant.id}
+        />
       )}
     </div>
   );
