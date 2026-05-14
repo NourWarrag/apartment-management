@@ -11,6 +11,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
 import TicketsPage from './pages/tickets/TicketsPage';
 import BuildingsPage from './pages/buildings/BuildingsPage';
+import ReportsPage from './pages/reports/ReportsPage';
 
 const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
 const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
@@ -95,10 +96,10 @@ export default function App() {
             }
           />
           <Route
-            path="reports/*"
+            path="reports"
             element={
               <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
-                <div className="text-on-surface font-semibold p-4">Reports — coming in Phase 5</div>
+                <ReportsPage />
               </ProtectedRoute>
             }
           />
