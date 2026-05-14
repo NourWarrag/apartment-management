@@ -8,6 +8,7 @@ import ApartmentFormModal from './ApartmentFormModal';
 import PaymentFormModal from '../payments/PaymentFormModal';
 import BookingFormModal from '../bookings/BookingFormModal';
 import { useAuth } from '../../hooks/useAuth';
+import { useBuilding } from '../../context/BuildingContext';
 
 const PAGE_SIZE = 10;
 
@@ -60,6 +61,8 @@ export default function ApartmentsPage() {
 
   const [bookingAptId, setBookingAptId] = useState<number | null>(null);
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
+  const { selectedBuilding } = useBuilding();
+  const showBuildingBadge = selectedBuilding === 'all';
 
   // Load all apartments (unfiltered) for stats
   const { data: allApartments = [] } = useApartments();
@@ -275,9 +278,16 @@ export default function ApartmentsPage() {
                   return (
                     <tr key={apt.id} className="hover:bg-surface-container-low transition-colors group">
                       <td className="px-table-cell-padding-x py-table-cell-padding-y font-bold text-table-data">
-                        <Link to={`/apartments/${apt.id}`} className="text-primary hover:underline">
-                          {apt.number}
-                        </Link>
+                        <span className="inline-flex items-center gap-1">
+                          <Link to={`/apartments/${apt.id}`} className="text-primary hover:underline">
+                            {apt.number}
+                          </Link>
+                          {showBuildingBadge && apt.building && (
+                            <span className="text-[10px] font-bold bg-secondary/10 text-secondary px-1.5 py-0.5 rounded uppercase tracking-wide ml-1">
+                              {apt.building.code}
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data text-on-surface">
                         {t(`apartmentType.${apt.type}`)}
