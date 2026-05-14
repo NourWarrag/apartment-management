@@ -48,6 +48,13 @@ export enum PaymentStatus {
   FAILED = 'FAILED',
 }
 
+export enum DepositStatus {
+  NONE = 'NONE',
+  HELD = 'HELD',
+  RELEASED = 'RELEASED',
+  FORFEITED = 'FORFEITED',
+}
+
 export enum Priority {
   LOW = 'LOW',
   MEDIUM = 'MEDIUM',

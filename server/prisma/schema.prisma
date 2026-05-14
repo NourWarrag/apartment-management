@@ -107,8 +107,13 @@ model Booking {
   totalAmount Decimal   @db.Decimal(10, 2)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  createdBy   Int?
-  updatedBy   Int?
+  createdBy           Int?
+  updatedBy           Int?
+  depositAmount       Decimal?      @db.Decimal(10, 2)
+  depositStatus       DepositStatus @default(NONE)
+  depositRefundAmount Decimal?      @db.Decimal(10, 2)
+  depositCollectedAt  DateTime?
+  checkedOutAt        DateTime?
 
   apartment Apartment @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -265,6 +270,13 @@ enum TenantTier {
   SILVER
   GOLD
   PLATINUM
+}
+
+enum DepositStatus {
+  NONE
+  HELD
+  RELEASED
+  FORFEITED
 }
 
 model SystemSettings {
