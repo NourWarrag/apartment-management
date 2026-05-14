@@ -19,10 +19,18 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     return;
   }
 
+  const rawBuilding = req.query.buildingId;
+  const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+  if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+    res.status(400).json({ message: 'Invalid buildingId' });
+    return;
+  }
+
   const where: Prisma.ApartmentWhereInput = {};
   if (status) where.status = status as ApartmentStatus;
   if (type) where.type = type as ApartmentType;
   if (search) where.number = { contains: search, mode: 'insensitive' };
+  if (buildingId) where.buildingId = buildingId;
 
   const now = new Date();
 
@@ -30,6 +38,7 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     where,
     orderBy: { number: 'asc' },
     include: {
+      building: { select: { id: true, name: true, code: true } },
       bookings: {
         where: { checkOut: { gte: now } },
         orderBy: { checkIn: 'asc' },
@@ -59,6 +68,7 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
       floor: a.floor,
       type: a.type,
       status: a.status,
+      building: a.building,
       currentBooking,
       upcomingBooking,
       activeTicket: a.tickets[0] ?? null,
@@ -69,33 +79,47 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
 }
 
 export async function create(req: AuthRequest, res: Response): Promise<void> {
-  const { number, floor, type } = req.body as { number: string; floor: number; type?: string };
-
-  if (!number || floor === undefined) {
+  const { number, floor, type, buildingId } = req.body as {
+    number?: string; floor?: number; type?: string; buildingId?: number;
+  };
+  if (!number?.trim() || floor === undefined || floor === null) {
     res.status(400).json({ message: 'number and floor are required' });
+    return;
+  }
+  if (!buildingId) {
+    res.status(400).json({ message: 'buildingId is required' });
+    return;
+  }
+  const bId = Number(buildingId);
+  if (isNaN(bId) || bId <= 0) {
+    res.status(400).json({ message: 'Invalid buildingId' });
     return;
   }
   if (type !== undefined && !VALID_TYPES.includes(type as ApartmentType)) {
     res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
     return;
   }
+  const building = await prisma.building.findUnique({ where: { id: bId } });
+  if (!building) { res.status(404).json({ message: 'Building not found' }); return; }
 
-  try {
-    const data: Prisma.ApartmentCreateInput = {
-      number: String(number).trim(),
-      floor: Number(floor),
-    };
-    if (type) data.type = type as ApartmentType;
-
-    const apartment = await prisma.apartment.create({ data });
-    res.status(201).json(apartment);
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      res.status(409).json({ message: 'Apartment number already exists' });
-      return;
-    }
-    throw err;
+  // Compound uniqueness check: apartment number must be unique within the building
+  const conflict = await prisma.apartment.findFirst({
+    where: { buildingId: bId, number: number.trim() },
+  });
+  if (conflict) {
+    res.status(409).json({ message: 'Apartment number already exists in this building' });
+    return;
   }
+  const apartment = await prisma.apartment.create({
+    data: {
+      number: number.trim(),
+      floor: Number(floor),
+      type: (type as ApartmentType) ?? ApartmentType.STUDIO,
+      buildingId: bId,
+    },
+    include: { building: { select: { id: true, name: true, code: true } } },
+  });
+  res.status(201).json(apartment);
 }
 
 export async function getById(req: AuthRequest, res: Response): Promise<void> {
@@ -187,6 +211,22 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
   if (type !== undefined) data.type = type;
 
   try {
+    // Per-building uniqueness check when number is being changed
+    if (number !== undefined) {
+      const apt = await prisma.apartment.findUnique({ where: { id } });
+      if (!apt) {
+        res.status(404).json({ message: 'Apartment not found' });
+        return;
+      }
+      const conflict = await prisma.apartment.findFirst({
+        where: { buildingId: apt.buildingId, number: String(number).trim(), NOT: { id } },
+      });
+      if (conflict) {
+        res.status(409).json({ message: 'Apartment number already exists in this building' });
+        return;
+      }
+    }
+
     const apartment = await prisma.apartment.update({ where: { id }, data });
     res.json(apartment);
   } catch (err) {
@@ -196,7 +236,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
         return;
       }
       if (err.code === 'P2002') {
-        res.status(409).json({ message: 'Apartment number already exists' });
+        res.status(409).json({ message: 'Apartment number already exists in this building' });
         return;
       }
     }

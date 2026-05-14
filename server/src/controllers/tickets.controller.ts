@@ -30,6 +30,15 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     if (priority && VALID_PRIORITIES.includes(priority as Priority)) {
       where.priority = priority as Priority;
     }
+
+    const rawBuilding = req.query.buildingId;
+    const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+    if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
+    if (buildingId) where.apartment = { buildingId };
+
     const [total, data] = await Promise.all([
       prisma.maintenanceTicket.count({ where }),
       prisma.maintenanceTicket.findMany({ where, orderBy: { createdAt: 'desc' }, include: ticketInclude }),

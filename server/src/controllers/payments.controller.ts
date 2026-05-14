@@ -42,6 +42,21 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
       ];
     }
 
+    const rawBuilding = req.query.buildingId;
+    const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+    if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
+    if (buildingId) {
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { booking: { apartment: { buildingId } } }];
+        delete where.OR;
+      } else {
+        where.booking = { apartment: { buildingId } };
+      }
+    }
+
     const [total, data] = await Promise.all([
       prisma.payment.count({ where }),
       prisma.payment.findMany({

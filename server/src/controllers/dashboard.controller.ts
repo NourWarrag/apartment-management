@@ -2,21 +2,32 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 
-export async function stats(_req: AuthRequest, res: Response): Promise<void> {
+export async function stats(req: AuthRequest, res: Response): Promise<void> {
   try {
+    const rawBuilding = req.query.buildingId;
+    const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+    if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
+    const aptWhere = buildingId ? { buildingId } : {};
+    const paymentBuildingFilter = buildingId ? { booking: { apartment: { buildingId } } } : {};
+    const ticketBuildingFilter = buildingId ? { apartment: { buildingId } } : {};
+
     const [aptGroups, revenueGroups, pendingInstallments, openTickets] = await Promise.all([
-      prisma.apartment.groupBy({ by: ['status'], _count: { _all: true } }),
+      prisma.apartment.groupBy({ by: ['status'], where: aptWhere, _count: { _all: true } }),
       prisma.payment.groupBy({
         by: ['method'],
-        where: { status: 'PAID', paidAt: { gte: startOfToday, lt: startOfTomorrow } },
+        where: { status: 'PAID', paidAt: { gte: startOfToday, lt: startOfTomorrow }, ...paymentBuildingFilter },
         _sum: { amount: true },
       }),
-      prisma.payment.count({ where: { method: 'INSTALLMENT', status: 'PENDING' } }),
-      prisma.maintenanceTicket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+      prisma.payment.count({ where: { method: 'INSTALLMENT', status: 'PENDING', ...paymentBuildingFilter } }),
+      prisma.maintenanceTicket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] }, ...ticketBuildingFilter } }),
     ]);
 
     const aptCounts = { total: 0, occupied: 0, available: 0, maintenance: 0 };
@@ -47,31 +58,42 @@ export async function stats(_req: AuthRequest, res: Response): Promise<void> {
   }
 }
 
-export async function activity(_req: AuthRequest, res: Response): Promise<void> {
+export async function activity(req: AuthRequest, res: Response): Promise<void> {
   try {
+    const rawBuilding = req.query.buildingId;
+    const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+    if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
+    const bookingBuildingFilter = buildingId ? { apartment: { buildingId } } : {};
+    const paymentBuildingFilter = buildingId ? { booking: { apartment: { buildingId } } } : {};
+    const ticketBuildingFilter = buildingId ? { apartment: { buildingId } } : {};
+
     const [checkIns, checkOuts, payments, tickets] = await Promise.all([
       prisma.booking.findMany({
-        where: { checkIn: { gte: startOfToday, lt: startOfTomorrow } },
+        where: { checkIn: { gte: startOfToday, lt: startOfTomorrow }, ...bookingBuildingFilter },
         include: { tenant: { select: { fullName: true } }, apartment: { select: { number: true } } },
         take: 20,
       }),
       prisma.booking.findMany({
-        where: { checkOut: { gte: startOfToday, lt: startOfTomorrow } },
+        where: { checkOut: { gte: startOfToday, lt: startOfTomorrow }, ...bookingBuildingFilter },
         include: { tenant: { select: { fullName: true } }, apartment: { select: { number: true } } },
         take: 20,
       }),
       prisma.payment.findMany({
-        where: { status: 'PAID', paidAt: { gte: startOfToday, lt: startOfTomorrow } },
+        where: { status: 'PAID', paidAt: { gte: startOfToday, lt: startOfTomorrow }, ...paymentBuildingFilter },
         orderBy: { paidAt: 'desc' },
         take: 20,
         include: { booking: { include: { tenant: { select: { fullName: true } } } } },
       }),
       prisma.maintenanceTicket.findMany({
-        where: { createdAt: { gte: startOfToday, lt: startOfTomorrow } },
+        where: { createdAt: { gte: startOfToday, lt: startOfTomorrow }, ...ticketBuildingFilter },
         orderBy: { createdAt: 'desc' },
         take: 20,
         include: { apartment: { select: { number: true } } },
@@ -113,6 +135,14 @@ export async function revenueTrend(req: AuthRequest, res: Response): Promise<voi
       res.status(400).json({ message: 'days must be 7 or 30' });
       return;
     }
+
+    const rawBuilding = req.query.buildingId;
+    const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+    if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
+
     const days = Number(daysParam);
 
     // Start date: (days - 1) days ago, midnight UTC
@@ -121,8 +151,10 @@ export async function revenueTrend(req: AuthRequest, res: Response): Promise<voi
     startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
     startDate.setUTCHours(0, 0, 0, 0);
 
+    const paymentBuildingFilter = buildingId ? { booking: { apartment: { buildingId } } } : {};
+
     const payments = await prisma.payment.findMany({
-      where: { status: 'PAID', paidAt: { gte: startDate } },
+      where: { status: 'PAID', paidAt: { gte: startDate }, ...paymentBuildingFilter },
       select: { paidAt: true, amount: true },
     });
 
