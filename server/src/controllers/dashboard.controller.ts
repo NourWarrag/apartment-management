@@ -105,3 +105,45 @@ export async function activity(_req: AuthRequest, res: Response): Promise<void> 
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+export async function revenueTrend(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { days: daysParam } = req.query as { days?: string };
+    if (daysParam !== '7' && daysParam !== '30') {
+      res.status(400).json({ message: 'days must be 7 or 30' });
+      return;
+    }
+    const days = Number(daysParam);
+
+    // Start date: (days - 1) days ago, midnight UTC
+    const startDate = new Date();
+    startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const payments = await prisma.payment.findMany({
+      where: { status: 'PAID', paidAt: { gte: startDate } },
+      select: { paidAt: true, amount: true },
+    });
+
+    // Aggregate by UTC date string
+    const revenueMap: Record<string, number> = {};
+    for (const p of payments) {
+      if (!p.paidAt) continue;
+      const dateStr = p.paidAt.toISOString().split('T')[0];
+      revenueMap[dateStr] = (revenueMap[dateStr] ?? 0) + Number(p.amount);
+    }
+
+    // Build result array oldest → newest, filling zeros
+    const result: { date: string; revenue: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      result.push({ date: dateStr, revenue: revenueMap[dateStr] ?? 0 });
+    }
+
+    res.json(result);
+  } catch {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
