@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDashboardStats, useDashboardActivity } from '../../hooks/useDashboard';
 import type { ActivityEvent } from '../../hooks/useDashboard';
 import StatWidget from './StatWidget';
-
-function formatAed(amount: number): string {
-  return `AED ${amount.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import RevenueChart from './RevenueChart';
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -49,55 +46,48 @@ export default function DashboardPage() {
       {statsError ? (
         <div className="text-error text-body-base">Failed to load stats. Please refresh.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-widget-gap">
-          <StatWidget
-            icon="apartment"
-            label="Total Apartments"
-            value={stats?.apartments.total ?? '—'}
-            loading={statsLoading}
-            onClick={() => navigate('/apartments')}
-          />
-          <StatWidget
-            icon="meeting_room"
-            label="Occupied"
-            value={stats?.apartments.occupied ?? '—'}
-            loading={statsLoading}
-            onClick={() => navigate('/apartments?status=OCCUPIED')}
-          />
-          <StatWidget
-            icon="check_circle"
-            label="Available"
-            value={stats?.apartments.available ?? '—'}
-            loading={statsLoading}
-            onClick={() => navigate('/apartments?status=AVAILABLE')}
-          />
-          <StatWidget
-            icon="payments"
-            label="Today's Revenue"
-            value={stats ? formatAed(stats.revenue.total) : '—'}
-            loading={statsLoading}
-            subRows={stats ? [
-              { label: 'Cash', value: formatAed(stats.revenue.cash) },
-              { label: 'Card', value: formatAed(stats.revenue.card) },
-              { label: 'Installment', value: formatAed(stats.revenue.installment) },
-            ] : undefined}
-            onClick={() => navigate('/payments')}
-          />
-          <StatWidget
-            icon="schedule"
-            label="Pending Installments"
-            value={stats?.pendingInstallments ?? '—'}
-            loading={statsLoading}
-            onClick={() => navigate('/payments?status=PENDING&method=INSTALLMENT')}
-          />
-          <StatWidget
-            icon="build"
-            label="Open Tickets"
-            value={stats?.openTickets ?? '—'}
-            loading={statsLoading}
-            onClick={() => navigate('/tickets?status=OPEN')}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-widget-gap">
+            <StatWidget
+              icon="apartment"
+              label="Total Apartments"
+              value={stats?.apartments.total ?? '—'}
+              loading={statsLoading}
+              onClick={() => navigate('/apartments')}
+            />
+            <StatWidget
+              icon="meeting_room"
+              label="Occupied"
+              value={stats?.apartments.occupied ?? '—'}
+              loading={statsLoading}
+              onClick={() => navigate('/apartments?status=OCCUPIED')}
+            />
+            <StatWidget
+              icon="check_circle"
+              label="Available"
+              value={stats?.apartments.available ?? '—'}
+              loading={statsLoading}
+              onClick={() => navigate('/apartments?status=AVAILABLE')}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-widget-gap">
+            <RevenueChart />
+            <StatWidget
+              icon="schedule"
+              label="Pending Installments"
+              value={stats?.pendingInstallments ?? '—'}
+              loading={statsLoading}
+              onClick={() => navigate('/payments?status=PENDING&method=INSTALLMENT')}
+            />
+            <StatWidget
+              icon="build"
+              label="Open Tickets"
+              value={stats?.openTickets ?? '—'}
+              loading={statsLoading}
+              onClick={() => navigate('/tickets?status=OPEN')}
+            />
+          </div>
+        </>
       )}
 
       {/* Activity Feed */}
