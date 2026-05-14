@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
+import { useBuilding } from '../context/BuildingContext';
 
 export interface TicketItem {
   id: number;
@@ -36,12 +37,16 @@ export interface UpdateTicketDto {
 }
 
 export function useTickets(filters?: { status?: string; priority?: string }) {
+  const { selectedBuilding } = useBuilding();
+  const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
+
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.priority) params.set('priority', filters.priority);
+  if (buildingId) params.set('buildingId', String(buildingId));
 
   return useQuery<{ total: number; data: TicketItem[] }>({
-    queryKey: ['tickets', filters],
+    queryKey: ['tickets', { ...filters, buildingId }],
     queryFn: async () => {
       const res = await api.get(`/tickets?${params.toString()}`);
       return res.data;

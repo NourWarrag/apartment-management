@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/axios';
+import { useBuilding } from '../context/BuildingContext';
 
 export interface DashboardStats {
   apartments: { total: number; occupied: number; available: number; maintenance: number };
@@ -19,10 +20,14 @@ export interface DashboardActivity {
 }
 
 export function useDashboardStats() {
+  const { selectedBuilding } = useBuilding();
+  const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
+  const params = buildingId ? `?buildingId=${buildingId}` : '';
+
   return useQuery<DashboardStats>({
-    queryKey: ['dashboard', 'stats'],
+    queryKey: ['dashboard', 'stats', buildingId],
     queryFn: async () => {
-      const res = await api.get('/dashboard/stats');
+      const res = await api.get(`/dashboard/stats${params}`);
       return res.data;
     },
     retry: 1,
@@ -30,10 +35,14 @@ export function useDashboardStats() {
 }
 
 export function useDashboardActivity() {
+  const { selectedBuilding } = useBuilding();
+  const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
+  const params = buildingId ? `?buildingId=${buildingId}` : '';
+
   return useQuery<DashboardActivity>({
-    queryKey: ['dashboard', 'activity'],
+    queryKey: ['dashboard', 'activity', buildingId],
     queryFn: async () => {
-      const res = await api.get('/dashboard/activity');
+      const res = await api.get(`/dashboard/activity${params}`);
       return res.data;
     },
     retry: 1,
@@ -47,10 +56,15 @@ export interface RevenueTrendPoint {
 }
 
 export function useRevenueTrend(days: 7 | 30) {
+  const { selectedBuilding } = useBuilding();
+  const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
+  const params = new URLSearchParams({ days: String(days) });
+  if (buildingId) params.set('buildingId', String(buildingId));
+
   return useQuery<RevenueTrendPoint[]>({
-    queryKey: ['dashboard', 'revenue-trend', days],
+    queryKey: ['dashboard', 'revenue-trend', days, buildingId],
     queryFn: async () => {
-      const res = await api.get(`/dashboard/revenue-trend?days=${days}`);
+      const res = await api.get(`/dashboard/revenue-trend?${params}`);
       return res.data;
     },
     retry: 1,

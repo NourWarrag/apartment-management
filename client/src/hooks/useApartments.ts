@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import { ApartmentStatus, ApartmentType } from '@hotel/shared';
+import { useBuilding } from '../context/BuildingContext';
 
 export interface ApartmentListItem {
   id: number;
@@ -23,6 +24,7 @@ export interface ApartmentListItem {
     tenant: { id: number; fullName: string; phone: string };
   } | null;
   activeTicket: { id: number; status: string; priority: string } | null;
+  building: { id: number; name: string; code: string };
 }
 
 export interface ApartmentDetail extends Omit<ApartmentListItem, 'upcomingBooking' | 'activeTicket'> {
@@ -62,13 +64,17 @@ export function useApartments(
   filters?: { status?: ApartmentStatus; type?: ApartmentType; search?: string },
   options?: { enabled?: boolean }
 ) {
+  const { selectedBuilding } = useBuilding();
+  const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
+
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.type) params.set('type', filters.type);
   if (filters?.search) params.set('search', filters.search);
+  if (buildingId) params.set('buildingId', String(buildingId));
 
   return useQuery<ApartmentListItem[]>({
-    queryKey: ['apartments', filters],
+    queryKey: ['apartments', { ...filters, buildingId }],
     queryFn: async () => {
       const res = await api.get(`/apartments?${params.toString()}`);
       return res.data;

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
+import { useBuilding } from '../context/BuildingContext';
 
 export interface PaymentListItem {
   id: number;
@@ -38,14 +39,18 @@ export function usePayments(filters?: {
   search?: string;
   page?: number;
 }) {
+  const { selectedBuilding } = useBuilding();
+  const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
+
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.method) params.set('method', filters.method);
   if (filters?.search) params.set('search', filters.search);
   if (filters?.page && filters.page > 1) params.set('page', String(filters.page));
+  if (buildingId) params.set('buildingId', String(buildingId));
 
   return useQuery<PaymentsListResponse>({
-    queryKey: ['payments', filters],
+    queryKey: ['payments', { ...filters, buildingId }],
     queryFn: async () => {
       const res = await api.get(`/payments?${params.toString()}`);
       return res.data;
