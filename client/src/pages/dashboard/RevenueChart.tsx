@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import {
   AreaChart,
   Area,
@@ -15,7 +15,7 @@ function formatAxisDate(dateStr: string): string {
 }
 
 function formatAed(value: number): string {
-  return `AED ${value.toLocaleString('en')}`;
+  return `AED ${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function formatYAxis(value: number): string {
@@ -25,7 +25,9 @@ function formatYAxis(value: number): string {
 
 export default function RevenueChart() {
   const [days, setDays] = useState<7 | 30>(7);
-  const { data, isLoading } = useRevenueTrend(days);
+  const { data, isLoading, isError } = useRevenueTrend(days);
+  const uniqueId = useId();
+  const gradientId = `revenue-gradient-${uniqueId}`;
 
   const chartData = (data ?? []).map((d) => ({
     date: formatAxisDate(d.date),
@@ -46,6 +48,8 @@ export default function RevenueChart() {
             <button
               key={d}
               onClick={() => setDays(d)}
+              aria-label={`Show last ${d} days`}
+              aria-pressed={days === d}
               className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
                 days === d
                   ? 'bg-primary text-on-primary'
@@ -60,11 +64,15 @@ export default function RevenueChart() {
 
       {isLoading ? (
         <div className="h-[200px] bg-surface-container-high animate-pulse rounded-lg" />
+      ) : isError ? (
+        <div className="h-[200px] flex items-center justify-center text-on-surface-variant text-body-base">
+          Failed to load revenue data.
+        </div>
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.15} />
                 <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
               </linearGradient>
@@ -95,7 +103,7 @@ export default function RevenueChart() {
               type="monotone"
               dataKey="revenue"
               stroke="var(--color-primary)"
-              fill="url(#revenueGradient)"
+              fill={`url(#${gradientId})`}
               strokeWidth={2}
               dot={false}
             />

@@ -54,5 +54,6 @@ export function useRevenueTrend(days: 7 | 30) {
       return res.data;
     },
     retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 }
