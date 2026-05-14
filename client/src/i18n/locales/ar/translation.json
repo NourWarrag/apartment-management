@@ -6,7 +6,9 @@
     "payments": "المدفوعات",
     "tickets": "الصيانة",
     "buildings": "المباني",
-    "reports": "التقارير"
+    "reports": "التقارير",
+    "users": "المستخدمون",
+    "settings": "الإعدادات"
   },
   "auth": {
     "login": "تسجيل الدخول",

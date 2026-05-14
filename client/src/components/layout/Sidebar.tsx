@@ -4,14 +4,22 @@ import { Role } from '@hotel/shared';
 import { useAuth } from '../../hooks/useAuth';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', icon: 'dashboard', key: 'dashboard', roles: [Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE] },
-  { to: '/apartments', icon: 'apartment', key: 'apartments', roles: [Role.ADMIN, Role.RECEPTIONIST] },
-  { to: '/tenants', icon: 'groups', key: 'tenants', roles: [Role.ADMIN, Role.RECEPTIONIST] },
-  { to: '/buildings', icon: 'business', key: 'buildings', roles: [Role.ADMIN] },
-  { to: '/payments', icon: 'payments', key: 'payments', roles: [Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE] },
-  { to: '/tickets', icon: 'build', key: 'tickets', roles: [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE] },
-  { to: '/reports', icon: 'assessment', key: 'reports', roles: [Role.ADMIN, Role.FINANCE] },
+  { to: '/dashboard', icon: 'dashboard', key: 'dashboard', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.FINANCE] },
+  { to: '/apartments', icon: 'apartment', key: 'apartments', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST] },
+  { to: '/tenants', icon: 'groups', key: 'tenants', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST] },
+  { to: '/buildings', icon: 'business', key: 'buildings', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
+  { to: '/payments', icon: 'payments', key: 'payments', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.FINANCE] },
+  { to: '/tickets', icon: 'build', key: 'tickets', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE] },
+  { to: '/reports', icon: 'assessment', key: 'reports', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE] },
+  { to: '/users', icon: 'group', key: 'users', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
 ];
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+    isActive
+      ? 'text-primary font-bold ltr:border-r-4 rtl:border-l-4 border-primary bg-secondary-container/30'
+      : 'text-on-surface-variant hover:bg-surface-container-high'
+  }`;
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -39,29 +47,19 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 space-y-1">
         {visibleItems.map(({ to, icon, key }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? 'text-primary font-bold ltr:border-r-4 rtl:border-l-4 border-primary bg-secondary-container/30'
-                  : 'text-on-surface-variant hover:bg-surface-container-high'
-              }`
-            }
-          >
+          <NavLink key={to} to={to} className={navLinkClass}>
             <span className="material-symbols-outlined text-[22px]">{icon}</span>
             <span className="text-sm">{t(`nav.${key}`, key.charAt(0).toUpperCase() + key.slice(1))}</span>
           </NavLink>
         ))}
       </nav>
 
-      {/* Bottom links */}
+      {/* Settings link — all roles */}
       <div className="pt-6 border-t border-outline-variant space-y-1">
-        <a className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors duration-200" href="#">
+        <NavLink to="/settings" className={navLinkClass}>
           <span className="material-symbols-outlined text-[20px]">settings</span>
           <span className="text-sm">{t('nav.settings', 'Settings')}</span>
-        </a>
+        </NavLink>
       </div>
     </aside>
   );

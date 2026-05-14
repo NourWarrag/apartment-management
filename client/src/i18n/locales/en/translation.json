@@ -6,7 +6,9 @@
     "payments": "Payments",
     "tickets": "Maintenance",
     "buildings": "Buildings",
-    "reports": "Reports"
+    "reports": "Reports",
+    "users": "Users",
+    "settings": "Settings"
   },
   "auth": {
     "login": "Login",
