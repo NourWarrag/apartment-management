@@ -107,8 +107,8 @@ model Booking {
   totalAmount Decimal   @db.Decimal(10, 2)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  createdBy           Int?
-  updatedBy           Int?
+  createdBy   Int?
+  updatedBy   Int?
   depositAmount       Decimal?      @db.Decimal(10, 2)
   depositStatus       DepositStatus @default(NONE)
   depositRefundAmount Decimal?      @db.Decimal(10, 2)
