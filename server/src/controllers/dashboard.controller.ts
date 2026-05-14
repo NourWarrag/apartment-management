@@ -116,7 +116,8 @@ export async function revenueTrend(req: AuthRequest, res: Response): Promise<voi
     const days = Number(daysParam);
 
     // Start date: (days - 1) days ago, midnight UTC
-    const startDate = new Date();
+    const now = new Date();
+    const startDate = new Date(now);
     startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
     startDate.setUTCHours(0, 0, 0, 0);
 
@@ -136,7 +137,7 @@ export async function revenueTrend(req: AuthRequest, res: Response): Promise<voi
     // Build result array oldest → newest, filling zeros
     const result: { date: string; revenue: number }[] = [];
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(now);
       d.setUTCDate(d.getUTCDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       result.push({ date: dateStr, revenue: revenueMap[dateStr] ?? 0 });
