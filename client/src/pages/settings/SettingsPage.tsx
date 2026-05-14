@@ -39,15 +39,20 @@ function InlineField({ field, value, canEdit, onSave }: InlineFieldProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const isSelect = field === 'currency' || field === 'timezone';
   const options = field === 'currency' ? CURRENCY_OPTIONS : TIMEZONE_OPTIONS;
 
   async function handleSave() {
     setSaving(true);
+    setSaveError('');
     try {
       await onSave(field, draft);
       setEditing(false);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setSaveError(msg ?? 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -58,23 +63,26 @@ function InlineField({ field, value, canEdit, onSave }: InlineFieldProps) {
       <div className="flex-1">
         <p className="text-xs text-on-surface-variant mb-0.5">{FIELD_LABELS[field]}</p>
         {editing ? (
-          isSelect ? (
-            <select
-              className="text-sm px-2 py-1 rounded border border-outline bg-surface-container text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              autoFocus
-            >
-              {options.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          ) : (
-            <input
-              className="text-sm px-2 py-1 rounded border border-outline bg-surface-container text-on-surface focus:outline-none focus:ring-2 focus:ring-primary w-full max-w-xs"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              autoFocus
-            />
-          )
+          <div>
+            {isSelect ? (
+              <select
+                className="text-sm px-2 py-1 rounded border border-outline bg-surface-container text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                autoFocus
+              >
+                {options.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : (
+              <input
+                className="text-sm px-2 py-1 rounded border border-outline bg-surface-container text-on-surface focus:outline-none focus:ring-2 focus:ring-primary w-full max-w-xs"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                autoFocus
+              />
+            )}
+            {saveError && <p className="text-error text-xs mt-1">{saveError}</p>}
+          </div>
         ) : (
           <p className="text-sm text-on-surface">{value || '—'}</p>
         )}
@@ -115,7 +123,7 @@ function InlineField({ field, value, canEdit, onSave }: InlineFieldProps) {
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { data: currentUser } = useAuth();
-  const { data: settings, isLoading } = useSettings();
+  const { data: settings, isLoading, isError } = useSettings();
   const updateSettings = useUpdateSettings();
 
   const canEdit = currentUser?.role === Role.ADMIN || currentUser?.role === Role.SUPER_ADMIN;
@@ -131,6 +139,7 @@ export default function SettingsPage() {
   }
 
   if (isLoading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>;
+  if (isError) return <div className="p-8 text-error">Failed to load settings.</div>;
   if (!settings) return null;
 
   const fields: EditableField[] = ['companyName', 'currency', 'timezone', 'phone', 'email', 'address'];
