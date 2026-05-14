@@ -54,7 +54,7 @@ describe('Buildings API', () => {
       .set('Cookie', ADMIN_COOKIE)
       .send({ name: 'Tower 1', code: 'T1', address: '1 Main St' });
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ name: 'Tower 1', code: 'T1', address: '1 Main St' });
+    expect(res.body).toMatchObject({ id: expect.any(Number), name: 'Tower 1', code: 'T1', address: '1 Main St' });
     buildingId = res.body.id;
   });
 
