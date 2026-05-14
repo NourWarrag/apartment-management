@@ -9,7 +9,7 @@ export interface TicketItem {
   notes: string | null;
   createdAt: string;
   resolvedAt: string | null;
-  apartment: { id: number; number: string; floor: number };
+  apartment: { id: number; number: string; floor: number; deletedAt: string | null };
   assignedTo: { id: number; name: string } | null;
 }
 

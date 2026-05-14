@@ -210,10 +210,24 @@ export default function PaymentsPage() {
                       {formatDate(p.paidAt ?? p.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-sm font-bold text-on-surface">
-                      {p.booking.apartment.number}
+                      <span className="flex items-center flex-wrap gap-0.5">
+                        {p.booking.apartment.number}
+                        {p.booking.apartment.deletedAt && (
+                          <span className="ml-1 text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                            Deleted
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-on-surface">
-                      {p.booking.tenant.fullName}
+                      <span className="flex items-center flex-wrap gap-0.5">
+                        {p.booking.tenant.fullName}
+                        {p.booking.tenant.deletedAt && (
+                          <span className="ml-1 text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                            Deleted
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-on-surface-variant">
                       {p.method.charAt(0) + p.method.slice(1).toLowerCase()}

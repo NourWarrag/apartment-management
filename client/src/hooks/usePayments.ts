@@ -13,8 +13,8 @@ export interface PaymentListItem {
     id: number;
     checkIn: string;
     checkOut: string;
-    tenant: { id: number; fullName: string; phone: string };
-    apartment: { id: number; number: string; floor: number };
+    tenant: { id: number; fullName: string; phone: string; deletedAt: string | null };
+    apartment: { id: number; number: string; floor: number; deletedAt: string | null };
   };
 }
 

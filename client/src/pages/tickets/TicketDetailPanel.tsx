@@ -100,7 +100,15 @@ export default function TicketDetailPanel({ ticket, onClose, canEditAll }: Ticke
           </span>
         </div>
         <p className="text-sm text-on-surface">{ticket.description}</p>
-        <p className="text-xs text-on-surface-variant">Apt. {ticket.apartment.number} · Floor {ticket.apartment.floor}</p>
+        <p className="text-xs text-on-surface-variant flex items-center flex-wrap gap-1">
+          Apt. {ticket.apartment.number}
+          {ticket.apartment.deletedAt && (
+            <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
+              Deleted
+            </span>
+          )}
+          · Floor {ticket.apartment.floor}
+        </p>
       </div>
 
       {/* Assigned Staff */}

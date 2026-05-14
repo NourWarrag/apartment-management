@@ -200,7 +200,16 @@ export default function TicketsPage() {
                   className="border-b border-outline-variant hover:bg-surface-container cursor-pointer transition-colors last:border-0"
                 >
                   <td className="px-4 py-3 font-mono text-xs text-on-surface-variant">{ticketNumber(t.id)}</td>
-                  <td className="px-4 py-3 text-on-surface font-bold">Apt. {t.apartment.number}</td>
+                  <td className="px-4 py-3 text-on-surface font-bold">
+                    <span className="flex items-center flex-wrap gap-0.5">
+                      Apt. {t.apartment.number}
+                      {t.apartment.deletedAt && (
+                        <span className="ml-1 text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                          Deleted
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-on-surface">
                     {t.description.length > 60 ? t.description.slice(0, 60) + '…' : t.description}
                   </td>
