@@ -16,7 +16,7 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get('/maintenance-staff', maintenanceStaff);
+router.get('/maintenance-staff', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), maintenanceStaff);
 router.get('/', requireRole(Role.ADMIN, Role.SUPER_ADMIN), list);
 router.get('/:id', requireRole(Role.ADMIN, Role.SUPER_ADMIN), getById);
 router.post('/', requireRole(Role.ADMIN, Role.SUPER_ADMIN), create);

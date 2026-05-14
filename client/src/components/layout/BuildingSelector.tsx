@@ -5,10 +5,10 @@ import { Role } from '@hotel/shared';
 
 export default function BuildingSelector() {
   const { data: currentUser } = useAuth();
-  if (currentUser?.role === Role.BUILDING_ADMIN) return null;
-
   const { selectedBuilding, setSelectedBuilding } = useBuilding();
   const { data: buildings = [] } = useBuildings();
+
+  if (currentUser?.role === Role.BUILDING_ADMIN) return null;
 
   const currentId = selectedBuilding === 'all' ? 'all' : String(selectedBuilding.id);
 

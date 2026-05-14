@@ -153,10 +153,14 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       res.status(403).json({ message: 'Only SUPER_ADMIN can assign ADMIN role' });
       return;
     }
+    if (role === Role.SUPER_ADMIN && req.user?.role !== Role.SUPER_ADMIN) {
+      res.status(403).json({ message: 'Only SUPER_ADMIN can assign SUPER_ADMIN role' });
+      return;
+    }
   }
 
   const raw = getRawClient();
-  let existing: { role: Role; assignedBuildingId: number | null } | null;
+  let existing: { role: string; assignedBuildingId: number | null } | null;
   try {
     existing = await raw.user.findUnique({ where: { id }, select: { role: true, assignedBuildingId: true } });
   } finally {
