@@ -64,9 +64,9 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const newStatus = checkInDate <= today ? ApartmentStatus.OCCUPIED : ApartmentStatus.RESERVED;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const checkInStr = checkIn.slice(0, 10);
+    const newStatus = checkInStr <= todayStr ? ApartmentStatus.OCCUPIED : ApartmentStatus.RESERVED;
 
     const booking = await prisma.$transaction(async (tx) => {
       const newBooking = await tx.booking.create({
