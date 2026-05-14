@@ -313,3 +313,148 @@ describe('PATCH /api/v1/payments/:id', () => {
     await testPrisma.payment.delete({ where: { id: fresh.id } });
   });
 });
+
+describe('GET /api/v1/payments/stats', () => {
+  // Global seed: 1 PAID CARD (5000, paidAt=now), 1 PENDING INSTALLMENT (3000)
+  // Expected: monthlyRevenue=5000, outstandingBalance=3000, activePlans=0
+
+  it('returns 401 without auth', async () => {
+    const res = await request(app).get('/api/v1/payments/stats');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for MAINTENANCE role', async () => {
+    const maintenanceCookie = `token=${signToken({ id: 9, role: 'MAINTENANCE' })}`;
+    const res = await request(app)
+      .get('/api/v1/payments/stats')
+      .set('Cookie', maintenanceCookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('monthlyRevenue includes only PAID payments within the current month', async () => {
+    const res = await request(app)
+      .get('/api/v1/payments/stats')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.monthlyRevenue).toBe(5000);
+  });
+
+  it('outstandingBalance counts only PENDING payments', async () => {
+    const res = await request(app)
+      .get('/api/v1/payments/stats')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.outstandingBalance).toBe(3000);
+  });
+
+  it('activePlans is 0 when no PAID installment payments exist', async () => {
+    const res = await request(app)
+      .get('/api/v1/payments/stats')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.activePlans).toBe(0);
+  });
+
+  it('activePlans counts bookings with partial paid installment sum', async () => {
+    const partial = await testPrisma.payment.create({
+      data: { bookingId, method: 'INSTALLMENT', amount: 4000, status: 'PAID', paidAt: new Date() },
+    });
+
+    try {
+      const res = await request(app)
+        .get('/api/v1/payments/stats')
+        .set('Cookie', adminCookie);
+      expect(res.status).toBe(200);
+      expect(res.body.activePlans).toBeGreaterThanOrEqual(1);
+    } finally {
+      await testPrisma.payment.delete({ where: { id: partial.id } });
+    }
+  });
+
+  it('collectionRate = 100.0 when no pending payments exist', async () => {
+    const allPayments = await testPrisma.payment.findMany();
+    await testPrisma.payment.deleteMany();
+    const sole = await testPrisma.payment.create({
+      data: { bookingId, method: 'CASH', amount: 2000, status: 'PAID', paidAt: new Date() },
+    });
+
+    try {
+      const res = await request(app)
+        .get('/api/v1/payments/stats')
+        .set('Cookie', adminCookie);
+      expect(res.status).toBe(200);
+      expect(res.body.collectionRate).toBe(100.0);
+    } finally {
+      await testPrisma.payment.delete({ where: { id: sole.id } });
+      for (const p of allPayments) {
+        await testPrisma.payment.create({
+          data: {
+            bookingId: p.bookingId,
+            method: p.method,
+            amount: p.amount,
+            status: p.status,
+            referenceNumber: p.referenceNumber,
+            paidAt: p.paidAt,
+          },
+        });
+      }
+    }
+  });
+});
+
+describe('GET /api/v1/payments/installment-plans', () => {
+  it('returns 401 without auth', async () => {
+    const res = await request(app).get('/api/v1/payments/installment-plans');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns empty array when no PAID installment payments exist', async () => {
+    const res = await request(app)
+      .get('/api/v1/payments/installment-plans')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns active plans (paidAmount < totalAmount)', async () => {
+    const partial = await testPrisma.payment.create({
+      data: { bookingId, method: 'INSTALLMENT', amount: 4000, status: 'PAID', paidAt: new Date() },
+    });
+
+    try {
+      const res = await request(app)
+        .get('/api/v1/payments/installment-plans')
+        .set('Cookie', adminCookie);
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+      const plan = res.body[0];
+      expect(plan).toHaveProperty('bookingId');
+      expect(plan).toHaveProperty('tenantName');
+      expect(plan).toHaveProperty('apartmentNumber');
+      expect(plan).toHaveProperty('totalAmount');
+      expect(plan).toHaveProperty('paidAmount');
+      expect(plan).toHaveProperty('checkIn');
+      expect(plan).toHaveProperty('checkOut');
+      expect(Number(plan.paidAmount)).toBeLessThan(Number(plan.totalAmount));
+    } finally {
+      await testPrisma.payment.delete({ where: { id: partial.id } });
+    }
+  });
+
+  it('excludes fully paid installment bookings', async () => {
+    const full = await testPrisma.payment.create({
+      data: { bookingId, method: 'INSTALLMENT', amount: 10000, status: 'PAID', paidAt: new Date() },
+    });
+
+    try {
+      const res = await request(app)
+        .get('/api/v1/payments/installment-plans')
+        .set('Cookie', adminCookie);
+      expect(res.status).toBe(200);
+      const plan = res.body.find((p: { bookingId: number }) => p.bookingId === bookingId);
+      expect(plan).toBeUndefined();
+    } finally {
+      await testPrisma.payment.delete({ where: { id: full.id } });
+    }
+  });
+});
