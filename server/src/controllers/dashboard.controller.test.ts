@@ -10,131 +10,112 @@ const testPrisma = new PrismaClient({
 });
 
 let adminCookie: string;
+let aptId: number;
+let tenantId: number;
+let bookingId: number;
 
 beforeAll(async () => {
-  adminCookie = `token=${signToken({ id: 1, role: 'ADMIN' })}`;
+  await testPrisma.payment.deleteMany();
+  await testPrisma.booking.deleteMany();
+  await testPrisma.apartment.deleteMany({ where: { number: 'DASH-RT-101' } });
+  await testPrisma.tenant.deleteMany({ where: { idNumber: 'DASH-RT-ID-001' } });
+  await testPrisma.user.deleteMany({ where: { email: 'admin-dash@test.com' } });
 
-  // Seed 12 apartments so the total assertion is deterministic
-  await testPrisma.apartment.deleteMany();
-  const aptData = [
-    { number: '101', floor: 1, type: 'STUDIO' as const,      status: 'OCCUPIED' as const },
-    { number: '102', floor: 1, type: 'ONE_BEDROOM' as const,  status: 'AVAILABLE' as const },
-    { number: '103', floor: 1, type: 'TWO_BEDROOM' as const,  status: 'RESERVED' as const },
-    { number: '201', floor: 2, type: 'ONE_BEDROOM' as const,  status: 'OCCUPIED' as const },
-    { number: '202', floor: 2, type: 'PENTHOUSE' as const,    status: 'MAINTENANCE' as const },
-    { number: '203', floor: 2, type: 'STUDIO' as const,      status: 'AVAILABLE' as const },
-    { number: '301', floor: 3, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const },
-    { number: '302', floor: 3, type: 'ONE_BEDROOM' as const,  status: 'PENDING_CHECKOUT' as const },
-    { number: '401', floor: 4, type: 'PENTHOUSE' as const,    status: 'OCCUPIED' as const },
-    { number: '402', floor: 4, type: 'STUDIO' as const,      status: 'AVAILABLE' as const },
-    { number: '501', floor: 5, type: 'TWO_BEDROOM' as const,  status: 'OCCUPIED' as const },
-    { number: '502', floor: 5, type: 'ONE_BEDROOM' as const,  status: 'RESERVED' as const },
-  ];
-  await testPrisma.apartment.createMany({ data: aptData });
+  const admin = await testPrisma.user.create({
+    data: { name: 'Admin Dash', email: 'admin-dash@test.com', password: 'x', role: 'ADMIN' },
+  });
+  adminCookie = `token=${signToken({ id: admin.id, role: 'ADMIN' })}`;
+
+  const apt = await testPrisma.apartment.create({
+    data: { number: 'DASH-RT-101', floor: 1, type: 'STUDIO', status: 'OCCUPIED' },
+  });
+  aptId = apt.id;
+
+  const tenant = await testPrisma.tenant.create({
+    data: { fullName: 'Dash Test Tenant', phone: '0501234500', idNumber: 'DASH-RT-ID-001' },
+  });
+  tenantId = tenant.id;
+
+  const booking = await testPrisma.booking.create({
+    data: {
+      apartmentId: aptId,
+      tenantId,
+      checkIn: new Date(),
+      checkOut: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      totalAmount: 10000,
+    },
+  });
+  bookingId = booking.id;
+
+  // Create 2 PAID payments today and 1 PENDING (should not be counted)
+  const today = new Date();
+  await testPrisma.payment.createMany({
+    data: [
+      { bookingId, method: 'CASH', amount: 3000, status: 'PAID', paidAt: today },
+      { bookingId, method: 'CARD', amount: 2000, status: 'PAID', paidAt: today },
+      { bookingId, method: 'INSTALLMENT', amount: 1000, status: 'PENDING', paidAt: null },
+    ],
+  });
 });
 
 afterAll(async () => {
-  await testPrisma.apartment.deleteMany();
+  await testPrisma.payment.deleteMany();
+  await testPrisma.booking.deleteMany();
+  await testPrisma.apartment.deleteMany({ where: { number: 'DASH-RT-101' } });
+  await testPrisma.tenant.deleteMany({ where: { idNumber: 'DASH-RT-ID-001' } });
+  await testPrisma.user.deleteMany({ where: { email: 'admin-dash@test.com' } });
   await testPrisma.$disconnect();
   await prisma.$disconnect();
 });
 
-describe('GET /api/v1/dashboard/stats', () => {
+describe('GET /api/v1/dashboard/revenue-trend', () => {
   it('returns 401 without auth', async () => {
-    const res = await request(app).get('/api/v1/dashboard/stats');
+    const res = await request(app).get('/api/v1/dashboard/revenue-trend?days=7');
     expect(res.status).toBe(401);
   });
 
-  it('returns the correct response shape', async () => {
+  it('returns 400 for invalid days param', async () => {
     const res = await request(app)
-      .get('/api/v1/dashboard/stats')
+      .get('/api/v1/dashboard/revenue-trend?days=invalid')
       .set('Cookie', adminCookie);
+    expect(res.status).toBe(400);
+  });
 
+  it('returns 400 when days param is missing', async () => {
+    const res = await request(app)
+      .get('/api/v1/dashboard/revenue-trend')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 7 entries for days=7', async () => {
+    const res = await request(app)
+      .get('/api/v1/dashboard/revenue-trend?days=7')
+      .set('Cookie', adminCookie);
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      apartments: {
-        total: expect.any(Number),
-        occupied: expect.any(Number),
-        available: expect.any(Number),
-        maintenance: expect.any(Number),
-      },
-      revenue: {
-        total: expect.any(Number),
-        cash: expect.any(Number),
-        card: expect.any(Number),
-        installment: expect.any(Number),
-      },
-      pendingInstallments: expect.any(Number),
-      openTickets: expect.any(Number),
-    });
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(7);
+    expect(res.body[0]).toHaveProperty('date');
+    expect(res.body[0]).toHaveProperty('revenue');
   });
 
-  it('apartment total matches seeded count and status buckets are populated', async () => {
+  it('returns 30 entries for days=30', async () => {
     const res = await request(app)
-      .get('/api/v1/dashboard/stats')
+      .get('/api/v1/dashboard/revenue-trend?days=30')
       .set('Cookie', adminCookie);
-
-    const { apartments } = res.body as {
-      apartments: { total: number; occupied: number; available: number; maintenance: number };
-    };
-    expect(apartments.total).toBe(12);
-    expect(apartments.occupied + apartments.available + apartments.maintenance).toBeGreaterThan(0);
-  });
-
-  it('revenue total equals sum of cash + card + installment', async () => {
-    const res = await request(app)
-      .get('/api/v1/dashboard/stats')
-      .set('Cookie', adminCookie);
-
-    const { revenue } = res.body as {
-      revenue: { total: number; cash: number; card: number; installment: number };
-    };
-    expect(revenue.total).toBeCloseTo(revenue.cash + revenue.card + revenue.installment, 2);
-  });
-});
-
-describe('GET /api/v1/dashboard/activity', () => {
-  it('returns 401 without auth', async () => {
-    const res = await request(app).get('/api/v1/dashboard/activity');
-    expect(res.status).toBe(401);
-  });
-
-  it('returns events array with correct shape', async () => {
-    const res = await request(app)
-      .get('/api/v1/dashboard/activity')
-      .set('Cookie', adminCookie);
-
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.events)).toBe(true);
-    expect(res.body.events.length).toBeLessThanOrEqual(20);
+    expect(res.body).toHaveLength(30);
   });
 
-  it('each event has type, label, and timestamp', async () => {
+  it('sums only PAID payments (not PENDING) in todays entry', async () => {
     const res = await request(app)
-      .get('/api/v1/dashboard/activity')
+      .get('/api/v1/dashboard/revenue-trend?days=7')
       .set('Cookie', adminCookie);
-
     expect(res.status).toBe(200);
-    for (const event of res.body.events) {
-      expect(event).toHaveProperty('type');
-      expect(event).toHaveProperty('label');
-      expect(event).toHaveProperty('timestamp');
-      expect(['CHECK_IN', 'CHECK_OUT', 'PAYMENT', 'TICKET']).toContain(event.type);
-      expect(typeof event.label).toBe('string');
-      expect(typeof event.timestamp).toBe('string');
-    }
-  });
-
-  it('events are sorted newest-first', async () => {
-    const res = await request(app)
-      .get('/api/v1/dashboard/activity')
-      .set('Cookie', adminCookie);
-
-    const events = res.body.events as { timestamp: string }[];
-    for (let i = 0; i < events.length - 1; i++) {
-      expect(new Date(events[i].timestamp).getTime()).toBeGreaterThanOrEqual(
-        new Date(events[i + 1].timestamp).getTime()
-      );
-    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayEntry = res.body.find((e: { date: string }) => e.date === todayStr);
+    expect(todayEntry).toBeDefined();
+    // 3000 + 2000 = 5000 (PENDING 1000 must be excluded)
+    expect(todayEntry.revenue).toBe(5000);
   });
 });
