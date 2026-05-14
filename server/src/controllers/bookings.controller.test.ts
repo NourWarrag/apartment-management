@@ -95,20 +95,27 @@ describe('POST /api/v1/bookings', () => {
       .post('/api/v1/bookings')
       .set('Cookie', adminCookie)
       .send(validBody());
-    expect(res.status).toBe(201);
-    expect(res.body.apartment.id).toBe(aptId);
-    expect(res.body.tenant.id).toBe(tenantId);
-    expect(res.body.payments).toHaveLength(1);
-    expect(res.body.payments[0].method).toBe('CASH');
-    expect(res.body.payments[0].status).toBe('PAID');
 
-    const apt = await testPrisma.apartment.findUnique({ where: { id: aptId } });
-    expect(apt?.status).toBe('RESERVED');
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.apartment.id).toBe(aptId);
+      expect(res.body.tenant.id).toBe(tenantId);
+      expect(typeof res.body.totalAmount).toBe('string');
+      expect(res.body.checkIn).toBeDefined();
+      expect(res.body.checkOut).toBeDefined();
+      expect(res.body.payments).toHaveLength(1);
+      expect(res.body.payments[0].method).toBe('CASH');
+      expect(res.body.payments[0].status).toBe('PAID');
 
-    // cleanup
-    await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
-    await testPrisma.booking.delete({ where: { id: res.body.id } });
-    await testPrisma.apartment.update({ where: { id: aptId }, data: { status: 'AVAILABLE' } });
+      const apt = await testPrisma.apartment.findUnique({ where: { id: aptId } });
+      expect(apt?.status).toBe('RESERVED');
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } });
+      }
+      await testPrisma.apartment.update({ where: { id: aptId }, data: { status: 'AVAILABLE' } });
+    }
   });
 
   it('sets apartment to OCCUPIED when checkIn is today', async () => {
@@ -116,15 +123,19 @@ describe('POST /api/v1/bookings', () => {
       .post('/api/v1/bookings')
       .set('Cookie', adminCookie)
       .send(validBody({ checkIn: todayCheckIn }));
-    expect(res.status).toBe(201);
 
-    const apt = await testPrisma.apartment.findUnique({ where: { id: aptId } });
-    expect(apt?.status).toBe('OCCUPIED');
+    try {
+      expect(res.status).toBe(201);
 
-    // cleanup
-    await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
-    await testPrisma.booking.delete({ where: { id: res.body.id } });
-    await testPrisma.apartment.update({ where: { id: aptId }, data: { status: 'AVAILABLE' } });
+      const apt = await testPrisma.apartment.findUnique({ where: { id: aptId } });
+      expect(apt?.status).toBe('OCCUPIED');
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } });
+      }
+      await testPrisma.apartment.update({ where: { id: aptId }, data: { status: 'AVAILABLE' } });
+    }
   });
 
   it('returns 409 when apartment is not AVAILABLE', async () => {
@@ -140,6 +151,14 @@ describe('POST /api/v1/bookings', () => {
       .post('/api/v1/bookings')
       .set('Cookie', adminCookie)
       .send({ apartmentId: aptId });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when checkOut is before checkIn', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookie)
+      .send(validBody({ checkOut: futureCheckIn, checkIn: futureCheckOut }));
     expect(res.status).toBe(400);
   });
 
