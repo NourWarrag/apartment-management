@@ -8,36 +8,85 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String    @unique
   password  String
   role      Role
-  createdAt DateTime @default(now())
-  tickets   MaintenanceTicket[]
-  auditLogs AuditLog[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy Int?
+  updatedBy Int?
+  deletedBy Int?
+
+  // Self-referential audit + soft-delete relations
+  creator      User?   @relation("UserCreatedBy",  fields: [createdBy], references: [id], onDelete: SetNull)
+  updater      User?   @relation("UserUpdatedBy",  fields: [updatedBy], references: [id], onDelete: SetNull)
+  deleter      User?   @relation("UserDeletedBy",  fields: [deletedBy], references: [id], onDelete: SetNull)
+  createdUsers User[]  @relation("UserCreatedBy")
+  updatedUsers User[]  @relation("UserUpdatedBy")
+  deletedUsers User[]  @relation("UserDeletedBy")
+
+  // Existing relation — must be named now that there are multiple User↔MaintenanceTicket relations
+  assignedTickets MaintenanceTicket[] @relation("TicketAssignedTo")
+  auditLogs       AuditLog[]
+
+  // Back-relations for audit columns on other models
+  createdApartments Apartment[]         @relation("ApartmentCreatedBy")
+  updatedApartments Apartment[]         @relation("ApartmentUpdatedBy")
+  deletedApartments Apartment[]         @relation("ApartmentDeletedBy")
+  createdTenants    Tenant[]            @relation("TenantCreatedBy")
+  updatedTenants    Tenant[]            @relation("TenantUpdatedBy")
+  deletedTenants    Tenant[]            @relation("TenantDeletedBy")
+  createdBookings   Booking[]           @relation("BookingCreatedBy")
+  updatedBookings   Booking[]           @relation("BookingUpdatedBy")
+  createdPayments   Payment[]           @relation("PaymentCreatedBy")
+  updatedPayments   Payment[]           @relation("PaymentUpdatedBy")
+  createdTickets    MaintenanceTicket[] @relation("TicketCreatedBy")
+  updatedTickets    MaintenanceTicket[] @relation("TicketUpdatedBy")
 }
 
 model Apartment {
-  id       Int             @id @default(autoincrement())
-  number   String          @unique
-  floor    Int
-  type     ApartmentType   @default(STUDIO)
-  status   ApartmentStatus @default(AVAILABLE)
+  id        Int             @id @default(autoincrement())
+  number    String          @unique
+  floor     Int
+  type      ApartmentType   @default(STUDIO)
+  status    ApartmentStatus @default(AVAILABLE)
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+  createdBy Int?
+  updatedBy Int?
+  deletedBy Int?
+
+  creator   User?   @relation("ApartmentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater   User?   @relation("ApartmentUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  deleter   User?   @relation("ApartmentDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+
   bookings Booking[]
   tickets  MaintenanceTicket[]
 }
 
 model Tenant {
-  id        Int         @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   fullName  String
   phone     String
-  idNumber  String      @unique
-  kycStatus KycStatus   @default(PENDING)
-  tier      TenantTier  @default(NEW)
+  idNumber  String     @unique
+  kycStatus KycStatus  @default(PENDING)
+  tier      TenantTier @default(NEW)
   notes     String?
-  bookings  Booking[]
-  createdAt DateTime    @default(now())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  createdBy Int?
+  updatedBy Int?
+  deletedBy Int?
+
+  creator  User?   @relation("TenantCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater  User?   @relation("TenantUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  deleter  User?   @relation("TenantDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+
+  bookings Booking[]
 }
 
 model Booking {
@@ -47,10 +96,16 @@ model Booking {
   checkIn     DateTime
   checkOut    DateTime
   totalAmount Decimal   @db.Decimal(10, 2)
-  apartment   Apartment @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  payments    Payment[]
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   Int?
+  updatedBy   Int?
+
+  apartment Apartment @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  creator   User?     @relation("BookingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater   User?     @relation("BookingUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  payments  Payment[]
 
   @@index([apartmentId])
   @@index([tenantId])
@@ -65,8 +120,14 @@ model Payment {
   status          PaymentStatus @default(PENDING)
   referenceNumber String?
   paidAt          DateTime?
-  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdBy       Int?
+  updatedBy       Int?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  creator User?   @relation("PaymentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater User?   @relation("PaymentUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@index([bookingId, status])
   @@index([createdAt])
@@ -80,10 +141,17 @@ model MaintenanceTicket {
   status       TicketStatus @default(OPEN)
   assignedToId Int?
   notes        String?
-  apartment    Apartment    @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
-  assignedTo   User?        @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   resolvedAt   DateTime?
+  createdBy    Int?
+  updatedBy    Int?
+
+  // Must use explicit relation names — there are now 3 User relations on this model
+  apartment  Apartment @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
+  assignedTo User?     @relation("TicketAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  creator    User?     @relation("TicketCreatedBy",  fields: [createdBy], references: [id], onDelete: SetNull)
+  updater    User?     @relation("TicketUpdatedBy",  fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
   @@index([assignedToId])
