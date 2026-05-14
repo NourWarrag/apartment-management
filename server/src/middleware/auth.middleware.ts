@@ -4,7 +4,7 @@ import { Role } from '@hotel/shared';
 import { requestContext } from '../lib/requestContext';
 
 export interface AuthRequest extends Request {
-  user?: { id: number; role: Role };
+  user?: { id: number; role: Role; assignedBuildingId: number | null };
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
@@ -15,7 +15,11 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   }
   try {
     const payload = verifyToken(token);
-    req.user = { id: payload.id as number, role: payload.role as Role };
+    req.user = {
+      id: payload.id as number,
+      role: payload.role as Role,
+      assignedBuildingId: (payload.assignedBuildingId as number | null) ?? null,
+    };
     (req as Request & { log?: { setBindings: (b: object) => void } }).log?.setBindings({
       userId: payload.id as number,
     });

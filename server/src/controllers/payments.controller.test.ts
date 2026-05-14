@@ -16,8 +16,8 @@ let pendingPaymentId: number;
 let paidPaymentId: number;
 
 beforeAll(async () => {
-  adminCookie = `token=${signToken({ id: 1, role: 'ADMIN' })}`;
-  financeCookie = `token=${signToken({ id: 2, role: 'FINANCE' })}`;
+  adminCookie = `token=${signToken({ id: 1, role: 'ADMIN', assignedBuildingId: null })}`;
+  financeCookie = `token=${signToken({ id: 2, role: 'FINANCE', assignedBuildingId: null })}`;
 
   // Clean slate (reverse dependency order)
   await testPrisma.payment.deleteMany();
@@ -175,7 +175,7 @@ describe('POST /api/v1/payments', () => {
   });
 
   it('RECEPTIONIST role can create a payment', async () => {
-    const receptionistCookie = `token=${signToken({ id: 3, role: 'RECEPTIONIST' })}`;
+    const receptionistCookie = `token=${signToken({ id: 3, role: 'RECEPTIONIST', assignedBuildingId: null })}`;
     const res = await request(app)
       .post('/api/v1/payments')
       .set('Cookie', receptionistCookie)
@@ -324,7 +324,7 @@ describe('GET /api/v1/payments/stats', () => {
   });
 
   it('returns 403 for MAINTENANCE role', async () => {
-    const maintenanceCookie = `token=${signToken({ id: 9, role: 'MAINTENANCE' })}`;
+    const maintenanceCookie = `token=${signToken({ id: 9, role: 'MAINTENANCE', assignedBuildingId: null })}`;
     const res = await request(app)
       .get('/api/v1/payments/stats')
       .set('Cookie', maintenanceCookie);

@@ -27,9 +27,9 @@ describe('Buildings API', () => {
     const admin = await testPrisma.user.create({
       data: { name: 'Admin BLD', email: 'admin-bld@test.com', password: 'x', role: 'ADMIN' },
     });
-    ADMIN_COOKIE = `token=${signToken({ id: admin.id, role: 'ADMIN' })}`;
-    FINANCE_COOKIE = `token=${signToken({ id: admin.id, role: 'FINANCE' })}`;
-    RECEP_COOKIE = `token=${signToken({ id: admin.id, role: 'RECEPTIONIST' })}`;
+    ADMIN_COOKIE = `token=${signToken({ id: admin.id, role: 'ADMIN', assignedBuildingId: null })}`;
+    FINANCE_COOKIE = `token=${signToken({ id: admin.id, role: 'FINANCE', assignedBuildingId: null })}`;
+    RECEP_COOKIE = `token=${signToken({ id: admin.id, role: 'RECEPTIONIST', assignedBuildingId: null })}`;
   });
 
   afterAll(async () => {

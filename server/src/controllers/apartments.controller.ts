@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ApartmentStatus, ApartmentType } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
+import { assertBuildingAccess } from '../lib/assertBuildingAccess';
 
 const VALID_STATUSES = Object.values(ApartmentStatus);
 const VALID_TYPES = Object.values(ApartmentType);
@@ -95,6 +96,7 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
     res.status(400).json({ message: 'Invalid buildingId' });
     return;
   }
+  if (!assertBuildingAccess(req, res, bId)) return;
   if (type !== undefined && !VALID_TYPES.includes(type as ApartmentType)) {
     res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
     return;
@@ -211,15 +213,21 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
   if (type !== undefined) data.type = type;
 
   try {
+    // Always fetch existing apartment — needed for building access check and uniqueness check
+    const existing = await prisma.apartment.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: 'Apartment not found' });
+      return;
+    }
+
+    const body = req.body as { buildingId?: number };
+    const targetBuildingId = (body.buildingId as number | undefined) ?? existing.buildingId;
+    if (!assertBuildingAccess(req, res, targetBuildingId)) return;
+
     // Per-building uniqueness check when number is being changed
     if (number !== undefined) {
-      const apt = await prisma.apartment.findUnique({ where: { id } });
-      if (!apt) {
-        res.status(404).json({ message: 'Apartment not found' });
-        return;
-      }
       const conflict = await prisma.apartment.findFirst({
-        where: { buildingId: apt.buildingId, number: String(number).trim(), NOT: { id } },
+        where: { buildingId: existing.buildingId, number: String(number).trim(), NOT: { id } },
       });
       if (conflict) {
         res.status(409).json({ message: 'Apartment number already exists in this building' });

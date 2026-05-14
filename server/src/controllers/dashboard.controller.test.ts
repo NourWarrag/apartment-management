@@ -15,7 +15,7 @@ let adminCookieA: string;
 
 describe('dashboard/stats + activity suite setup', () => {
   beforeAll(async () => {
-    adminCookieA = `token=${signToken({ id: 1, role: 'ADMIN' })}`;
+    adminCookieA = `token=${signToken({ id: 1, role: 'ADMIN', assignedBuildingId: null })}`;
     await testPrisma.apartment.deleteMany();
     const aptData = [
       { number: '101', floor: 1, type: 'STUDIO' as const,      status: 'OCCUPIED' as const,          buildingId: 1 },
@@ -155,7 +155,7 @@ describe('GET /api/v1/dashboard/revenue-trend', () => {
     const admin = await testPrisma.user.create({
       data: { name: 'Admin Dash', email: 'admin-dash@test.com', password: 'x', role: 'ADMIN' },
     });
-    adminCookieB = `token=${signToken({ id: admin.id, role: 'ADMIN' })}`;
+    adminCookieB = `token=${signToken({ id: admin.id, role: 'ADMIN', assignedBuildingId: null })}`;
 
     const apt = await testPrisma.apartment.create({
       data: { number: 'DASH-RT-101', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId: 1 },

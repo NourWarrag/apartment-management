@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Priority, Role, TicketStatus } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
+import { assertBuildingAccess } from '../lib/assertBuildingAccess';
 
 const VALID_PRIORITIES = Object.values(Priority);
 const VALID_NON_CLOSED_STATUSES = [TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.COMPLETED];
@@ -69,11 +70,15 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
       res.status(400).json({ message: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
       return;
     }
-    const apartment = await prisma.apartment.findUnique({ where: { id: Number(apartmentId) } });
+    const apartment = await prisma.apartment.findUnique({
+      where: { id: Number(apartmentId) },
+      select: { buildingId: true },
+    });
     if (!apartment) {
       res.status(404).json({ message: 'Apartment not found' });
       return;
     }
+    if (!assertBuildingAccess(req, res, apartment.buildingId)) return;
     if (assignedToId !== undefined) {
       const assignee = await prisma.user.findUnique({ where: { id: Number(assignedToId) } });
       if (!assignee || assignee.role !== Role.MAINTENANCE) {

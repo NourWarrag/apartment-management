@@ -80,11 +80,11 @@ beforeAll(async () => {
   });
 
   // Cookies — ids match seeded users so assignedToId checks work
-  adminCookie = `token=${signToken({ id: adminUser.id, role: 'ADMIN' })}`;
-  receptionistCookie = `token=${signToken({ id: 997, role: 'RECEPTIONIST' })}`;
-  financeCookie = `token=${signToken({ id: 998, role: 'FINANCE' })}`;
-  maintCookie = `token=${signToken({ id: maint1.id, role: 'MAINTENANCE' })}`;
-  otherMaintCookie = `token=${signToken({ id: maint2.id, role: 'MAINTENANCE' })}`;
+  adminCookie = `token=${signToken({ id: adminUser.id, role: 'ADMIN', assignedBuildingId: null })}`;
+  receptionistCookie = `token=${signToken({ id: 997, role: 'RECEPTIONIST', assignedBuildingId: null })}`;
+  financeCookie = `token=${signToken({ id: 998, role: 'FINANCE', assignedBuildingId: null })}`;
+  maintCookie = `token=${signToken({ id: maint1.id, role: 'MAINTENANCE', assignedBuildingId: null })}`;
+  otherMaintCookie = `token=${signToken({ id: maint2.id, role: 'MAINTENANCE', assignedBuildingId: null })}`;
 });
 
 afterAll(async () => {

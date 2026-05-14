@@ -10,7 +10,7 @@ const db = new PrismaClient({
 });
 
 const ADMIN_ID = 999001;
-const ADMIN_COOKIE = `token=${signToken({ id: ADMIN_ID, role: 'ADMIN' })}`;
+const ADMIN_COOKIE = `token=${signToken({ id: ADMIN_ID, role: 'ADMIN', assignedBuildingId: null })}`;
 
 describe('Audit columns + soft delete', () => {
   beforeAll(async () => {

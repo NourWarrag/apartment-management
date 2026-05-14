@@ -3,7 +3,7 @@ import { signToken, verifyToken } from '../src/lib/jwt';
 
 describe('jwt helpers', () => {
   it('signs and verifies a payload', () => {
-    const payload = { id: 1, role: 'ADMIN' };
+    const payload = { id: 1, role: 'ADMIN', assignedBuildingId: null };
     const token = signToken(payload);
     const decoded = verifyToken(token);
     expect(decoded).toMatchObject(payload);

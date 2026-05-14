@@ -31,9 +31,9 @@ beforeAll(async () => {
   const admin = await testPrisma.user.create({
     data: { name: 'Admin BK', email: 'admin-bk@test.com', password: 'x', role: 'ADMIN' },
   });
-  adminCookie = `token=${signToken({ id: admin.id, role: 'ADMIN' })}`;
-  maintCookie = `token=${signToken({ id: 901, role: 'MAINTENANCE' })}`;
-  financeCookie = `token=${signToken({ id: 902, role: 'FINANCE' })}`;
+  adminCookie = `token=${signToken({ id: admin.id, role: 'ADMIN', assignedBuildingId: null })}`;
+  maintCookie = `token=${signToken({ id: 901, role: 'MAINTENANCE', assignedBuildingId: null })}`;
+  financeCookie = `token=${signToken({ id: 902, role: 'FINANCE', assignedBuildingId: null })}`;
 
   const apt = await testPrisma.apartment.create({
     data: { number: 'BK101', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: 1 },

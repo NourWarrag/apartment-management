@@ -21,8 +21,13 @@ export async function login(req: AuthRequest, res: Response): Promise<void> {
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  // Always run comparePassword to prevent timing attacks
+  // Use $queryRaw to bypass the soft-delete extension, which hides deleted users from findUnique.
+  // We need to find the user even if deleted so we can return the correct "Account deactivated" message.
+  const rows = await prisma.$queryRaw<
+    Array<{ id: number; email: string; password: string; name: string; role: string; assignedBuildingId: number | null; deletedAt: Date | null }>
+  >`SELECT id, email, password, name, role, "assignedBuildingId", "deletedAt" FROM "User" WHERE email = ${email} LIMIT 1`;
+
+  const user = rows[0] ?? null;
   const passwordMatch = await comparePassword(password, user?.password ?? DUMMY_HASH);
 
   if (!user || !passwordMatch) {
@@ -30,9 +35,22 @@ export async function login(req: AuthRequest, res: Response): Promise<void> {
     return;
   }
 
-  const token = signToken({ id: user.id, role: user.role });
+  if (user.deletedAt !== null) {
+    res.status(401).json({ message: 'Account deactivated' });
+    return;
+  }
+
+  const token = signToken({ id: user.id, role: user.role, assignedBuildingId: user.assignedBuildingId });
   res.cookie('token', token, COOKIE_OPTIONS);
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      assignedBuildingId: user.assignedBuildingId,
+    },
+  });
 }
 
 export function logout(_req: AuthRequest, res: Response): void {
@@ -47,7 +65,7 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
   }
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, assignedBuildingId: true },
   });
   if (!user) {
     res.status(404).json({ message: 'User not found' });
