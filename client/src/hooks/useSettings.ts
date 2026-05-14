@@ -26,7 +26,7 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Omit<SystemSettings, 'id'>>) =>
-      api.patch('/settings', data).then((r) => r.data),
+      api.patch('/settings', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
   });
 }

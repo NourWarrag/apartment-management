@@ -52,9 +52,22 @@ export default function UserFormModal({ user, onClose }: Props) {
     if (role !== Role.BUILDING_ADMIN) setAssignedBuildingId('');
   }, [role]);
 
+  useEffect(() => {
+    setName(user?.name ?? '');
+    setEmail(user?.email ?? '');
+    setPassword('');
+    setRole(user?.role ?? Role.RECEPTIONIST);
+    setAssignedBuildingId(user?.assignedBuildingId ?? '');
+    setError('');
+  }, [user]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (role === Role.BUILDING_ADMIN && !assignedBuildingId) {
+      setError('Building is required for Building Admin role');
+      return;
+    }
     try {
       if (isEdit) {
         const dto: UpdateUserDto = { name, email, role };
