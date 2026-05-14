@@ -137,3 +137,105 @@ export async function markPaid(req: AuthRequest, res: Response): Promise<void> {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+export async function stats(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+    const [monthlyResult, pendingResult, allPaidResult] = await Promise.all([
+      prisma.payment.aggregate({
+        where: { status: PaymentStatus.PAID, paidAt: { gte: monthStart } },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: { status: PaymentStatus.PENDING },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: { status: PaymentStatus.PAID },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const monthlyRevenue = Number(monthlyResult._sum.amount ?? 0);
+    const outstandingBalance = Number(pendingResult._sum.amount ?? 0);
+    const allPaid = Number(allPaidResult._sum.amount ?? 0);
+
+    const collectionRate =
+      allPaid + outstandingBalance === 0
+        ? 100.0
+        : Math.round((allPaid / (allPaid + outstandingBalance)) * 1000) / 10;
+
+    const installmentGroups = await prisma.payment.groupBy({
+      by: ['bookingId'],
+      where: { method: PaymentMethod.INSTALLMENT, status: PaymentStatus.PAID },
+      _sum: { amount: true },
+    });
+
+    let activePlans = 0;
+    if (installmentGroups.length > 0) {
+      const bookingIds = installmentGroups.map((g) => g.bookingId);
+      const bookings = await prisma.booking.findMany({
+        where: { id: { in: bookingIds } },
+        select: { id: true, totalAmount: true },
+      });
+      const totalMap = new Map(bookings.map((b) => [b.id, Number(b.totalAmount)]));
+      for (const g of installmentGroups) {
+        const paidSum = Number(g._sum.amount ?? 0);
+        if (paidSum < (totalMap.get(g.bookingId) ?? 0)) activePlans++;
+      }
+    }
+
+    res.json({ monthlyRevenue, outstandingBalance, activePlans, collectionRate });
+  } catch {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+export async function installmentPlans(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const groups = await prisma.payment.groupBy({
+      by: ['bookingId'],
+      where: { method: PaymentMethod.INSTALLMENT, status: PaymentStatus.PAID },
+      _sum: { amount: true },
+    });
+
+    if (groups.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const bookingIds = groups.map((g) => g.bookingId);
+    const bookings = await prisma.booking.findMany({
+      where: { id: { in: bookingIds } },
+      include: {
+        tenant: { select: { fullName: true } },
+        apartment: { select: { number: true } },
+      },
+    });
+
+    const paidMap = new Map(groups.map((g) => [g.bookingId, Number(g._sum.amount ?? 0)]));
+
+    const active = bookings
+      .filter((b) => (paidMap.get(b.id) ?? 0) < Number(b.totalAmount))
+      .map((b) => ({
+        bookingId: b.id,
+        tenantName: b.tenant.fullName,
+        apartmentNumber: b.apartment.number,
+        totalAmount: String(b.totalAmount),
+        paidAmount: String(paidMap.get(b.id) ?? 0),
+        checkIn: b.checkIn.toISOString(),
+        checkOut: b.checkOut.toISOString(),
+      }))
+      .sort(
+        (a, b) =>
+          Number(a.paidAmount) / Number(a.totalAmount) -
+          Number(b.paidAmount) / Number(b.totalAmount),
+      );
+
+    res.json(active);
+  } catch {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
