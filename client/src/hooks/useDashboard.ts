@@ -40,3 +40,19 @@ export function useDashboardActivity() {
     refetchInterval: 30_000,
   });
 }
+
+export interface RevenueTrendPoint {
+  date: string;    // "YYYY-MM-DD"
+  revenue: number;
+}
+
+export function useRevenueTrend(days: 7 | 30) {
+  return useQuery<RevenueTrendPoint[]>({
+    queryKey: ['dashboard', 'revenue-trend', days],
+    queryFn: async () => {
+      const res = await api.get(`/dashboard/revenue-trend?days=${days}`);
+      return res.data;
+    },
+    retry: 1,
+  });
+}
