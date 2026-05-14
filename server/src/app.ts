@@ -12,6 +12,7 @@ import usersRoutes from './routes/users.routes';
 import bookingsRoutes from './routes/bookings.routes';
 import buildingsRoutes from './routes/buildings.routes';
 import reportsRoutes from './routes/reports.routes';
+import settingsRoutes from './routes/settings.routes';
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/bookings', bookingsRoutes);
 app.use('/api/v1/buildings', buildingsRoutes);
 app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
