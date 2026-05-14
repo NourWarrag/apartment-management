@@ -1,5 +1,7 @@
 export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
+  BUILDING_ADMIN = 'BUILDING_ADMIN',
   RECEPTIONIST = 'RECEPTIONIST',
   MAINTENANCE = 'MAINTENANCE',
   FINANCE = 'FINANCE',
@@ -74,4 +76,5 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  assignedBuildingId: number | null;
 }

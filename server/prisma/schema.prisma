@@ -47,6 +47,9 @@ model User {
   updatedTickets    MaintenanceTicket[] @relation("TicketUpdatedBy")
   createdBuildings  Building[]          @relation("BuildingCreatedBy")
   updatedBuildings  Building[]          @relation("BuildingUpdatedBy")
+
+  assignedBuildingId Int?
+  assignedBuilding   Building? @relation("UserAssignedBuilding", fields: [assignedBuildingId], references: [id], onDelete: SetNull)
 }
 
 model Apartment {
@@ -174,7 +177,8 @@ model Building {
   updatedBy  Int?
   creator    User?      @relation("BuildingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updater    User?      @relation("BuildingUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
-  apartments Apartment[]
+  apartments    Apartment[]
+  assignedUsers User[]      @relation("UserAssignedBuilding")
 }
 
 model AuditLog {
@@ -192,7 +196,9 @@ model AuditLog {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
+  BUILDING_ADMIN
   RECEPTIONIST
   MAINTENANCE
   FINANCE
@@ -259,4 +265,14 @@ enum TenantTier {
   SILVER
   GOLD
   PLATINUM
+}
+
+model SystemSettings {
+  id          Int    @id @default(autoincrement())
+  companyName String @default("My Property")
+  currency    String @default("AED")
+  timezone    String @default("Asia/Dubai")
+  phone       String @default("")
+  email       String @default("")
+  address     String @default("")
 }
