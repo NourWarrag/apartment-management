@@ -12,11 +12,21 @@ import PaymentsPage from './pages/payments/PaymentsPage';
 import TicketsPage from './pages/tickets/TicketsPage';
 import BuildingsPage from './pages/buildings/BuildingsPage';
 import ReportsPage from './pages/reports/ReportsPage';
+import UsersPage from './pages/users/UsersPage';
+import SettingsPage from './pages/settings/SettingsPage';
 
-const ALL_STAFF = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE, Role.FINANCE];
-const ADMIN_RECEPTIONIST = [Role.ADMIN, Role.RECEPTIONIST];
-const ADMIN_FINANCE = [Role.ADMIN, Role.FINANCE];
-const TICKETS_ROLES = [Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE];
+const ALL_STAFF = [
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.BUILDING_ADMIN,
+  Role.RECEPTIONIST,
+  Role.MAINTENANCE,
+  Role.FINANCE,
+];
+const ADMIN_ONLY = [Role.SUPER_ADMIN, Role.ADMIN];
+const ADMIN_RECEPTIONIST = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST];
+const ADMIN_FINANCE = [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE];
+const TICKETS_ROLES = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE];
 
 export default function App() {
   return (
@@ -90,7 +100,7 @@ export default function App() {
           <Route
             path="buildings"
             element={
-              <ProtectedRoute allowedRoles={[Role.ADMIN]}>
+              <ProtectedRoute allowedRoles={ADMIN_ONLY}>
                 <BuildingsPage />
               </ProtectedRoute>
             }
@@ -100,6 +110,22 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="users"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_ONLY}>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <ProtectedRoute allowedRoles={ALL_STAFF}>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

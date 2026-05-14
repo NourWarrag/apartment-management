@@ -1,7 +1,12 @@
 import { useBuilding } from '../../context/BuildingContext';
 import { useBuildings, Building } from '../../hooks/useBuildings';
+import { useAuth } from '../../hooks/useAuth';
+import { Role } from '@hotel/shared';
 
 export default function BuildingSelector() {
+  const { data: currentUser } = useAuth();
+  if (currentUser?.role === Role.BUILDING_ADMIN) return null;
+
   const { selectedBuilding, setSelectedBuilding } = useBuilding();
   const { data: buildings = [] } = useBuildings();
 
