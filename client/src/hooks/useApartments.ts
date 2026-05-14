@@ -51,6 +51,7 @@ export interface CreateApartmentDto {
   number: string;
   floor: number;
   type?: ApartmentType;
+  buildingId: number;
 }
 
 export interface UpdateApartmentDto {

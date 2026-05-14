@@ -7,12 +7,15 @@ import { useTranslation } from 'react-i18next';
 import { ApartmentStatus, ApartmentType } from '@hotel/shared';
 import { useCreateApartment, useUpdateApartment } from '../../hooks/useApartments';
 import type { ApartmentListItem } from '../../hooks/useApartments';
+import { useBuilding } from '../../context/BuildingContext';
+import { useBuildings } from '../../hooks/useBuildings';
 
 const schema = z.object({
   number: z.string().min(1, 'Required'),
   floor: z.coerce.number().int().min(0),
   type: z.nativeEnum(ApartmentType).optional(),
   status: z.nativeEnum(ApartmentStatus).optional(),
+  buildingId: z.coerce.number().int().positive('Building is required').optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -29,6 +32,8 @@ export default function ApartmentFormModal({ apartment, onClose }: Props) {
   const isEdit = !!apartment;
   const create = useCreateApartment();
   const update = useUpdateApartment(apartment?.id ?? -1);
+  const { selectedBuilding } = useBuilding();
+  const { data: buildings = [] } = useBuildings();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -51,7 +56,14 @@ export default function ApartmentFormModal({ apartment, onClose }: Props) {
       if (isEdit) {
         await update.mutateAsync(data);
       } else {
-        await create.mutateAsync({ number: data.number, floor: data.floor, type: data.type });
+        const buildingId = selectedBuilding !== 'all'
+          ? selectedBuilding.id
+          : data.buildingId;
+        if (!buildingId) {
+          toast.error('Please select a building');
+          return;
+        }
+        await create.mutateAsync({ number: data.number, floor: data.floor, type: data.type, buildingId });
       }
       toast.success(isEdit ? t('common.savedSuccessfully', 'Saved successfully') : t('common.createdSuccessfully', 'Created successfully'));
       onClose();
@@ -77,6 +89,24 @@ export default function ApartmentFormModal({ apartment, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {!isEdit && selectedBuilding === 'all' && (
+            <div>
+              <label className={labelCls}>Building</label>
+              <select {...register('buildingId')} className={inputCls}>
+                <option value="">Select building...</option>
+                {buildings.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              {errors.buildingId && <p className="text-error text-xs mt-1">{errors.buildingId.message}</p>}
+            </div>
+          )}
+          {!isEdit && selectedBuilding !== 'all' && (
+            <div>
+              <label className={labelCls}>Building</label>
+              <p className="text-sm text-on-surface-variant px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg">{selectedBuilding.name}</p>
+            </div>
+          )}
           <div>
             <label className={labelCls}>{t('apartments.number')}</label>
             <input {...register('number')} className={inputCls} />
