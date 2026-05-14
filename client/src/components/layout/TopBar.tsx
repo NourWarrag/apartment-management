@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/ui.store';
 import { useAuth, useLogout } from '../../hooks/useAuth';
+import BuildingSelector from './BuildingSelector';
 
 export default function TopBar() {
   const { t } = useTranslation();
@@ -23,6 +24,9 @@ export default function TopBar() {
           type="text"
         />
       </div>
+
+      {/* Building selector */}
+      <BuildingSelector />
 
       {/* Right side */}
       <div className="flex items-center gap-3">
