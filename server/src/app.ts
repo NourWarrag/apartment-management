@@ -1,5 +1,7 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import { requestLogger } from './middleware/requestLogger.middleware';
+import { errorHandler } from './middleware/errorHandler.middleware';
 import authRoutes from './routes/auth.routes';
 import apartmentsRoutes from './routes/apartments.routes';
 import tenantsRoutes from './routes/tenants.routes';
@@ -11,6 +13,7 @@ import bookingsRoutes from './routes/bookings.routes';
 
 const app = express();
 
+app.use(requestLogger);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -26,5 +29,7 @@ app.use('/api/v1/bookings', bookingsRoutes);
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+app.use(errorHandler);
 
 export default app;
