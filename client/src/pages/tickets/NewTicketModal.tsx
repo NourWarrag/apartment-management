@@ -9,7 +9,10 @@ const schema = z.object({
   apartmentId: z.coerce.number().min(1, 'Apartment is required'),
   description: z.string().min(1, 'Description is required'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
-  assignedToId: z.coerce.number().optional(),
+  assignedToId: z.preprocess(
+    v => (v === '' || v === undefined || v === null) ? undefined : Number(v),
+    z.number().optional()
+  ),
 });
 
 type FormValues = z.infer<typeof schema>;

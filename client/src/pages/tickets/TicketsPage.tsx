@@ -266,7 +266,7 @@ export default function TicketsPage() {
         </div>
       )}
 
-      <NewTicketModal open={showNewModal} onClose={() => setShowNewModal(false)} />
+      {canCreate && <NewTicketModal open={showNewModal} onClose={() => setShowNewModal(false)} />}
     </div>
   );
 }

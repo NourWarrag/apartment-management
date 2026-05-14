@@ -136,11 +136,20 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       }
     }
 
+    // Validate apartmentId exists when being updated
+    if (apartmentId !== undefined) {
+      const apt = await prisma.apartment.findUnique({ where: { id: Number(apartmentId) } });
+      if (!apt) {
+        res.status(404).json({ message: 'Apartment not found' });
+        return;
+      }
+    }
+
     // Build scalar update payload (compatible with both updateMany and update)
     const data: {
       status?: TicketStatus;
       resolvedAt?: Date | null;
-      notes?: string;
+      notes?: string | null;
       priority?: Priority;
       assignedToId?: number | null;
       apartmentId?: number;
@@ -149,7 +158,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       data.status = status as TicketStatus;
       data.resolvedAt = status === TicketStatus.COMPLETED ? new Date() : null;
     }
-    if (notes !== undefined) data.notes = notes;
+    if (notes !== undefined) data.notes = notes.trim() === '' ? null : notes.trim();
     if (!isMaintenance) {
       if (priority !== undefined) data.priority = priority as Priority;
       if (assignedToId !== undefined) data.assignedToId = assignedToId === null ? null : Number(assignedToId);
