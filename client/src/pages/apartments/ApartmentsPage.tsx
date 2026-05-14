@@ -492,11 +492,11 @@ export default function ApartmentsPage() {
           bookingSummary={paymentTarget.summary}
         />
       )}
-      {canEdit && (
+      {canEdit && bookingAptId !== null && (
         <BookingFormModal
-          open={bookingAptId !== null}
+          open={true}
           onClose={() => setBookingAptId(null)}
-          prefilledApartmentId={bookingAptId ?? undefined}
+          prefilledApartmentId={bookingAptId}
         />
       )}
     </div>
