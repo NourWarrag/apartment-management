@@ -43,14 +43,14 @@ describe('Audit columns + soft delete', () => {
         .send({ number: 'AUDIT-101', floor: 9, type: 'STUDIO', status: 'AVAILABLE' });
 
       expect(res.status).toBe(201);
-      const row = await db.apartment.findUnique({ where: { number: 'AUDIT-101' } });
+      const row = await db.apartment.findFirst({ where: { number: 'AUDIT-101' } });
       expect(row).not.toBeNull();
       expect(row!.createdBy).toBe(ADMIN_ID);
       expect(row!.updatedBy).toBe(ADMIN_ID);
     });
 
     it('PATCH /apartments/:id sets updatedBy and leaves createdBy unchanged', async () => {
-      const apt = await db.apartment.findUnique({ where: { number: 'AUDIT-101' } });
+      const apt = await db.apartment.findFirst({ where: { number: 'AUDIT-101' } });
       expect(apt).not.toBeNull();
 
       const res = await request(app)
@@ -110,7 +110,7 @@ describe('Audit columns + soft delete', () => {
 
   describe('Soft delete — Apartment', () => {
     it('soft-deleted apartment does not appear in GET /apartments', async () => {
-      const apt = await db.apartment.findUnique({ where: { number: 'AUDIT-101' } });
+      const apt = await db.apartment.findFirst({ where: { number: 'AUDIT-101' } });
       expect(apt).not.toBeNull();
 
       await request(app)

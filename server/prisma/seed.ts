@@ -30,7 +30,7 @@ async function main() {
   const apartments: { id: number; number: string }[] = [];
   for (const apt of aptData) {
     const record = await prisma.apartment.upsert({
-      where: { number: apt.number },
+      where: { buildingId_number: { buildingId: 1, number: apt.number } },
       update: { type: apt.type as any, status: apt.status as any },
       create: { number: apt.number, floor: apt.floor, type: apt.type as any, status: apt.status as any },
     });
