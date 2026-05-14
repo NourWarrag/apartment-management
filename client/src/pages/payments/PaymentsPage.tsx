@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { usePayments, useMarkPaid } from '../../hooks/usePayments';
+import { usePayments, useMarkPaid, usePaymentStats } from '../../hooks/usePayments';
 import type { PaymentListItem } from '../../hooks/usePayments';
+import InstallmentTracker from './InstallmentTracker';
+import StatWidget from '../dashboard/StatWidget';
 import { Role } from '@hotel/shared';
 import PaymentFormModal from './PaymentFormModal';
 import ReceiptModal from './ReceiptModal';
@@ -53,6 +55,7 @@ export default function PaymentsPage() {
   });
 
   const markPaid = useMarkPaid();
+  const { data: statsData, isLoading: statsLoading } = usePaymentStats();
 
   const applyFilters = () => {
     setAppliedSearch(search);
@@ -97,6 +100,34 @@ export default function PaymentsPage() {
             Record Payment
           </button>
         )}
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-widget-gap">
+        <StatWidget
+          icon="payments"
+          label="Monthly Revenue"
+          value={statsData ? `AED ${statsData.monthlyRevenue.toLocaleString('en-US')}` : '—'}
+          loading={statsLoading}
+        />
+        <StatWidget
+          icon="pending_actions"
+          label="Outstanding Balance"
+          value={statsData ? `AED ${statsData.outstandingBalance.toLocaleString('en-US')}` : '—'}
+          loading={statsLoading}
+        />
+        <StatWidget
+          icon="schedule"
+          label="Active Plans"
+          value={statsData?.activePlans ?? '—'}
+          loading={statsLoading}
+        />
+        <StatWidget
+          icon="percent"
+          label="Collection Rate"
+          value={statsData ? `${statsData.collectionRate.toFixed(1)}%` : '—'}
+          loading={statsLoading}
+        />
       </div>
 
       {/* Filter Bar */}
@@ -267,6 +298,8 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
+
+      <InstallmentTracker />
 
       {showForm && (
         <PaymentFormModal open={showForm} onClose={() => setShowForm(false)} />
