@@ -69,3 +69,40 @@ export function useMarkPaid() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['payments'] }),
   });
 }
+
+export interface PaymentStats {
+  monthlyRevenue: number;
+  outstandingBalance: number;
+  activePlans: number;
+  collectionRate: number;
+}
+
+export interface InstallmentPlan {
+  bookingId: number;
+  tenantName: string;
+  apartmentNumber: string;
+  totalAmount: string;
+  paidAmount: string;
+  checkIn: string;
+  checkOut: string;
+}
+
+export function usePaymentStats() {
+  return useQuery<PaymentStats>({
+    queryKey: ['payments', 'stats'],
+    queryFn: async () => {
+      const res = await api.get('/payments/stats');
+      return res.data;
+    },
+  });
+}
+
+export function useInstallmentPlans() {
+  return useQuery<InstallmentPlan[]>({
+    queryKey: ['payments', 'installment-plans'],
+    queryFn: async () => {
+      const res = await api.get('/payments/installment-plans');
+      return res.data;
+    },
+  });
+}
