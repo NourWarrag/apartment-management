@@ -219,6 +219,13 @@ export async function installmentPlans(req: AuthRequest, res: Response): Promise
 
     const active = bookings
       .filter((b) => (paidMap.get(b.id) ?? 0) < Number(b.totalAmount))
+      .sort((a, b) => {
+        const totalA = Number(a.totalAmount);
+        const totalB = Number(b.totalAmount);
+        const ratioA = totalA === 0 ? 1 : (paidMap.get(a.id) ?? 0) / totalA;
+        const ratioB = totalB === 0 ? 1 : (paidMap.get(b.id) ?? 0) / totalB;
+        return ratioA - ratioB;
+      })
       .map((b) => ({
         bookingId: b.id,
         tenantName: b.tenant.fullName,
@@ -227,12 +234,7 @@ export async function installmentPlans(req: AuthRequest, res: Response): Promise
         paidAmount: String(paidMap.get(b.id) ?? 0),
         checkIn: b.checkIn.toISOString(),
         checkOut: b.checkOut.toISOString(),
-      }))
-      .sort(
-        (a, b) =>
-          Number(a.paidAmount) / Number(a.totalAmount) -
-          Number(b.paidAmount) / Number(b.totalAmount),
-      );
+      }));
 
     res.json(active);
   } catch {
