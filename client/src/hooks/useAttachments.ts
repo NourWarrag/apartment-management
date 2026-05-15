@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 
-type EntityType = 'APARTMENT' | 'TENANT' | 'BOOKING' | 'TICKET';
+export type EntityType = 'APARTMENT' | 'TENANT' | 'BOOKING' | 'TICKET';
 
 const ENTITY_URL: Record<EntityType, string> = {
   APARTMENT: 'apartments',

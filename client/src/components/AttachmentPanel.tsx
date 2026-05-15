@@ -1,9 +1,7 @@
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useAttachments, useUploadAttachment, useDeleteAttachment } from '../hooks/useAttachments';
-import type { AttachmentItem } from '../hooks/useAttachments';
-
-type EntityType = 'APARTMENT' | 'TENANT' | 'BOOKING' | 'TICKET';
+import type { AttachmentItem, EntityType } from '../hooks/useAttachments';
 
 interface Props {
   entityType: EntityType;
