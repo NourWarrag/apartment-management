@@ -7,3 +7,6 @@ dist
 
 # Server log files
 logs/
+
+# Playwright MCP output
+.playwright-mcp/
