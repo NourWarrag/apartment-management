@@ -143,7 +143,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
     ? (req.body.staffStatus as string | undefined)
     : undefined;
 
-  if (!name && !email && !role && assignedBuildingId === undefined && staffStatus === undefined) {
+  if (!name && !email && !role && assignedBuildingId === undefined && staffStatus === undefined && req.body.staffStatus === undefined) {
     res.status(400).json({ message: 'At least one field required' });
     return;
   }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import app from './app';
@@ -20,6 +20,10 @@ describe('GET /api/v1/config', () => {
 describe('Route feature gates', () => {
   let adminToken: string;
   let testPrisma: PrismaClient;
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   beforeAll(async () => {
     const { PrismaClient } = await import('@prisma/client');
@@ -44,7 +48,7 @@ describe('Route feature gates', () => {
   });
 
   it('GET /bookings returns 403 when FEATURE_BOOKINGS is not set', async () => {
-    delete process.env.FEATURE_BOOKINGS;
+    vi.stubEnv('FEATURE_BOOKINGS', '');
     const res = await request(app)
       .get('/api/v1/bookings')
       .set('Cookie', `token=${adminToken}`);
@@ -53,7 +57,7 @@ describe('Route feature gates', () => {
   });
 
   it('POST /buildings returns 403 when FEATURE_MULTI_BUILDING is not set', async () => {
-    delete process.env.FEATURE_MULTI_BUILDING;
+    vi.stubEnv('FEATURE_MULTI_BUILDING', '');
     const res = await request(app)
       .post('/api/v1/buildings')
       .set('Cookie', `token=${adminToken}`)
@@ -63,7 +67,7 @@ describe('Route feature gates', () => {
   });
 
   it('GET /users/maintenance-staff returns 403 when FEATURE_STAFF is not set', async () => {
-    delete process.env.FEATURE_STAFF;
+    vi.stubEnv('FEATURE_STAFF', '');
     const res = await request(app)
       .get('/api/v1/users/maintenance-staff')
       .set('Cookie', `token=${adminToken}`);
@@ -87,7 +91,7 @@ describe('Route feature gates', () => {
     });
     await rawPrisma.$disconnect();
 
-    delete process.env.FEATURE_STAFF;
+    vi.stubEnv('FEATURE_STAFF', '');
     const res = await request(app)
       .patch(`/api/v1/users/${maintUser.id}`)
       .set('Cookie', `token=${adminToken}`)
