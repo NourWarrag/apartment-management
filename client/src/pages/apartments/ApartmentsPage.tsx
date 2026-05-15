@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { ApartmentStatus, ApartmentType, Role } from '@hotel/shared';
+import { ApartmentStatus, ApartmentType, Role, FeatureFlag } from '@hotel/shared';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useApartments, ApartmentListItem } from '../../hooks/useApartments';
 import type { BookingOnApartment } from '../../hooks/useApartments';
 import { useMarkReady } from '../../hooks/useApartments';
@@ -100,6 +101,8 @@ export default function ApartmentsPage() {
   const { selectedBuilding } = useBuilding();
   const showBuildingBadge = selectedBuilding === 'all';
   const { data: staffList = [] } = useMaintenanceStaff();
+  const { data: flags = {} as Record<FeatureFlag, boolean> } = useFeatureFlags();
+  const staffEnabled = flags[FeatureFlag.STAFF] ?? false;
 
   // Load all apartments (unfiltered) for stats
   const { data: allApartments = [] } = useApartments();
@@ -512,43 +515,45 @@ export default function ApartmentsPage() {
         </div>
 
         {/* Staff Distribution */}
-        <div className="w-full lg:w-[400px] bg-primary-container text-on-primary-container p-6 rounded-xl relative overflow-hidden">
-          <div className="relative z-10">
-            <h4 className="text-headline-md font-bold text-white mb-2">Staff Distribution</h4>
-            <p className="text-on-primary-container/80 text-body-sm mb-6">Current housekeeping and maintenance teams on site.</p>
-            <div className="space-y-4">
-              {staffList.length === 0 && (
-                <p className="text-white/60 text-body-sm">No staff on record.</p>
+        {staffEnabled && (
+          <div className="w-full lg:w-[400px] bg-primary-container text-on-primary-container p-6 rounded-xl relative overflow-hidden">
+            <div className="relative z-10">
+              <h4 className="text-headline-md font-bold text-white mb-2">Staff Distribution</h4>
+              <p className="text-on-primary-container/80 text-body-sm mb-6">Current housekeeping and maintenance teams on site.</p>
+              <div className="space-y-4">
+                {staffList.length === 0 && (
+                  <p className="text-white/60 text-body-sm">No staff on record.</p>
+                )}
+                {staffList.map((staff) => {
+                  const statusColor =
+                    staff.staffStatus === 'ACTIVE' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                    staff.staffStatus === 'ON_CALL' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                    'bg-white/10 text-white/50 border-white/20';
+                  const statusLabel =
+                    staff.staffStatus === 'ACTIVE' ? 'ACTIVE' :
+                    staff.staffStatus === 'ON_CALL' ? 'ON CALL' : 'OFF DUTY';
+                  return (
+                    <div key={staff.id} className="flex justify-between items-center">
+                      <span className="text-body-sm text-white">{staff.name}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${statusColor}`}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {canEdit && (
+                <button
+                  onClick={() => setDispatchOpen(true)}
+                  className="w-full mt-8 border border-white/20 hover:bg-white/10 py-2.5 rounded font-bold text-body-sm transition-colors text-white"
+                >
+                  Dispatch New Task
+                </button>
               )}
-              {staffList.map((staff) => {
-                const statusColor =
-                  staff.staffStatus === 'ACTIVE' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                  staff.staffStatus === 'ON_CALL' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                  'bg-white/10 text-white/50 border-white/20';
-                const statusLabel =
-                  staff.staffStatus === 'ACTIVE' ? 'ACTIVE' :
-                  staff.staffStatus === 'ON_CALL' ? 'ON CALL' : 'OFF DUTY';
-                return (
-                  <div key={staff.id} className="flex justify-between items-center">
-                    <span className="text-body-sm text-white">{staff.name}</span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${statusColor}`}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                );
-              })}
             </div>
-            {canEdit && (
-              <button
-                onClick={() => setDispatchOpen(true)}
-                className="w-full mt-8 border border-white/20 hover:bg-white/10 py-2.5 rounded font-bold text-body-sm transition-colors text-white"
-              >
-                Dispatch New Task
-              </button>
-            )}
+            <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
           </div>
-          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
-        </div>
+        )}
       </div>
 
       {showModal && (
@@ -578,7 +583,7 @@ export default function ApartmentsPage() {
           onClose={() => setCheckoutTarget(null)}
         />
       )}
-      {dispatchOpen && (
+      {staffEnabled && dispatchOpen && (
         <NewTicketModal
           open={dispatchOpen}
           onClose={() => setDispatchOpen(false)}

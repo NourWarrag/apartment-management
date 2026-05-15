@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Role } from '@hotel/shared';
+import { Role, FeatureFlag } from '@hotel/shared';
 import { useUsers, UserListItem } from '../../hooks/useUsers';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useDeactivateUser, useReactivateUser, useUpdateUserById } from '../../hooks/useUsersMutations';
 import { useAuth } from '../../hooks/useAuth';
 import UserFormModal from './UserFormModal';
@@ -40,8 +41,10 @@ export default function UsersPage() {
   const [modalUser, setModalUser] = useState<UserListItem | null | undefined>(undefined);
   const [tab, setTab] = useState<Tab>('all');
   const isAdmin = currentUser?.role === Role.ADMIN || currentUser?.role === Role.SUPER_ADMIN;
+  const { data: flags = {} as Record<FeatureFlag, boolean> } = useFeatureFlags();
+  const staffEnabled = flags[FeatureFlag.STAFF] ?? false;
 
-  const visibleUsers = tab === 'staff'
+  const visibleUsers = (tab === 'staff' && staffEnabled)
     ? users.filter(u => u.role === Role.MAINTENANCE)
     : users;
 
@@ -74,7 +77,7 @@ export default function UsersPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 bg-surface-container rounded-xl p-1 w-fit">
-        {(['all', 'staff'] as Tab[]).map((tabKey) => (
+        {(['all', ...(staffEnabled ? ['staff'] : [])] as Tab[]).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -120,7 +123,7 @@ export default function UsersPage() {
                   <td className="px-4 py-3 text-on-surface-variant">
                     {user.assignedBuilding ? `${user.assignedBuilding.name} (${user.assignedBuilding.code})` : '—'}
                   </td>
-                  {tab === 'staff' ? (
+                  {(tab === 'staff' && staffEnabled) ? (
                     <td className="px-4 py-3">
                       {isAdmin ? (
                         <select
