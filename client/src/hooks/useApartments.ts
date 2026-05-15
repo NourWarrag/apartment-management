@@ -1,7 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { ApartmentStatus, ApartmentType } from '@hotel/shared';
+import { ApartmentStatus, ApartmentType, DepositStatus } from '@hotel/shared';
 import { useBuilding } from '../context/BuildingContext';
+
+export interface BookingOnApartment {
+  id: number;
+  checkIn: string;
+  checkOut: string;
+  totalAmount: string;
+  depositAmount: string | null;
+  depositStatus: DepositStatus;
+  depositRefundAmount: string | null;
+  depositCollectedAt: string | null;
+  checkedOutAt: string | null;
+  tenant: { id: number; fullName: string; phone: string };
+  payments: { method: string; amount: string; status: string; paidAt: string | null }[];
+}
 
 export interface ApartmentListItem {
   id: number;
@@ -9,14 +23,7 @@ export interface ApartmentListItem {
   floor: number;
   type: ApartmentType;
   status: ApartmentStatus;
-  currentBooking: {
-    id: number;
-    checkIn: string;
-    checkOut: string;
-    totalAmount: string;
-    tenant: { id: number; fullName: string; phone: string };
-    payments: { method: string; amount: string; status: string; paidAt: string | null }[];
-  } | null;
+  currentBooking: BookingOnApartment | null;
   upcomingBooking: {
     id: number;
     checkIn: string;
@@ -33,6 +40,11 @@ export interface ApartmentDetail extends Omit<ApartmentListItem, 'upcomingBookin
     checkIn: string;
     checkOut: string;
     totalAmount: string;
+    depositAmount: string | null;
+    depositStatus: DepositStatus;
+    depositRefundAmount: string | null;
+    depositCollectedAt: string | null;
+    checkedOutAt: string | null;
     tenant: { id: number; fullName: string; phone: string };
     payments: { id: number; method: string; amount: string; status: string; paidAt: string | null; createdAt: string }[];
   }[];
@@ -111,5 +123,13 @@ export function useUpdateApartment(id: number) {
       queryClient.invalidateQueries({ queryKey: ['apartments'] });
       queryClient.invalidateQueries({ queryKey: ['apartments', id] });
     },
+  });
+}
+
+export function useMarkReady(apartmentId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.patch(`/apartments/${apartmentId}/mark-ready`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['apartments'] }),
   });
 }
