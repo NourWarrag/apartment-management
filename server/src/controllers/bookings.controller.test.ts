@@ -214,6 +214,29 @@ describe('PATCH /api/v1/bookings/:id/deposit', () => {
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Deposit already collected');
   });
+
+  it('returns 409 when trying to collect deposit on checked-out booking', async () => {
+    const apt = await createAvailableApartment('DEP-CO');
+    const booking = await testPrisma.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date('2026-06-01'),
+        checkOut: new Date('2026-07-01'),
+        totalAmount: 5000,
+        depositStatus: 'NONE',
+        checkedOutAt: new Date(),
+      },
+    });
+
+    const res = await request(app)
+      .patch(`/api/v1/bookings/${booking.id}/deposit`)
+      .set('Cookie', adminToken)
+      .send({ amount: 500 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe('Cannot collect deposit on a checked-out booking');
+  });
 });
 
 describe('PATCH /api/v1/bookings/:id/checkout', () => {
@@ -270,6 +293,27 @@ describe('PATCH /api/v1/bookings/:id/checkout', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Booking already checked out');
+  });
+
+  it('returns 400 when apartment is not OCCUPIED during checkout', async () => {
+    const apt = await createAvailableApartment('CHK-NOTOCCUPIED');
+    const booking = await testPrisma.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date('2026-01-01'),
+        checkOut: new Date('2026-02-01'),
+        totalAmount: 5000,
+      },
+    });
+
+    const res = await request(app)
+      .patch(`/api/v1/bookings/${booking.id}/checkout`)
+      .set('Cookie', adminToken)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Apartment is not in OCCUPIED status');
   });
 
   it('returns 400 when deposit held but depositRefundAmount missing', async () => {
