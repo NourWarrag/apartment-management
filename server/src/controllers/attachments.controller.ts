@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest, UploadRequest } from '../middleware/auth.middleware';
 import { getStorage, buildStoragePath } from '../lib/storage';
 import { AttachmentEntity } from '@hotel/shared';
 
@@ -25,7 +25,7 @@ const ENTITY_LABEL: Record<AttachmentEntity, string> = {
 };
 
 export function makeAttachmentHandlers(entityType: AttachmentEntity) {
-  async function upload(req: AuthRequest, res: Response): Promise<void> {
+  async function upload(req: UploadRequest, res: Response): Promise<void> {
     try {
       const entityId = Number(req.params.id);
       if (!entityId || entityId <= 0) {

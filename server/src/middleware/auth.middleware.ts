@@ -7,6 +7,8 @@ export interface AuthRequest extends Request {
   user?: { id: number; role: Role; assignedBuildingId: number | null };
 }
 
+export type UploadRequest = AuthRequest & { file?: Express.Multer.File };
+
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const token = req.cookies?.token as string | undefined;
   if (!token) {
