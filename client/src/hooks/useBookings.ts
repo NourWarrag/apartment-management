@@ -48,6 +48,51 @@ export interface BookingDetail {
   }>;
 }
 
+export interface BookingsListParams {
+  search?: string;
+  status?: 'ACTIVE' | 'UPCOMING' | 'CHECKED_OUT';
+  buildingId?: number;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface BookingListItem {
+  id: number;
+  checkIn: string;
+  checkOut: string;
+  totalAmount: string;
+  depositStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
+  checkedOutAt: string | null;
+  createdAt: string;
+  tenant: { id: number; fullName: string; phone: string };
+  apartment: {
+    id: number;
+    number: string;
+    floor: number;
+    type: string;
+    building: { id: number; name: string };
+  };
+}
+
+export interface BookingsListResponse {
+  data: BookingListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export function useBookingsList(params: BookingsListParams = {}) {
+  return useQuery({
+    queryKey: ['bookings', params],
+    queryFn: async () => {
+      const res = await api.get('/bookings', { params });
+      return res.data as BookingsListResponse;
+    },
+  });
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient();
   return useMutation({
