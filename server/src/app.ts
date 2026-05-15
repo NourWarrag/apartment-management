@@ -15,6 +15,8 @@ import buildingsRoutes from './routes/buildings.routes';
 import reportsRoutes from './routes/reports.routes';
 import settingsRoutes from './routes/settings.routes';
 import configRoutes from './routes/config.routes';
+import { requireFeature } from './middleware/requireFeature';
+import { FeatureFlag } from '@hotel/shared';
 
 const app = express();
 
@@ -27,12 +29,12 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/apartments', apartmentsRoutes);
 app.use('/api/v1/tenants', tenantsRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
-app.use('/api/v1/payments', paymentsRoutes);
-app.use('/api/v1/tickets', ticketsRoutes);
+app.use('/api/v1/payments', requireFeature(FeatureFlag.PAYMENTS), paymentsRoutes);
+app.use('/api/v1/tickets', requireFeature(FeatureFlag.TICKETS), ticketsRoutes);
 app.use('/api/v1/users', usersRoutes);
-app.use('/api/v1/bookings', bookingsRoutes);
+app.use('/api/v1/bookings', requireFeature(FeatureFlag.BOOKINGS), bookingsRoutes);
 app.use('/api/v1/buildings', buildingsRoutes);
-app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/reports', requireFeature(FeatureFlag.REPORTS), reportsRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 
 app.get('/api/v1/health', (_req, res) => {

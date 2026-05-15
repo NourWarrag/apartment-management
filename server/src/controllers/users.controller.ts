@@ -1,7 +1,8 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { Role, StaffStatus } from '@hotel/shared';
+import { Role, StaffStatus, FeatureFlag } from '@hotel/shared';
+import { isFeatureEnabled } from '../features';
 import { hashPassword } from '../lib/password';
 import { Prisma, PrismaClient } from '@prisma/client';
 
@@ -132,13 +133,15 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: 'Invalid user id' }); return; }
 
-  const { name, email, role, assignedBuildingId, staffStatus } = req.body as {
+  const { name, email, role, assignedBuildingId } = req.body as {
     name?: string;
     email?: string;
     role?: string;
     assignedBuildingId?: number | null;
-    staffStatus?: string;
   };
+  const staffStatus = isFeatureEnabled(FeatureFlag.STAFF)
+    ? (req.body.staffStatus as string | undefined)
+    : undefined;
 
   if (!name && !email && !role && assignedBuildingId === undefined && staffStatus === undefined) {
     res.status(400).json({ message: 'At least one field required' });
