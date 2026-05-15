@@ -3,6 +3,7 @@ import { Role } from '@hotel/shared';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
+import BookingsPage from './pages/bookings/BookingsPage';
 import ApartmentsPage from './pages/apartments/ApartmentsPage';
 import ApartmentDetailPage from './pages/apartments/ApartmentDetailPage';
 import TenantsPage from './pages/tenants/TenantsPage';
@@ -62,6 +63,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
                 <ApartmentDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="bookings"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+                <BookingsPage />
               </ProtectedRoute>
             }
           />
