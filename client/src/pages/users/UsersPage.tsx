@@ -41,8 +41,8 @@ export default function UsersPage() {
   const [modalUser, setModalUser] = useState<UserListItem | null | undefined>(undefined);
   const [tab, setTab] = useState<Tab>('all');
   const isAdmin = currentUser?.role === Role.ADMIN || currentUser?.role === Role.SUPER_ADMIN;
-  const { data: flags = {} as Record<FeatureFlag, boolean> } = useFeatureFlags();
-  const staffEnabled = flags[FeatureFlag.STAFF] ?? false;
+  const { data: flags } = useFeatureFlags();
+  const staffEnabled = flags?.[FeatureFlag.STAFF] ?? false;
 
   const visibleUsers = (tab === 'staff' && staffEnabled)
     ? users.filter(u => u.role === Role.MAINTENANCE)

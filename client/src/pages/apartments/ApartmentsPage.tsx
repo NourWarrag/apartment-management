@@ -101,8 +101,8 @@ export default function ApartmentsPage() {
   const { selectedBuilding } = useBuilding();
   const showBuildingBadge = selectedBuilding === 'all';
   const { data: staffList = [] } = useMaintenanceStaff();
-  const { data: flags = {} as Record<FeatureFlag, boolean> } = useFeatureFlags();
-  const staffEnabled = flags[FeatureFlag.STAFF] ?? false;
+  const { data: flags } = useFeatureFlags();
+  const staffEnabled = flags?.[FeatureFlag.STAFF] ?? false;
 
   // Load all apartments (unfiltered) for stats
   const { data: allApartments = [] } = useApartments();

@@ -26,11 +26,11 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export default function Sidebar() {
   const { t } = useTranslation();
   const { data: user } = useAuth();
-  const { data: flags = {} as Record<FeatureFlag, boolean> } = useFeatureFlags();
+  const { data: flags } = useFeatureFlags();
 
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (!user || !item.roles.includes(user.role as Role)) return false;
-    if (item.feature && !flags[item.feature]) return false;
+    if (item.feature && !flags?.[item.feature]) return false;
     return true;
   });
 

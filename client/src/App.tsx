@@ -31,131 +31,137 @@ const ADMIN_FINANCE = [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE];
 const TICKETS_ROLES = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE];
 
 export default function App() {
-  const { data: flags, isLoading } = useFeatureFlags();
-  if (isLoading) return null;
-  const f = flags ?? ({} as Record<FeatureFlag, boolean>);
-
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+      <AppRoutes />
+    </BrowserRouter>
+  );
+}
+
+function AppRoutes() {
+  const { data: flags, isLoading } = useFeatureFlags();
+  if (isLoading) return null;
+  const f = flags ?? ({} as Partial<Record<FeatureFlag, boolean>>);
+
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={ALL_STAFF}>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route
+          path="dashboard"
           element={
-            <ProtectedRoute allowedRoles={ALL_STAFF}>
-              <AppLayout />
+            <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
+              <DashboardPage />
             </ProtectedRoute>
           }
-        >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+        />
+        <Route
+          path="apartments"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+              <ApartmentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="apartments/:id"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+              <ApartmentDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        {f[FeatureFlag.BOOKINGS] && (
           <Route
-            path="dashboard"
+            path="bookings"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+                <BookingsPage />
+              </ProtectedRoute>
+            }
+          />
+        )}
+        <Route
+          path="tenants"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+              <TenantsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="tenants/:id"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+              <TenantDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        {f[FeatureFlag.PAYMENTS] && (
+          <Route
+            path="payments"
             element={
               <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
-                <DashboardPage />
+                <PaymentsPage />
               </ProtectedRoute>
             }
           />
+        )}
+        {f[FeatureFlag.TICKETS] && (
           <Route
-            path="apartments"
+            path="tickets"
             element={
-              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                <ApartmentsPage />
+              <ProtectedRoute allowedRoles={TICKETS_ROLES}>
+                <TicketsPage />
               </ProtectedRoute>
             }
           />
+        )}
+        {f[FeatureFlag.MULTI_BUILDING] && (
           <Route
-            path="apartments/:id"
-            element={
-              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                <ApartmentDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          {f[FeatureFlag.BOOKINGS] && (
-            <Route
-              path="bookings"
-              element={
-                <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                  <BookingsPage />
-                </ProtectedRoute>
-              }
-            />
-          )}
-          <Route
-            path="tenants"
-            element={
-              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                <TenantsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="tenants/:id"
-            element={
-              <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
-                <TenantDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          {f[FeatureFlag.PAYMENTS] && (
-            <Route
-              path="payments"
-              element={
-                <ProtectedRoute allowedRoles={[Role.ADMIN, Role.RECEPTIONIST, Role.FINANCE]}>
-                  <PaymentsPage />
-                </ProtectedRoute>
-              }
-            />
-          )}
-          {f[FeatureFlag.TICKETS] && (
-            <Route
-              path="tickets"
-              element={
-                <ProtectedRoute allowedRoles={TICKETS_ROLES}>
-                  <TicketsPage />
-                </ProtectedRoute>
-              }
-            />
-          )}
-          {f[FeatureFlag.MULTI_BUILDING] && (
-            <Route
-              path="buildings"
-              element={
-                <ProtectedRoute allowedRoles={ADMIN_ONLY}>
-                  <BuildingsPage />
-                </ProtectedRoute>
-              }
-            />
-          )}
-          {f[FeatureFlag.REPORTS] && (
-            <Route
-              path="reports"
-              element={
-                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
-                  <ReportsPage />
-                </ProtectedRoute>
-              }
-            />
-          )}
-          <Route
-            path="users"
+            path="buildings"
             element={
               <ProtectedRoute allowedRoles={ADMIN_ONLY}>
-                <UsersPage />
+                <BuildingsPage />
               </ProtectedRoute>
             }
           />
+        )}
+        {f[FeatureFlag.REPORTS] && (
           <Route
-            path="settings"
+            path="reports"
             element={
-              <ProtectedRoute allowedRoles={ALL_STAFF}>
-                <SettingsPage />
+              <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                <ReportsPage />
               </ProtectedRoute>
             }
           />
-        </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+        )}
+        <Route
+          path="users"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_ONLY}>
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute allowedRoles={ALL_STAFF}>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }
