@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ApartmentStatus, ApartmentType } from '@hotel/shared';
@@ -8,161 +8,167 @@ import { assertBuildingAccess } from '../lib/assertBuildingAccess';
 const VALID_STATUSES = Object.values(ApartmentStatus);
 const VALID_TYPES = Object.values(ApartmentType);
 
-export async function list(req: AuthRequest, res: Response): Promise<void> {
-  const { status, type, search } = req.query as { status?: string; type?: string; search?: string };
+export async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { status, type, search } = req.query as { status?: string; type?: string; search?: string };
 
-  if (status && !VALID_STATUSES.includes(status as ApartmentStatus)) {
-    res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
-    return;
-  }
-  if (type && !VALID_TYPES.includes(type as ApartmentType)) {
-    res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
-    return;
-  }
+    if (status && !VALID_STATUSES.includes(status as ApartmentStatus)) {
+      res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+      return;
+    }
+    if (type && !VALID_TYPES.includes(type as ApartmentType)) {
+      res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
+      return;
+    }
 
-  const rawBuilding = req.query.buildingId;
-  const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
-  if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
-    res.status(400).json({ message: 'Invalid buildingId' });
-    return;
-  }
+    const rawBuilding = req.query.buildingId;
+    const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
+    if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
 
-  const where: Prisma.ApartmentWhereInput = {};
-  if (status) where.status = status as ApartmentStatus;
-  if (type) where.type = type as ApartmentType;
-  if (search) where.number = { contains: search, mode: 'insensitive' };
-  if (buildingId) where.buildingId = buildingId;
+    const where: Prisma.ApartmentWhereInput = {};
+    if (status) where.status = status as ApartmentStatus;
+    if (type) where.type = type as ApartmentType;
+    if (search) where.number = { contains: search, mode: 'insensitive' };
+    if (buildingId) where.buildingId = buildingId;
 
-  const now = new Date();
+    const now = new Date();
 
-  const apartments = await prisma.apartment.findMany({
-    where,
-    orderBy: { number: 'asc' },
-    include: {
-      building: { select: { id: true, name: true, code: true } },
-      bookings: {
-        where: { checkOut: { gte: now } },
-        orderBy: { checkIn: 'asc' },
-        take: 2,
-        include: {
-          tenant: { select: { id: true, fullName: true, phone: true } },
-          payments: { select: { method: true, amount: true, status: true, paidAt: true } },
+    const apartments = await prisma.apartment.findMany({
+      where,
+      orderBy: { number: 'asc' },
+      include: {
+        building: { select: { id: true, name: true, code: true } },
+        bookings: {
+          where: { checkOut: { gte: now } },
+          orderBy: { checkIn: 'asc' },
+          take: 2,
+          include: {
+            tenant: { select: { id: true, fullName: true, phone: true } },
+            payments: { select: { method: true, amount: true, status: true, paidAt: true } },
+          },
+        },
+        tickets: {
+          where: { status: { in: ['OPEN', 'IN_PROGRESS'] } },
+          take: 1,
+          select: { id: true, status: true, priority: true },
         },
       },
-      tickets: {
-        where: { status: { in: ['OPEN', 'IN_PROGRESS'] } },
-        take: 1,
-        select: { id: true, status: true, priority: true },
-      },
-    },
-  });
+    });
 
-  const result = apartments.map((a) => {
-    const currentBooking = a.bookings.find(
+    const result = apartments.map((a) => {
+      const currentBooking = a.bookings.find(
+        (b) => new Date(b.checkIn) <= now && new Date(b.checkOut) >= now
+      ) ?? null;
+      const upcomingBooking = a.bookings.find((b) => new Date(b.checkIn) > now) ?? null;
+
+      return {
+        id: a.id,
+        number: a.number,
+        floor: a.floor,
+        type: a.type,
+        status: a.status,
+        building: a.building,
+        currentBooking,
+        upcomingBooking,
+        activeTicket: a.tickets[0] ?? null,
+      };
+    });
+
+    res.json(result);
+  } catch (err) { next(err); }
+}
+
+export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { number, floor, type, buildingId } = req.body as {
+      number?: string; floor?: number; type?: string; buildingId?: number;
+    };
+    if (!number?.trim() || floor === undefined || floor === null) {
+      res.status(400).json({ message: 'number and floor are required' });
+      return;
+    }
+    if (!buildingId) {
+      res.status(400).json({ message: 'buildingId is required' });
+      return;
+    }
+    const bId = Number(buildingId);
+    if (isNaN(bId) || bId <= 0) {
+      res.status(400).json({ message: 'Invalid buildingId' });
+      return;
+    }
+    if (!assertBuildingAccess(req, res, bId)) return;
+    if (type !== undefined && !VALID_TYPES.includes(type as ApartmentType)) {
+      res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
+      return;
+    }
+    const building = await prisma.building.findUnique({ where: { id: bId } });
+    if (!building) { res.status(404).json({ message: 'Building not found' }); return; }
+
+    // Compound uniqueness check: apartment number must be unique within the building
+    const conflict = await prisma.apartment.findFirst({
+      where: { buildingId: bId, number: number.trim() },
+    });
+    if (conflict) {
+      res.status(409).json({ message: 'Apartment number already exists in this building' });
+      return;
+    }
+    const apartment = await prisma.apartment.create({
+      data: {
+        number: number.trim(),
+        floor: Number(floor),
+        type: (type as ApartmentType) ?? ApartmentType.STUDIO,
+        buildingId: bId,
+      },
+      include: { building: { select: { id: true, name: true, code: true } } },
+    });
+    res.status(201).json(apartment);
+  } catch (err) { next(err); }
+}
+
+export async function getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      res.status(400).json({ message: 'Invalid id' });
+      return;
+    }
+
+    const apartment = await prisma.apartment.findUnique({
+      where: { id },
+      include: {
+        bookings: {
+          orderBy: { checkIn: 'desc' },
+          include: {
+            tenant: { select: { id: true, fullName: true, phone: true } },
+            payments: { select: { id: true, method: true, amount: true, status: true, paidAt: true, createdAt: true } },
+          },
+        },
+        tickets: {
+          orderBy: { createdAt: 'desc' },
+          include: { assignedTo: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    if (!apartment) {
+      res.status(404).json({ message: 'Apartment not found' });
+      return;
+    }
+
+    const now = new Date();
+    const currentBooking = apartment.bookings.find(
       (b) => new Date(b.checkIn) <= now && new Date(b.checkOut) >= now
     ) ?? null;
-    const upcomingBooking = a.bookings.find((b) => new Date(b.checkIn) > now) ?? null;
 
-    return {
-      id: a.id,
-      number: a.number,
-      floor: a.floor,
-      type: a.type,
-      status: a.status,
-      building: a.building,
-      currentBooking,
-      upcomingBooking,
-      activeTicket: a.tickets[0] ?? null,
-    };
-  });
-
-  res.json(result);
+    res.json({ ...apartment, currentBooking });
+  } catch (err) { next(err); }
 }
 
-export async function create(req: AuthRequest, res: Response): Promise<void> {
-  const { number, floor, type, buildingId } = req.body as {
-    number?: string; floor?: number; type?: string; buildingId?: number;
-  };
-  if (!number?.trim() || floor === undefined || floor === null) {
-    res.status(400).json({ message: 'number and floor are required' });
-    return;
-  }
-  if (!buildingId) {
-    res.status(400).json({ message: 'buildingId is required' });
-    return;
-  }
-  const bId = Number(buildingId);
-  if (isNaN(bId) || bId <= 0) {
-    res.status(400).json({ message: 'Invalid buildingId' });
-    return;
-  }
-  if (!assertBuildingAccess(req, res, bId)) return;
-  if (type !== undefined && !VALID_TYPES.includes(type as ApartmentType)) {
-    res.status(400).json({ message: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` });
-    return;
-  }
-  const building = await prisma.building.findUnique({ where: { id: bId } });
-  if (!building) { res.status(404).json({ message: 'Building not found' }); return; }
-
-  // Compound uniqueness check: apartment number must be unique within the building
-  const conflict = await prisma.apartment.findFirst({
-    where: { buildingId: bId, number: number.trim() },
-  });
-  if (conflict) {
-    res.status(409).json({ message: 'Apartment number already exists in this building' });
-    return;
-  }
-  const apartment = await prisma.apartment.create({
-    data: {
-      number: number.trim(),
-      floor: Number(floor),
-      type: (type as ApartmentType) ?? ApartmentType.STUDIO,
-      buildingId: bId,
-    },
-    include: { building: { select: { id: true, name: true, code: true } } },
-  });
-  res.status(201).json(apartment);
-}
-
-export async function getById(req: AuthRequest, res: Response): Promise<void> {
-  const id = Number(req.params.id);
-
-  if (isNaN(id)) {
-    res.status(400).json({ message: 'Invalid id' });
-    return;
-  }
-
-  const apartment = await prisma.apartment.findUnique({
-    where: { id },
-    include: {
-      bookings: {
-        orderBy: { checkIn: 'desc' },
-        include: {
-          tenant: { select: { id: true, fullName: true, phone: true } },
-          payments: { select: { id: true, method: true, amount: true, status: true, paidAt: true, createdAt: true } },
-        },
-      },
-      tickets: {
-        orderBy: { createdAt: 'desc' },
-        include: { assignedTo: { select: { id: true, name: true } } },
-      },
-    },
-  });
-
-  if (!apartment) {
-    res.status(404).json({ message: 'Apartment not found' });
-    return;
-  }
-
-  const now = new Date();
-  const currentBooking = apartment.bookings.find(
-    (b) => new Date(b.checkIn) <= now && new Date(b.checkOut) >= now
-  ) ?? null;
-
-  res.json({ ...apartment, currentBooking });
-}
-
-export async function remove(req: AuthRequest, res: Response): Promise<void> {
+export async function remove(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
 
   if (isNaN(id)) {
@@ -178,11 +184,11 @@ export async function remove(req: AuthRequest, res: Response): Promise<void> {
       res.status(404).json({ message: 'Apartment not found' });
       return;
     }
-    throw err;
+    next(err); return;
   }
 }
 
-export async function update(req: AuthRequest, res: Response): Promise<void> {
+export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
 
   if (isNaN(id)) {
@@ -248,11 +254,11 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
         return;
       }
     }
-    throw err;
+    next(err); return;
   }
 }
 
-export async function markReady(req: AuthRequest, res: Response): Promise<void> {
+export async function markReady(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const aptId = Number(req.params.id);
     if (isNaN(aptId) || aptId <= 0) {
@@ -276,7 +282,5 @@ export async function markReady(req: AuthRequest, res: Response): Promise<void> 
     });
 
     res.json(updated);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }

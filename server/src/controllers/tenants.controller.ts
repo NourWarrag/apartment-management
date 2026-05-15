@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { KycStatus, TenantTier } from '@hotel/shared';
@@ -7,52 +7,54 @@ import { Prisma } from '@prisma/client';
 const VALID_KYC = Object.values(KycStatus);
 const VALID_TIERS = Object.values(TenantTier);
 
-export async function list(req: AuthRequest, res: Response): Promise<void> {
-  const { search } = req.query as { search?: string };
+export async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { search } = req.query as { search?: string };
 
-  const where: Prisma.TenantWhereInput = search
-    ? {
-        OR: [
-          { fullName: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search, mode: 'insensitive' } },
-          { idNumber: { contains: search, mode: 'insensitive' } },
-        ],
-      }
-    : {};
+    const where: Prisma.TenantWhereInput = search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search, mode: 'insensitive' } },
+            { idNumber: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
 
-  const now = new Date();
+    const now = new Date();
 
-  const tenants = await prisma.tenant.findMany({
-    where,
-    orderBy: { fullName: 'asc' },
-    include: {
-      bookings: {
-        where: { checkIn: { lte: now }, checkOut: { gte: now } },
-        take: 1,
-        orderBy: { checkIn: 'desc' },
-        include: {
-          apartment: { select: { id: true, number: true, type: true } },
+    const tenants = await prisma.tenant.findMany({
+      where,
+      orderBy: { fullName: 'asc' },
+      include: {
+        bookings: {
+          where: { checkIn: { lte: now }, checkOut: { gte: now } },
+          take: 1,
+          orderBy: { checkIn: 'desc' },
+          include: {
+            apartment: { select: { id: true, number: true, type: true } },
+          },
         },
       },
-    },
-  });
+    });
 
-  const result = tenants.map(({ bookings, ...t }) => ({
-    ...t,
-    currentBooking: bookings[0]
-      ? {
-          id: bookings[0].id,
-          checkIn: bookings[0].checkIn,
-          checkOut: bookings[0].checkOut,
-          apartment: bookings[0].apartment,
-        }
-      : null,
-  }));
+    const result = tenants.map(({ bookings, ...t }) => ({
+      ...t,
+      currentBooking: bookings[0]
+        ? {
+            id: bookings[0].id,
+            checkIn: bookings[0].checkIn,
+            checkOut: bookings[0].checkOut,
+            apartment: bookings[0].apartment,
+          }
+        : null,
+    }));
 
-  res.json(result);
+    res.json(result);
+  } catch (err) { next(err); }
 }
 
-export async function create(req: AuthRequest, res: Response): Promise<void> {
+export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const { fullName, phone, idNumber, kycStatus, tier, notes } = req.body as {
     fullName?: string;
     phone?: string;
@@ -92,42 +94,44 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
       res.status(409).json({ message: 'ID number already registered' });
       return;
     }
-    throw err;
+    next(err); return;
   }
 }
 
-export async function getById(req: AuthRequest, res: Response): Promise<void> {
-  const id = Number(req.params.id);
+export async function getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = Number(req.params.id);
 
-  if (isNaN(id)) {
-    res.status(400).json({ message: 'Invalid id' });
-    return;
-  }
+    if (isNaN(id)) {
+      res.status(400).json({ message: 'Invalid id' });
+      return;
+    }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id },
-    include: {
-      bookings: {
-        orderBy: { checkIn: 'desc' },
-        include: {
-          apartment: { select: { id: true, number: true, floor: true, type: true } },
-          payments: {
-            select: { id: true, method: true, amount: true, status: true, paidAt: true },
+    const tenant = await prisma.tenant.findUnique({
+      where: { id },
+      include: {
+        bookings: {
+          orderBy: { checkIn: 'desc' },
+          include: {
+            apartment: { select: { id: true, number: true, floor: true, type: true } },
+            payments: {
+              select: { id: true, method: true, amount: true, status: true, paidAt: true },
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!tenant) {
-    res.status(404).json({ message: 'Tenant not found' });
-    return;
-  }
+    if (!tenant) {
+      res.status(404).json({ message: 'Tenant not found' });
+      return;
+    }
 
-  res.json(tenant);
+    res.json(tenant);
+  } catch (err) { next(err); }
 }
 
-export async function remove(req: AuthRequest, res: Response): Promise<void> {
+export async function remove(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
 
   if (isNaN(id)) {
@@ -143,11 +147,11 @@ export async function remove(req: AuthRequest, res: Response): Promise<void> {
       res.status(404).json({ message: 'Tenant not found' });
       return;
     }
-    throw err;
+    next(err); return;
   }
 }
 
-export async function update(req: AuthRequest, res: Response): Promise<void> {
+export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
 
   if (isNaN(id)) {
@@ -195,6 +199,6 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
         return;
       }
     }
-    throw err;
+    next(err); return;
   }
 }

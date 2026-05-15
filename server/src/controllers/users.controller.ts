@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Role, StaffStatus, FeatureFlag } from '@hotel/shared';
@@ -24,7 +24,7 @@ function getRawClient() {
   return new PrismaClient();
 }
 
-export async function maintenanceStaff(_req: AuthRequest, res: Response): Promise<void> {
+export async function maintenanceStaff(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const users = await prisma.user.findMany({
       where: { role: 'MAINTENANCE' },
@@ -32,12 +32,10 @@ export async function maintenanceStaff(_req: AuthRequest, res: Response): Promis
       orderBy: { name: 'asc' },
     });
     res.json(users);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function list(_req: AuthRequest, res: Response): Promise<void> {
+export async function list(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const raw = getRawClient();
   try {
     const users = await raw.user.findMany({
@@ -45,12 +43,14 @@ export async function list(_req: AuthRequest, res: Response): Promise<void> {
       orderBy: { createdAt: 'desc' },
     });
     res.json(users);
+  } catch (err) {
+    next(err);
   } finally {
     await raw.$disconnect();
   }
 }
 
-export async function getById(req: AuthRequest, res: Response): Promise<void> {
+export async function getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: 'Invalid user id' }); return; }
   const raw = getRawClient();
@@ -58,12 +58,14 @@ export async function getById(req: AuthRequest, res: Response): Promise<void> {
     const user = await raw.user.findUnique({ where: { id }, select: userSelect });
     if (!user) { res.status(404).json({ message: 'User not found' }); return; }
     res.json(user);
+  } catch (err) {
+    next(err);
   } finally {
     await raw.$disconnect();
   }
 }
 
-export async function create(req: AuthRequest, res: Response): Promise<void> {
+export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const { name, email, password, role, assignedBuildingId } = req.body as {
     name?: string;
     email?: string;
@@ -125,11 +127,11 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
       res.status(409).json({ message: 'Email already in use' });
       return;
     }
-    throw err;
+    next(err); return;
   }
 }
 
-export async function update(req: AuthRequest, res: Response): Promise<void> {
+export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: 'Invalid user id' }); return; }
 
@@ -221,11 +223,11 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       res.status(409).json({ message: 'Email already in use' });
       return;
     }
-    throw err;
+    next(err); return;
   }
 }
 
-export async function deactivate(req: AuthRequest, res: Response): Promise<void> {
+export async function deactivate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: 'Invalid user id' }); return; }
   if (req.user?.id === id) {
@@ -236,15 +238,19 @@ export async function deactivate(req: AuthRequest, res: Response): Promise<void>
   try {
     const existing = await raw.user.findUnique({ where: { id }, select: { id: true } });
     if (!existing) { res.status(404).json({ message: 'User not found' }); return; }
+  } catch (err) {
+    next(err); return;
   } finally {
     await raw.$disconnect();
   }
-  // prisma.user.delete is intercepted by the soft-delete extension → sets deletedAt
-  await prisma.user.delete({ where: { id } });
-  res.json({ message: 'User deactivated' });
+  try {
+    // prisma.user.delete is intercepted by the soft-delete extension → sets deletedAt
+    await prisma.user.delete({ where: { id } });
+    res.json({ message: 'User deactivated' });
+  } catch (err) { next(err); }
 }
 
-export async function reactivate(req: AuthRequest, res: Response): Promise<void> {
+export async function reactivate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: 'Invalid user id' }); return; }
   const raw = getRawClient();
@@ -253,6 +259,8 @@ export async function reactivate(req: AuthRequest, res: Response): Promise<void>
     if (!existing) { res.status(404).json({ message: 'User not found' }); return; }
     // Use the raw client to bypass the soft-delete extension and clear deletedAt
     await raw.user.update({ where: { id }, data: { deletedAt: null } });
+  } catch (err) {
+    next(err); return;
   } finally {
     await raw.$disconnect();
   }

@@ -1,8 +1,8 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 
-export async function stats(req: AuthRequest, res: Response): Promise<void> {
+export async function stats(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const rawBuilding = req.query.buildingId;
     const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
@@ -53,12 +53,10 @@ export async function stats(req: AuthRequest, res: Response): Promise<void> {
       pendingInstallments,
       openTickets,
     });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function activity(req: AuthRequest, res: Response): Promise<void> {
+export async function activity(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const rawBuilding = req.query.buildingId;
     const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
@@ -123,12 +121,10 @@ export async function activity(req: AuthRequest, res: Response): Promise<void> {
     const top20 = events.slice(0, 20).map((e) => ({ ...e, timestamp: e.timestamp.toISOString() }));
 
     res.json({ events: top20 });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function revenueTrend(req: AuthRequest, res: Response): Promise<void> {
+export async function revenueTrend(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { days: daysParam } = req.query as { days?: string };
     if (daysParam !== '7' && daysParam !== '30') {
@@ -176,7 +172,5 @@ export async function revenueTrend(req: AuthRequest, res: Response): Promise<voi
     }
 
     res.json(result);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }

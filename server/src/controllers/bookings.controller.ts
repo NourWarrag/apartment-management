@@ -1,11 +1,11 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { PaymentMethod, PaymentStatus, ApartmentStatus, DepositStatus } from '@hotel/shared';
 
 const VALID_METHODS = Object.values(PaymentMethod);
 
-export async function create(req: AuthRequest, res: Response): Promise<void> {
+export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { apartmentId, tenantId, checkIn, checkOut, totalAmount, payment, deposit } = req.body as {
       apartmentId?: number;
@@ -121,12 +121,10 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
     });
 
     res.status(201).json(booking);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function collectDeposit(req: AuthRequest, res: Response): Promise<void> {
+export async function collectDeposit(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const bookingId = Number(req.params.id);
     if (isNaN(bookingId) || bookingId <= 0) {
@@ -164,12 +162,10 @@ export async function collectDeposit(req: AuthRequest, res: Response): Promise<v
     });
 
     res.json(updated);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function checkout(req: AuthRequest, res: Response): Promise<void> {
+export async function checkout(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const bookingId = Number(req.params.id);
     if (isNaN(bookingId) || bookingId <= 0) {
@@ -239,12 +235,10 @@ export async function checkout(req: AuthRequest, res: Response): Promise<void> {
     });
 
     res.json(result);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function list(req: AuthRequest, res: Response): Promise<void> {
+export async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const pageRaw = parseInt((req.query.page as string) ?? '1');
     const limitRaw = parseInt((req.query.limit as string) ?? '20');
@@ -324,12 +318,10 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     ]);
 
     res.json({ data, total, page, limit });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function getById(req: AuthRequest, res: Response): Promise<void> {
+export async function getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = Number(req.params.id);
     if (isNaN(id) || id <= 0) {
@@ -367,7 +359,5 @@ export async function getById(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
     res.json(booking);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }

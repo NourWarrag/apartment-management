@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { PaymentMethod, PaymentStatus } from '@hotel/shared';
@@ -16,7 +16,7 @@ const bookingInclude = {
   },
 } as const;
 
-export async function list(req: AuthRequest, res: Response): Promise<void> {
+export async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { status, method, search, page } = req.query as {
       status?: string;
@@ -69,12 +69,10 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
     ]);
 
     res.json({ total, page: pageNum, pageSize: PAGE_SIZE, data });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function create(req: AuthRequest, res: Response): Promise<void> {
+export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { bookingId, method, amount, referenceNumber } = req.body as {
       bookingId?: number;
@@ -118,12 +116,10 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
     });
 
     res.status(201).json(payment);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function markPaid(req: AuthRequest, res: Response): Promise<void> {
+export async function markPaid(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = Number(req.params.id);
     if (isNaN(id) || id <= 0) {
@@ -148,12 +144,10 @@ export async function markPaid(req: AuthRequest, res: Response): Promise<void> {
     });
 
     res.json(updated);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function stats(req: AuthRequest, res: Response): Promise<void> {
+export async function stats(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const now = new Date();
     const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -203,12 +197,10 @@ export async function stats(req: AuthRequest, res: Response): Promise<void> {
     }
 
     res.json({ monthlyRevenue, outstandingBalance, activePlans, collectionRate });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function installmentPlans(req: AuthRequest, res: Response): Promise<void> {
+export async function installmentPlans(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const groups = await prisma.payment.groupBy({
       by: ['bookingId'],
@@ -252,7 +244,5 @@ export async function installmentPlans(req: AuthRequest, res: Response): Promise
       }));
 
     res.json(active);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }

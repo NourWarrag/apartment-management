@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest, UploadRequest, assertAuthenticated } from '../middleware/auth.middleware';
 import { getStorage, buildStoragePath } from '../lib/storage';
@@ -25,7 +25,7 @@ const ENTITY_LABEL: Record<AttachmentEntity, string> = {
 };
 
 export function makeAttachmentHandlers(entityType: AttachmentEntity) {
-  async function upload(req: UploadRequest, res: Response): Promise<void> {
+  async function upload(req: UploadRequest, res: Response, next: NextFunction): Promise<void> {
     assertAuthenticated(req);
     try {
       const entityId = Number(req.params.id);
@@ -60,10 +60,9 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
             uploadedBy: req.user.id,
           },
         });
-      } catch {
+      } catch (err) {
         await storage.delete(storagePath).catch(() => undefined);
-        res.status(500).json({ message: 'Failed to save file' });
-        return;
+        next(err); return;
       }
 
       res.status(201).json({
@@ -74,12 +73,10 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
         url: storage.url(storagePath),
         createdAt: attachment.createdAt,
       });
-    } catch {
-      res.status(500).json({ message: 'Failed to save file' });
-    }
+    } catch (err) { next(err); }
   }
 
-  async function list(req: AuthRequest, res: Response): Promise<void> {
+  async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const entityId = Number(req.params.id);
       if (!entityId || entityId <= 0) {
@@ -110,12 +107,10 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
           createdAt: a.createdAt,
         }))
       );
-    } catch {
-      res.status(500).json({ message: 'Internal server error' });
-    }
+    } catch (err) { next(err); }
   }
 
-  async function remove(req: AuthRequest, res: Response): Promise<void> {
+  async function remove(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const entityId = Number(req.params.id);
       const attId = Number(req.params.attId);
@@ -137,9 +132,7 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
       await storage.delete(attachment.storagePath).catch(() => undefined);
 
       res.status(204).end();
-    } catch {
-      res.status(500).json({ message: 'Internal server error' });
-    }
+    } catch (err) { next(err); }
   }
 
   return { upload, list, remove };

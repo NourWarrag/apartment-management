@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest, assertAuthenticated } from '../middleware/auth.middleware';
 import { Priority, Role, TicketStatus, TicketType } from '@hotel/shared';
@@ -22,7 +22,7 @@ function baseWhere(req: AuthRequest): Prisma.MaintenanceTicketWhereInput {
   return where;
 }
 
-export async function list(req: AuthRequest, res: Response): Promise<void> {
+export async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { status, priority } = req.query as { status?: string; priority?: string };
     const where = baseWhere(req);
@@ -56,12 +56,10 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
       prisma.maintenanceTicket.findMany({ where, orderBy: { createdAt: 'desc' }, include: ticketInclude }),
     ]);
     res.json({ total, data });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function create(req: AuthRequest, res: Response): Promise<void> {
+export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { apartmentId, description, priority, assignedToId, type } = req.body as {
       apartmentId?: number;
@@ -113,12 +111,10 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
       include: ticketInclude,
     });
     res.status(201).json(ticket);
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function update(req: AuthRequest, res: Response): Promise<void> {
+export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   assertAuthenticated(req);
   try {
     const id = Number(req.params.id);
@@ -242,15 +238,13 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
           res.status(404).json({ message: 'Ticket not found' });
           return;
         }
-        throw innerErr;
+        next(innerErr); return;
       }
     }
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
 
-export async function stats(req: AuthRequest, res: Response): Promise<void> {
+export async function stats(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const where = baseWhere(req);
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -274,7 +268,5 @@ export async function stats(req: AuthRequest, res: Response): Promise<void> {
       avgResolutionHours = Math.round((totalHours / completedWithTime.length) * 10) / 10;
     }
     res.json({ open, inProgress, completed, resolved24h, avgResolutionHours });
-  } catch {
-    res.status(500).json({ message: 'Internal server error' });
-  }
+  } catch (err) { next(err); }
 }
