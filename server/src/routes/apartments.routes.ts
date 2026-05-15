@@ -1,12 +1,16 @@
 import { Router } from 'express';
 import { list, create, getById, update, remove, markReady } from '../controllers/apartments.controller';
+import { makeAttachmentHandlers } from '../controllers/attachments.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
-import { Role } from '@hotel/shared';
+import { uploadFile } from '../middleware/upload.middleware';
+import { Role, AttachmentEntity } from '@hotel/shared';
 
 const router = Router();
 
 router.use(authMiddleware);
+
+const att = makeAttachmentHandlers(AttachmentEntity.APARTMENT);
 
 router.get('/', list);
 router.post('/', requireRole(Role.ADMIN, Role.RECEPTIONIST), create);
@@ -15,5 +19,9 @@ router.put('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
 router.patch('/:id/mark-ready', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), markReady);
 router.patch('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
 router.delete('/:id', requireRole(Role.ADMIN), remove);
+
+router.post('/:id/attachments', requireRole(Role.ADMIN, Role.RECEPTIONIST), uploadFile, att.upload);
+router.get('/:id/attachments', att.list);
+router.delete('/:id/attachments/:attId', requireRole(Role.ADMIN, Role.RECEPTIONIST), att.remove);
 
 export default router;

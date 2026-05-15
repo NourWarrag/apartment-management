@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cookieParser from 'cookie-parser';
 import { requestLogger } from './middleware/requestLogger.middleware';
 import { errorHandler } from './middleware/errorHandler.middleware';
@@ -35,6 +36,8 @@ app.use('/api/v1/settings', settingsRoutes);
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+app.use('/files', express.static(path.resolve(process.env.STORAGE_PATH ?? './uploads')));
 
 app.use(errorHandler);
 
