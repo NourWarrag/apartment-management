@@ -17,7 +17,7 @@ router.patch('/:id', update); // role check is inside handler (MAINTENANCE can u
 
 const att = makeAttachmentHandlers(AttachmentEntity.TICKET);
 router.post('/:id/attachments', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE), uploadFile, att.upload);
-router.get('/:id/attachments', att.list);
+router.get('/:id/attachments', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE), att.list);
 router.delete('/:id/attachments/:attId', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE), att.remove);
 
 export default router;
