@@ -12,11 +12,15 @@ export interface BuildingReportRow {
   openTickets: number;
 }
 
-export function useReportsBuildings() {
+export function useReportsBuildings(startDate?: string, endDate?: string) {
   return useQuery<BuildingReportRow[]>({
-    queryKey: ['reports', 'buildings'],
+    queryKey: ['reports', 'buildings', startDate, endDate],
     queryFn: async () => {
-      const res = await api.get('/reports/buildings');
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      const q = params.toString();
+      const res = await api.get(`/reports/buildings${q ? `?${q}` : ''}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
