@@ -361,60 +361,61 @@ export default function ApartmentsPage() {
                         )}
                       </td>
                       <td className="px-table-cell-padding-x py-table-cell-padding-y text-right">
-                        {canEdit ? (
-                          <div className="flex items-center justify-end gap-1">
-                            {apt.currentBooking && (
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit && (
+                            <>
+                              {apt.currentBooking && (
+                                <button
+                                  onClick={() =>
+                                    setPaymentTarget({
+                                      bookingId: apt.currentBooking!.id,
+                                      summary: {
+                                        tenantName: apt.currentBooking!.tenant.fullName,
+                                        apartmentNumber: apt.number,
+                                        checkIn: apt.currentBooking!.checkIn,
+                                        checkOut: apt.currentBooking!.checkOut,
+                                      },
+                                    })
+                                  }
+                                  className="p-1 hover:bg-surface-container rounded-full"
+                                  title="Record payment"
+                                >
+                                  <span className="material-symbols-outlined text-[20px] text-green-600">payments</span>
+                                </button>
+                              )}
+                              {apt.status === ApartmentStatus.AVAILABLE && (
+                                <button
+                                  onClick={() => setBookingAptId(apt.id)}
+                                  className="p-1 hover:bg-surface-container rounded-full"
+                                  title="New reservation"
+                                >
+                                  <span className="material-symbols-outlined text-[20px] text-primary">add_home</span>
+                                </button>
+                              )}
                               <button
-                                onClick={() =>
-                                  setPaymentTarget({
-                                    bookingId: apt.currentBooking!.id,
-                                    summary: {
-                                      tenantName: apt.currentBooking!.tenant.fullName,
-                                      apartmentNumber: apt.number,
-                                      checkIn: apt.currentBooking!.checkIn,
-                                      checkOut: apt.currentBooking!.checkOut,
-                                    },
-                                  })
-                                }
+                                onClick={() => { setEditTarget(apt); setShowModal(true); }}
                                 className="p-1 hover:bg-surface-container rounded-full"
-                                title="Record payment"
                               >
-                                <span className="material-symbols-outlined text-[20px] text-green-600">payments</span>
+                                <span className="material-symbols-outlined text-[20px]">more_vert</span>
                               </button>
-                            )}
-                            {apt.status === ApartmentStatus.AVAILABLE && (
-                              <button
-                                onClick={() => setBookingAptId(apt.id)}
-                                className="p-1 hover:bg-surface-container rounded-full"
-                                title="New reservation"
-                              >
-                                <span className="material-symbols-outlined text-[20px] text-primary">add_home</span>
-                              </button>
-                            )}
+                            </>
+                          )}
+                          {apt.status === ApartmentStatus.OCCUPIED && apt.currentBooking && canCheckout && (
                             <button
-                              onClick={() => { setEditTarget(apt); setShowModal(true); }}
+                              onClick={() => setCheckoutTarget(apt.currentBooking!)}
                               className="p-1 hover:bg-surface-container rounded-full"
+                              title="Checkout"
                             >
-                              <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                              <span className="material-symbols-outlined text-[20px] text-amber-600">logout</span>
                             </button>
-                            {apt.status === ApartmentStatus.OCCUPIED && apt.currentBooking && canCheckout && (
-                              <button
-                                onClick={() => setCheckoutTarget(apt.currentBooking!)}
-                                className="p-1 hover:bg-surface-container rounded-full"
-                                title="Checkout"
-                              >
-                                <span className="material-symbols-outlined text-[20px] text-amber-600">logout</span>
-                              </button>
-                            )}
-                            {apt.status === ApartmentStatus.CLEANING && canCheckout && (
-                              <MarkReadyButton apartmentId={apt.id} />
-                            )}
-                          </div>
-                        ) : (
-                          apt.status === ApartmentStatus.AVAILABLE && (
+                          )}
+                          {apt.status === ApartmentStatus.CLEANING && canCheckout && (
+                            <MarkReadyButton apartmentId={apt.id} />
+                          )}
+                          {!canEdit && apt.status === ApartmentStatus.AVAILABLE && (
                             <button className="text-primary font-bold hover:underline text-body-sm">Check In</button>
-                          )
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
