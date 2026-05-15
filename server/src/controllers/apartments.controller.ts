@@ -251,3 +251,32 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
     throw err;
   }
 }
+
+export async function markReady(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const aptId = Number(req.params.id);
+    if (isNaN(aptId) || aptId <= 0) {
+      res.status(400).json({ message: 'Invalid apartment ID' });
+      return;
+    }
+
+    const apartment = await prisma.apartment.findUnique({ where: { id: aptId } });
+    if (!apartment) {
+      res.status(404).json({ message: 'Apartment not found' });
+      return;
+    }
+    if (apartment.status !== ApartmentStatus.CLEANING) {
+      res.status(400).json({ message: 'Apartment is not in CLEANING status' });
+      return;
+    }
+
+    const updated = await prisma.apartment.update({
+      where: { id: aptId },
+      data: { status: ApartmentStatus.AVAILABLE },
+    });
+
+    res.json(updated);
+  } catch {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}

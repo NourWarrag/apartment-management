@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { list, create, getById, update, remove } from '../controllers/apartments.controller';
+import { list, create, getById, update, remove, markReady } from '../controllers/apartments.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { Role } from '@hotel/shared';
@@ -12,6 +12,7 @@ router.get('/', list);
 router.post('/', requireRole(Role.ADMIN, Role.RECEPTIONIST), create);
 router.get('/:id', getById);
 router.put('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
+router.patch('/:id/mark-ready', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), markReady);
 router.patch('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
 router.delete('/:id', requireRole(Role.ADMIN), remove);
 
