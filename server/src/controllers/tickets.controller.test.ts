@@ -245,6 +245,83 @@ describe('GET /api/v1/tickets/stats', () => {
   });
 });
 
+// ─── TicketType — CLEANING tickets ──────────────────────────────────────────
+
+describe('TicketType — CLEANING tickets', () => {
+  let adminToken: string;
+  let apartment: { id: number };
+  let building: { id: number };
+  let createdTicketId: number;
+
+  beforeAll(async () => {
+    const admin = await testPrisma.user.create({
+      data: {
+        name: 'Type Admin',
+        email: `type-admin-${Date.now()}@test.com`,
+        password: 'x',
+        role: 'ADMIN',
+      },
+    });
+    adminToken = signToken({ id: admin.id, role: admin.role, assignedBuildingId: null });
+
+    building = await testPrisma.building.create({
+      data: { name: 'Type Building', code: `TYPE-${Date.now()}`, address: '1 Type St' },
+    });
+    apartment = await testPrisma.apartment.create({
+      data: { number: 'TYP-001', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: building.id },
+    });
+  });
+
+  afterAll(async () => {
+    if (createdTicketId) {
+      await testPrisma.maintenanceTicket.deleteMany({ where: { id: createdTicketId } });
+    }
+    await testPrisma.apartment.delete({ where: { id: apartment.id } });
+    await testPrisma.building.delete({ where: { id: building.id } });
+    await testPrisma.$executeRaw`DELETE FROM "User" WHERE email LIKE 'type-admin-%'`;
+  });
+
+  it('POST /tickets with type CLEANING creates a cleaning ticket', async () => {
+    const res = await request(app)
+      .post('/api/v1/tickets')
+      .set('Cookie', `token=${adminToken}`)
+      .send({
+        apartmentId: apartment.id,
+        description: 'Clean room after checkout',
+        priority: 'LOW',
+        type: 'CLEANING',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('type', 'CLEANING');
+    createdTicketId = res.body.id;
+  });
+
+  it('GET /tickets?type=CLEANING returns only cleaning tickets', async () => {
+    const res = await request(app)
+      .get('/api/v1/tickets?type=CLEANING')
+      .set('Cookie', `token=${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    res.body.data.forEach((t: any) => {
+      expect(t.type).toBe('CLEANING');
+    });
+  });
+
+  it('POST /tickets with invalid type returns 400', async () => {
+    const res = await request(app)
+      .post('/api/v1/tickets')
+      .set('Cookie', `token=${adminToken}`)
+      .send({
+        apartmentId: apartment.id,
+        description: 'Test',
+        priority: 'LOW',
+        type: 'INVALID',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Invalid ticket type');
+  });
+});
+
 // ─── GET /api/v1/users/maintenance-staff ────────────────────────────────────
 
 describe('GET /api/v1/users/maintenance-staff', () => {

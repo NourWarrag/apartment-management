@@ -1,12 +1,13 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { Priority, Role, TicketStatus } from '@hotel/shared';
+import { Priority, Role, TicketStatus, TicketType } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
 import { assertBuildingAccess } from '../lib/assertBuildingAccess';
 
 const VALID_PRIORITIES = Object.values(Priority);
 const VALID_NON_CLOSED_STATUSES = [TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.COMPLETED];
+const VALID_TICKET_TYPES = Object.values(TicketType);
 
 const ticketInclude = {
   apartment: { select: { id: true, number: true, floor: true, deletedAt: true } },
@@ -32,6 +33,15 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
       where.priority = priority as Priority;
     }
 
+    const typeParam = req.query.type as string | undefined;
+    if (typeParam !== undefined) {
+      if (!VALID_TICKET_TYPES.includes(typeParam as TicketType)) {
+        res.status(400).json({ message: 'Invalid ticket type' });
+        return;
+      }
+      where.type = typeParam as TicketType;
+    }
+
     const rawBuilding = req.query.buildingId;
     const buildingId = rawBuilding ? Number(rawBuilding) : undefined;
     if (buildingId !== undefined && (isNaN(buildingId) || buildingId <= 0)) {
@@ -52,11 +62,12 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
 
 export async function create(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { apartmentId, description, priority, assignedToId } = req.body as {
+    const { apartmentId, description, priority, assignedToId, type } = req.body as {
       apartmentId?: number;
       description?: string;
       priority?: string;
       assignedToId?: number;
+      type?: string;
     };
     if (!apartmentId || description === undefined || description === null || !priority) {
       res.status(400).json({ message: 'apartmentId, description, and priority are required' });
@@ -79,6 +90,10 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
     if (!assertBuildingAccess(req, res, apartment.buildingId)) return;
+    if (type !== undefined && !VALID_TICKET_TYPES.includes(type as TicketType)) {
+      res.status(400).json({ message: 'Invalid ticket type' });
+      return;
+    }
     if (assignedToId !== undefined) {
       const assignee = await prisma.user.findUnique({ where: { id: Number(assignedToId) } });
       if (!assignee || assignee.role !== Role.MAINTENANCE) {
@@ -92,6 +107,7 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
         description: description.trim(),
         priority: priority as Priority,
         assignedToId: assignedToId ? Number(assignedToId) : null,
+        type: type ? (type as TicketType) : TicketType.MAINTENANCE,
       },
       include: ticketInclude,
     });
@@ -109,12 +125,13 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
 
-    const { status, notes, priority, assignedToId, apartmentId } = req.body as {
+    const { status, notes, priority, assignedToId, apartmentId, type } = req.body as {
       status?: string;
       notes?: string;
       priority?: string;
       assignedToId?: number | null;
       apartmentId?: number;
+      type?: string;
     };
 
     const isMaintenance = req.user?.role === Role.MAINTENANCE;
@@ -167,6 +184,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       priority?: Priority;
       assignedToId?: number | null;
       apartmentId?: number;
+      type?: TicketType;
     } = {};
     if (status !== undefined) {
       data.status = status as TicketStatus;
@@ -177,6 +195,13 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       if (priority !== undefined) data.priority = priority as Priority;
       if (assignedToId !== undefined) data.assignedToId = assignedToId === null ? null : Number(assignedToId);
       if (apartmentId !== undefined) data.apartmentId = Number(apartmentId);
+      if (type !== undefined) {
+        if (!VALID_TICKET_TYPES.includes(type as TicketType)) {
+          res.status(400).json({ message: 'Invalid ticket type' });
+          return;
+        }
+        data.type = type as TicketType;
+      }
     }
 
     if (isMaintenance) {
