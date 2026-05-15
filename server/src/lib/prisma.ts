@@ -5,29 +5,32 @@ const prismaBase = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 
+// Models that have createdBy/updatedBy audit fields. Attachment, AuditLog, SystemSettings do not.
+const AUDIT_MODELS = new Set(['User', 'Apartment', 'Tenant', 'Booking', 'Payment', 'MaintenanceTicket', 'Building']);
+
 function buildExtendedClient(base: typeof prismaBase) {
   return base.$extends({
     name: 'audit-soft-delete',
     query: {
       $allModels: {
-        async create({ args, query }: { args: any; query: (args: any) => Promise<any> }) {
+        async create({ args, query, model }: { args: any; query: (args: any) => Promise<any>; model: string }) {
           const userId = getContextUserId();
-          if (args.data && typeof args.data === 'object' && !Array.isArray(args.data)) {
+          if (AUDIT_MODELS.has(model) && args.data && typeof args.data === 'object' && !Array.isArray(args.data)) {
             args.data.createdBy = userId;
             args.data.updatedBy = userId;
           }
           return query(args);
         },
-        async update({ args, query }: { args: any; query: (args: any) => Promise<any> }) {
+        async update({ args, query, model }: { args: any; query: (args: any) => Promise<any>; model: string }) {
           const userId = getContextUserId();
-          if (args.data && typeof args.data === 'object') {
+          if (AUDIT_MODELS.has(model) && args.data && typeof args.data === 'object') {
             args.data.updatedBy = userId;
           }
           return query(args);
         },
-        async createMany({ args, query }: { args: any; query: (args: any) => Promise<any> }) {
+        async createMany({ args, query, model }: { args: any; query: (args: any) => Promise<any>; model: string }) {
           const userId = getContextUserId();
-          if (Array.isArray(args.data)) {
+          if (AUDIT_MODELS.has(model) && Array.isArray(args.data)) {
             args.data = args.data.map((d: Record<string, unknown>) => ({
               ...d, createdBy: userId, updatedBy: userId,
             }));
