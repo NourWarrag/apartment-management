@@ -11,5 +11,8 @@ logs/
 # Playwright MCP output
 .playwright-mcp/
 
-# Root-level screenshots
+# Root-level screenshots and loose files
 /*.png
+/.claude/
+/designs/
+/Hotel_Apartment_BRD.md
