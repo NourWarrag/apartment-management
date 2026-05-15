@@ -11,19 +11,34 @@ const testPrisma = new PrismaClient({
 
 let adminCookie: string;
 let financeCookie: string;
+let receptionistCookie: string;
 let bookingId: number;
 let pendingPaymentId: number;
 let paidPaymentId: number;
 
 beforeAll(async () => {
-  adminCookie = `token=${signToken({ id: 1, role: 'ADMIN', assignedBuildingId: null })}`;
-  financeCookie = `token=${signToken({ id: 2, role: 'FINANCE', assignedBuildingId: null })}`;
-
   // Clean slate (reverse dependency order)
   await testPrisma.payment.deleteMany();
   await testPrisma.booking.deleteMany();
   await testPrisma.tenant.deleteMany();
   await testPrisma.apartment.deleteMany();
+  await testPrisma.user.deleteMany({
+    where: { email: { in: ['admin@pay.test', 'receptionist@pay.test'] } },
+  });
+
+  // Create real users so the audit middleware FK (createdBy/updatedBy) doesn't fail.
+  // Finance and Maintenance only read or are forbidden before any write, so they
+  // don't need real DB rows — arbitrary IDs in the JWT are fine for them.
+  const adminUser = await testPrisma.user.create({
+    data: { name: 'Pay Admin', email: 'admin@pay.test', password: 'x', role: 'ADMIN' },
+  });
+  const receptionistUser = await testPrisma.user.create({
+    data: { name: 'Pay Receptionist', email: 'receptionist@pay.test', password: 'x', role: 'RECEPTIONIST' },
+  });
+
+  adminCookie = `token=${signToken({ id: adminUser.id, role: 'ADMIN', assignedBuildingId: null })}`;
+  financeCookie = `token=${signToken({ id: 9001, role: 'FINANCE', assignedBuildingId: null })}`;
+  receptionistCookie = `token=${signToken({ id: receptionistUser.id, role: 'RECEPTIONIST', assignedBuildingId: null })}`;
 
   // Seed: one apartment, one tenant, one booking, two payments
   const apt = await testPrisma.apartment.create({
@@ -66,6 +81,9 @@ afterAll(async () => {
   await testPrisma.booking.deleteMany();
   await testPrisma.tenant.deleteMany();
   await testPrisma.apartment.deleteMany();
+  await testPrisma.user.deleteMany({
+    where: { email: { in: ['admin@pay.test', 'receptionist@pay.test'] } },
+  });
   await testPrisma.$disconnect();
   await prisma.$disconnect();
 });
@@ -175,17 +193,17 @@ describe('POST /api/v1/payments', () => {
   });
 
   it('RECEPTIONIST role can create a payment', async () => {
-    const receptionistCookie = `token=${signToken({ id: 3, role: 'RECEPTIONIST', assignedBuildingId: null })}`;
     const res = await request(app)
       .post('/api/v1/payments')
       .set('Cookie', receptionistCookie)
       .send({ bookingId, method: 'CASH', amount: 750 });
 
-    expect(res.status).toBe(201);
-    expect(res.body.status).toBe('PAID');
-
-    // Clean up
-    await testPrisma.payment.delete({ where: { id: res.body.id } });
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('PAID');
+    } finally {
+      if (res.body.id) await testPrisma.payment.delete({ where: { id: res.body.id } }).catch(() => {});
+    }
   });
 
   it('returns 400 when required fields are missing', async () => {
@@ -226,14 +244,15 @@ describe('POST /api/v1/payments', () => {
       .set('Cookie', adminCookie)
       .send({ bookingId, method: 'CASH', amount: 1000 });
 
-    expect(res.status).toBe(201);
-    expect(res.body.status).toBe('PAID');
-    expect(res.body.method).toBe('CASH');
-    expect(res.body.paidAt).not.toBeNull();
-    expect(res.body.amount).toBe('1000');
-
-    // Clean up
-    await testPrisma.payment.delete({ where: { id: res.body.id } });
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('PAID');
+      expect(res.body.method).toBe('CASH');
+      expect(res.body.paidAt).not.toBeNull();
+      expect(res.body.amount).toBe('1000');
+    } finally {
+      if (res.body.id) await testPrisma.payment.delete({ where: { id: res.body.id } }).catch(() => {});
+    }
   });
 
   it('INSTALLMENT payment is created with status PENDING and paidAt null', async () => {
@@ -242,13 +261,14 @@ describe('POST /api/v1/payments', () => {
       .set('Cookie', adminCookie)
       .send({ bookingId, method: 'INSTALLMENT', amount: 2000 });
 
-    expect(res.status).toBe(201);
-    expect(res.body.status).toBe('PENDING');
-    expect(res.body.method).toBe('INSTALLMENT');
-    expect(res.body.paidAt).toBeNull();
-
-    // Clean up
-    await testPrisma.payment.delete({ where: { id: res.body.id } });
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('PENDING');
+      expect(res.body.method).toBe('INSTALLMENT');
+      expect(res.body.paidAt).toBeNull();
+    } finally {
+      if (res.body.id) await testPrisma.payment.delete({ where: { id: res.body.id } }).catch(() => {});
+    }
   });
 
   it('CARD payment stores referenceNumber', async () => {
@@ -257,13 +277,14 @@ describe('POST /api/v1/payments', () => {
       .set('Cookie', adminCookie)
       .send({ bookingId, method: 'CARD', amount: 1500, referenceNumber: 'TXN-NEW-001' });
 
-    expect(res.status).toBe(201);
-    expect(res.body.referenceNumber).toBe('TXN-NEW-001');
-    expect(res.body.status).toBe('PAID');
-    expect(res.body.paidAt).not.toBeNull();
-
-    // Clean up
-    await testPrisma.payment.delete({ where: { id: res.body.id } });
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.referenceNumber).toBe('TXN-NEW-001');
+      expect(res.body.status).toBe('PAID');
+      expect(res.body.paidAt).not.toBeNull();
+    } finally {
+      if (res.body.id) await testPrisma.payment.delete({ where: { id: res.body.id } }).catch(() => {});
+    }
   });
 });
 
@@ -295,22 +316,22 @@ describe('PATCH /api/v1/payments/:id', () => {
   });
 
   it('marks PENDING payment as PAID with paidAt set', async () => {
-    // Create a fresh payment for this test
     const fresh = await testPrisma.payment.create({
       data: { bookingId, method: 'INSTALLMENT', amount: 500, status: 'PENDING' },
     });
 
-    const res = await request(app)
-      .patch(`/api/v1/payments/${fresh.id}`)
-      .set('Cookie', adminCookie);
+    try {
+      const res = await request(app)
+        .patch(`/api/v1/payments/${fresh.id}`)
+        .set('Cookie', adminCookie);
 
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('PAID');
-    expect(res.body.paidAt).not.toBeNull();
-    expect(res.body.id).toBe(fresh.id);
-
-    // Clean up
-    await testPrisma.payment.delete({ where: { id: fresh.id } });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('PAID');
+      expect(res.body.paidAt).not.toBeNull();
+      expect(res.body.id).toBe(fresh.id);
+    } finally {
+      await testPrisma.payment.delete({ where: { id: fresh.id } }).catch(() => {});
+    }
   });
 });
 
@@ -324,7 +345,7 @@ describe('GET /api/v1/payments/stats', () => {
   });
 
   it('returns 403 for MAINTENANCE role', async () => {
-    const maintenanceCookie = `token=${signToken({ id: 9, role: 'MAINTENANCE', assignedBuildingId: null })}`;
+    const maintenanceCookie = `token=${signToken({ id: 9002, role: 'MAINTENANCE', assignedBuildingId: null })}`;
     const res = await request(app)
       .get('/api/v1/payments/stats')
       .set('Cookie', maintenanceCookie);
