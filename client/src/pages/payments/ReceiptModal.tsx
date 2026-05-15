@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import type { PaymentListItem } from '../../hooks/usePayments';
 
 interface ReceiptModalProps {
@@ -31,11 +33,17 @@ const STATUS_LABEL: Record<PaymentListItem['status'], string> = {
 };
 
 export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef,
+    documentTitle: `Receipt-PAY-${payment.id.toString().padStart(6, '0')}`,
+  });
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 print:hidden">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-outline-variant overflow-hidden">
         {/* Receipt content — this section prints */}
-        <div id="receipt-content" className="p-6">
+        <div id="receipt-content" ref={contentRef} className="p-6">
           <div className="text-center mb-6">
             <h2 className="text-lg font-bold text-primary">LuxStay</h2>
             <p className="text-xs text-on-surface-variant">Payment Receipt</p>
@@ -93,11 +101,11 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
         {/* Actions — hidden during print */}
         <div className="print:hidden flex gap-3 px-6 pb-6">
           <button
-            onClick={() => window.print()}
+            onClick={() => handlePrint()}
             className="flex-1 flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity"
           >
-            <span className="material-symbols-outlined text-[20px]">print</span>
-            Print Receipt
+            <span className="material-symbols-outlined text-[20px]">download</span>
+            Download PDF
           </button>
           <button
             onClick={onClose}
