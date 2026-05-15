@@ -200,7 +200,7 @@ describe('GET /api/v1/settings and PATCH /api/v1/settings', () => {
 
 describe('Staff status', () => {
   let maintenanceUser: { id: number };
-  let adminToken: string;
+  let staffAdminToken: string;
 
   beforeAll(async () => {
     const admin = await testPrisma.user.create({
@@ -211,7 +211,7 @@ describe('Staff status', () => {
         role: 'ADMIN',
       },
     });
-    adminToken = `token=${signToken({ id: admin.id, role: admin.role, assignedBuildingId: null })}`;
+    staffAdminToken = `token=${signToken({ id: admin.id, role: admin.role, assignedBuildingId: null })}`;
 
     maintenanceUser = await testPrisma.user.create({
       data: {
@@ -231,7 +231,7 @@ describe('Staff status', () => {
   it('GET /users/maintenance-staff includes staffStatus', async () => {
     const res = await request(app)
       .get('/api/v1/users/maintenance-staff')
-      .set('Cookie', adminToken);
+      .set('Cookie', staffAdminToken);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     const found = res.body.find((u: any) => u.id === maintenanceUser.id);
@@ -242,7 +242,7 @@ describe('Staff status', () => {
   it('PATCH /users/:id updates staffStatus', async () => {
     const res = await request(app)
       .patch(`/api/v1/users/${maintenanceUser.id}`)
-      .set('Cookie', adminToken)
+      .set('Cookie', staffAdminToken)
       .send({ staffStatus: 'ON_CALL' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('staffStatus', 'ON_CALL');
@@ -251,7 +251,7 @@ describe('Staff status', () => {
   it('PATCH /users/:id with invalid staffStatus returns 400', async () => {
     const res = await request(app)
       .patch(`/api/v1/users/${maintenanceUser.id}`)
-      .set('Cookie', adminToken)
+      .set('Cookie', staffAdminToken)
       .send({ staffStatus: 'INVALID' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Invalid staff status');
