@@ -15,11 +15,30 @@ let adminToken: string;
 let buildingId: number;
 let tenantId: number;
 
+let adminCookieOld: string;
+let maintCookie: string;
+let financeCookie: string;
+let aptIdOld: number;
+let tenantIdOld: number;
+let unavailableAptId: number;
+
+const futureCheckIn = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+const futureCheckOut = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+const todayCheckIn = new Date().toISOString().split('T')[0];
+
 beforeAll(async () => {
   await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" IN (SELECT id FROM "Booking" WHERE "tenantId" IN (SELECT id FROM "Tenant" WHERE phone = '0500000001'))`;
   await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "tenantId" IN (SELECT id FROM "Tenant" WHERE phone = '0500000001')`;
   await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number LIKE 'TEST-%'`;
   await testPrisma.$executeRaw`DELETE FROM "Tenant" WHERE phone = '0500000001'`;
+
+  // Cleanup for old tests (must happen before building delete)
+  await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" IN (SELECT id FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number IN ('BK101', 'BK102')))`;
+  await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number IN ('BK101', 'BK102'))`;
+  await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number IN ('BK101', 'BK102')`;
+  await testPrisma.$executeRaw`DELETE FROM "Tenant" WHERE "idNumber" = 'BK-ID-001'`;
+  await testPrisma.$executeRaw`DELETE FROM "User" WHERE email = 'admin-bk-old@test.com'`;
+
   await testPrisma.$executeRaw`DELETE FROM "Building" WHERE code = 'TEST-BLD'`;
   await testPrisma.$executeRaw`DELETE FROM "User" WHERE email = 'admin_booking_test@test.com'`;
 
@@ -42,6 +61,29 @@ beforeAll(async () => {
     },
   });
   adminToken = `token=${signToken({ id: admin.id, role: admin.role, assignedBuildingId: null })}`;
+
+  // Setup for old tests
+  const adminOld = await testPrisma.user.create({
+    data: { name: 'Admin BK Old', email: 'admin-bk-old@test.com', password: 'x', role: 'ADMIN' },
+  });
+  adminCookieOld = `token=${signToken({ id: adminOld.id, role: 'ADMIN', assignedBuildingId: null })}`;
+  maintCookie = `token=${signToken({ id: 901, role: 'MAINTENANCE', assignedBuildingId: null })}`;
+  financeCookie = `token=${signToken({ id: 902, role: 'FINANCE', assignedBuildingId: null })}`;
+
+  const aptOld = await testPrisma.apartment.create({
+    data: { number: 'BK101', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId },
+  });
+  aptIdOld = aptOld.id;
+
+  const unavailableApt = await testPrisma.apartment.create({
+    data: { number: 'BK102', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId },
+  });
+  unavailableAptId = unavailableApt.id;
+
+  const tenantOld = await testPrisma.tenant.create({
+    data: { fullName: 'Test Tenant BK', phone: '0501111111', idNumber: 'BK-ID-001' },
+  });
+  tenantIdOld = tenantOld.id;
 });
 
 afterAll(async () => {
@@ -49,8 +91,17 @@ afterAll(async () => {
   await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "tenantId" IN (SELECT id FROM "Tenant" WHERE phone = '0500000001')`;
   await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number LIKE 'TEST-%'`;
   await testPrisma.$executeRaw`DELETE FROM "Tenant" WHERE phone = '0500000001'`;
+
+  // Cleanup for old tests (must happen before building delete)
+  await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" IN (SELECT id FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number IN ('BK101', 'BK102')))`;
+  await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number IN ('BK101', 'BK102'))`;
+  await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number IN ('BK101', 'BK102')`;
+  await testPrisma.$executeRaw`DELETE FROM "Tenant" WHERE "idNumber" = 'BK-ID-001'`;
+  await testPrisma.$executeRaw`DELETE FROM "User" WHERE email = 'admin-bk-old@test.com'`;
+
   await testPrisma.$executeRaw`DELETE FROM "Building" WHERE code = 'TEST-BLD'`;
   await testPrisma.$executeRaw`DELETE FROM "User" WHERE email = 'admin_booking_test@test.com'`;
+
   await testPrisma.$disconnect();
   await db.$disconnect();
 });
@@ -59,6 +110,18 @@ async function createAvailableApartment(suffix: string) {
   return testPrisma.apartment.create({
     data: { number: `TEST-${suffix}`, floor: 1, buildingId },
   });
+}
+
+function validBody(overrides: Record<string, unknown> = {}) {
+  return {
+    apartmentId: aptIdOld,
+    tenantId: tenantIdOld,
+    checkIn: futureCheckIn,
+    checkOut: futureCheckOut,
+    totalAmount: 15000,
+    payment: { method: 'CASH', amount: 5000 },
+    ...overrides,
+  };
 }
 
 async function createOccupiedBookingWithDeposit(aptId: number, depositAmount: number) {
@@ -248,5 +311,106 @@ describe('PATCH /api/v1/apartments/:id/mark-ready', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Apartment is not in CLEANING status');
+  });
+});
+
+describe('POST /api/v1/bookings — auth, roles, validation', () => {
+  it('returns 401 without auth', async () => {
+    const res = await request(app).post('/api/v1/bookings').send(validBody());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for MAINTENANCE role', async () => {
+    const res = await request(app).post('/api/v1/bookings').set('Cookie', maintCookie).send(validBody());
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 403 for FINANCE role', async () => {
+    const res = await request(app).post('/api/v1/bookings').set('Cookie', financeCookie).send(validBody());
+    expect(res.status).toBe(403);
+  });
+
+  it('creates booking + payment and sets apartment to RESERVED for future checkIn', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send(validBody());
+
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.apartment.id).toBe(aptIdOld);
+      expect(res.body.tenant.id).toBe(tenantIdOld);
+      expect(typeof res.body.totalAmount).toBe('string');
+      expect(res.body.payments).toHaveLength(1);
+      expect(res.body.payments[0].method).toBe('CASH');
+      expect(res.body.payments[0].status).toBe('PAID');
+      const apt = await testPrisma.apartment.findUnique({ where: { id: aptIdOld } });
+      expect(apt?.status).toBe('RESERVED');
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } });
+      }
+      await testPrisma.apartment.update({ where: { id: aptIdOld }, data: { status: 'AVAILABLE' } });
+    }
+  });
+
+  it('sets apartment to OCCUPIED when checkIn is today', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send(validBody({ checkIn: todayCheckIn }));
+
+    try {
+      expect(res.status).toBe(201);
+      const apt = await testPrisma.apartment.findUnique({ where: { id: aptIdOld } });
+      expect(apt?.status).toBe('OCCUPIED');
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } });
+      }
+      await testPrisma.apartment.update({ where: { id: aptIdOld }, data: { status: 'AVAILABLE' } });
+    }
+  });
+
+  it('returns 409 when apartment is not AVAILABLE', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send(validBody({ apartmentId: unavailableAptId }));
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 400 for missing required fields', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send({ apartmentId: aptIdOld });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when checkOut is before checkIn', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send(validBody({ checkOut: futureCheckIn, checkIn: futureCheckOut }));
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 when apartment does not exist', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send(validBody({ apartmentId: 999999 }));
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 when tenant does not exist', async () => {
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminCookieOld)
+      .send(validBody({ tenantId: 999999 }));
+    expect(res.status).toBe(404);
   });
 });
