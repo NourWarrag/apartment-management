@@ -5,15 +5,15 @@ import { AuthRequest } from '../middleware/auth.middleware';
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
 function parseDateRange(query: Record<string, unknown>): { start?: Date; end?: Date } {
-  const start =
-    typeof query.startDate === 'string' && query.startDate
-      ? new Date(query.startDate + 'T00:00:00.000Z')
-      : undefined;
-  const end =
-    typeof query.endDate === 'string' && query.endDate
-      ? new Date(query.endDate + 'T23:59:59.999Z')
-      : undefined;
-  return { start, end };
+  const parseDate = (val: unknown, suffix: string): Date | undefined => {
+    if (typeof val !== 'string' || !val) return undefined;
+    const d = new Date(val + suffix);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  return {
+    start: parseDate(query.startDate, 'T00:00:00.000Z'),
+    end: parseDate(query.endDate, 'T23:59:59.999Z'),
+  };
 }
 
 function dateFilter(
@@ -32,7 +32,10 @@ function dateFilter(
 export async function buildingStats(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { start, end } = parseDateRange(req.query as Record<string, unknown>);
-    const paidAtWhere = dateFilter(start, end);
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const paidAtWhere = dateFilter(start, end) ?? { gte: defaultStart, lt: defaultEnd };
 
     const buildings = await prisma.building.findMany({
       select: { id: true, name: true, code: true },
@@ -47,7 +50,7 @@ export async function buildingStats(req: AuthRequest, res: Response, next: NextF
           prisma.payment.aggregate({
             where: {
               status: 'PAID',
-              ...(paidAtWhere && { paidAt: paidAtWhere }),
+              paidAt: paidAtWhere,
               booking: { apartment: { buildingId: b.id } },
             },
             _sum: { amount: true },

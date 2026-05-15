@@ -13,12 +13,6 @@ const adminCookie = `token=${signToken({ id: 9100, role: 'ADMIN', assignedBuildi
 const financeCookie = `token=${signToken({ id: 9101, role: 'FINANCE', assignedBuildingId: null })}`;
 const receptionistCookie = `token=${signToken({ id: 9102, role: 'RECEPTIONIST', assignedBuildingId: null })}`;
 
-let aptId: number;
-let tenantId: number;
-let bookingId: number;
-let paidPaymentId: number;
-let pendingPaymentId: number;
-
 // Use year 2030 to avoid interference with seed data
 const TEST_PAID_AT = new Date('2030-02-15T12:00:00.000Z');
 const TEST_CHECK_IN = new Date('2030-01-01T00:00:00.000Z');
@@ -35,27 +29,22 @@ beforeAll(async () => {
   const apt = await testPrisma.apartment.create({
     data: { number: 'RPT-101', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId: 1 },
   });
-  aptId = apt.id;
 
   const tenant = await testPrisma.tenant.create({
     data: { fullName: 'Report Tenant', phone: '+971599000001', idNumber: 'RPT-TEST-001' },
   });
-  tenantId = tenant.id;
 
   const booking = await testPrisma.booking.create({
     data: { apartmentId: apt.id, tenantId: tenant.id, checkIn: TEST_CHECK_IN, checkOut: TEST_CHECK_OUT, totalAmount: 9000 },
   });
-  bookingId = booking.id;
 
-  const paid = await testPrisma.payment.create({
+  await testPrisma.payment.create({
     data: { bookingId: booking.id, method: 'CASH', amount: 5000, status: 'PAID', paidAt: TEST_PAID_AT },
   });
-  paidPaymentId = paid.id;
 
-  const pending = await testPrisma.payment.create({
+  await testPrisma.payment.create({
     data: { bookingId: booking.id, method: 'INSTALLMENT', amount: 4000, status: 'PENDING' },
   });
-  pendingPaymentId = pending.id;
 
   await testPrisma.maintenanceTicket.create({
     data: { apartmentId: apt.id, description: 'RPT test ticket 1', priority: 'HIGH', status: 'OPEN', type: 'MAINTENANCE' },
@@ -95,13 +84,14 @@ describe('GET /api/v1/reports/revenue', () => {
       .get('/api/v1/reports/revenue?startDate=2030-01-01&endDate=2030-12-31')
       .set('Cookie', adminCookie);
     expect(res.status).toBe(200);
-    expect(res.body.totalRevenue).toBeGreaterThanOrEqual(5000);
+    expect(res.body.totalRevenue).toBe(5000);
     const cashEntry = res.body.byMethod.find((m: { method: string }) => m.method === 'CASH');
     expect(cashEntry).toBeDefined();
-    expect(cashEntry.amount).toBeGreaterThanOrEqual(5000);
+    expect(cashEntry.amount).toBe(5000);
+    expect(cashEntry.count).toBe(1);
     const febEntry = res.body.byMonth.find((m: { month: string }) => m.month === '2030-02');
     expect(febEntry).toBeDefined();
-    expect(febEntry.amount).toBeGreaterThanOrEqual(5000);
+    expect(febEntry.amount).toBe(5000);
   });
 
   it('returns empty result when date range excludes all payments', async () => {
