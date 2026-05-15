@@ -9,6 +9,7 @@ const schema = z.object({
   apartmentId: z.coerce.number().min(1, 'Apartment is required'),
   description: z.string().min(1, 'Description is required'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  type: z.enum(['MAINTENANCE', 'CLEANING']).default('MAINTENANCE'),
   assignedToId: z.preprocess(
     v => (v === '' || v === undefined || v === null) ? undefined : Number(v),
     z.number().optional()
@@ -20,9 +21,10 @@ type FormValues = z.infer<typeof schema>;
 interface NewTicketModalProps {
   open: boolean;
   onClose: () => void;
+  defaultType?: 'MAINTENANCE' | 'CLEANING';
 }
 
-export default function NewTicketModal({ open, onClose }: NewTicketModalProps) {
+export default function NewTicketModal({ open, onClose, defaultType = 'MAINTENANCE' }: NewTicketModalProps) {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const createTicket = useCreateTicket();
@@ -31,7 +33,7 @@ export default function NewTicketModal({ open, onClose }: NewTicketModalProps) {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { priority: 'MEDIUM' },
+    defaultValues: { priority: 'MEDIUM', type: defaultType },
   });
 
   if (!open) return null;
@@ -43,6 +45,7 @@ export default function NewTicketModal({ open, onClose }: NewTicketModalProps) {
         apartmentId: values.apartmentId,
         description: values.description,
         priority: values.priority,
+        type: values.type,
         assignedToId: values.assignedToId || undefined,
       },
       {
@@ -64,6 +67,17 @@ export default function NewTicketModal({ open, onClose }: NewTicketModalProps) {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant mb-1">Type</label>
+              <select
+                {...register('type')}
+                className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface text-sm text-on-surface"
+              >
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="CLEANING">Cleaning</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-on-surface-variant mb-1">Apartment</label>
               <select

@@ -7,6 +7,7 @@ export interface TicketItem {
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+  type: 'MAINTENANCE' | 'CLEANING';
   notes: string | null;
   createdAt: string;
   resolvedAt: string | null;
@@ -26,6 +27,7 @@ export interface CreateTicketDto {
   apartmentId: number;
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  type?: 'MAINTENANCE' | 'CLEANING';
   assignedToId?: number;
 }
 
@@ -36,17 +38,18 @@ export interface UpdateTicketDto {
   assignedToId?: number | null;
 }
 
-export function useTickets(filters?: { status?: string; priority?: string }) {
+export function useTickets(filters?: { status?: string; priority?: string; type?: 'MAINTENANCE' | 'CLEANING' }) {
   const { selectedBuilding } = useBuilding();
   const buildingId = selectedBuilding === 'all' ? undefined : selectedBuilding.id;
 
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.priority) params.set('priority', filters.priority);
+  if (filters?.type) params.set('type', filters.type);
   if (buildingId) params.set('buildingId', String(buildingId));
 
   return useQuery<{ total: number; data: TicketItem[] }>({
-    queryKey: ['tickets', { ...filters, buildingId }],
+    queryKey: ['tickets', { status: filters?.status, priority: filters?.priority, type: filters?.type, buildingId }],
     queryFn: async () => {
       const res = await api.get(`/tickets?${params.toString()}`);
       return res.data;

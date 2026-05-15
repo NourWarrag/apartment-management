@@ -582,6 +582,7 @@ export default function ApartmentsPage() {
         <NewTicketModal
           open={dispatchOpen}
           onClose={() => setDispatchOpen(false)}
+          defaultType="CLEANING"
         />
       )}
     </div>

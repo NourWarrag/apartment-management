@@ -40,7 +40,12 @@ export default function TicketCard({ ticket, isActive, onClick }: TicketCardProp
       }`}
     >
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] text-on-surface-variant font-mono">{ticketNumber(ticket.id)}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[11px] text-on-surface-variant font-mono">{ticketNumber(ticket.id)}</span>
+          {ticket.type === 'CLEANING' && (
+            <span className="material-symbols-outlined text-[14px] text-on-surface-variant" title="Cleaning">cleaning_services</span>
+          )}
+        </div>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIORITY_BADGE[ticket.priority]}`}>
           {ticket.priority.charAt(0) + ticket.priority.slice(1).toLowerCase()}
         </span>

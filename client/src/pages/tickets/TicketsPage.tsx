@@ -79,8 +79,9 @@ export default function TicketsPage() {
   const [activeTicket, setActiveTicket] = useState<TicketItem | null>(null);
   const [listDetailTicket, setListDetailTicket] = useState<TicketItem | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'MAINTENANCE' | 'CLEANING' | ''>('');
 
-  const { data, isLoading, isError } = useTickets();
+  const { data, isLoading, isError } = useTickets({ type: typeFilter || undefined });
   const { data: statsData } = useTicketStats();
 
   const tickets = data?.data ?? [];
@@ -146,6 +147,26 @@ export default function TicketsPage() {
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Type filter */}
+        <div className="flex gap-1 bg-surface-container rounded-lg p-0.5">
+          {([['', 'All'], ['MAINTENANCE', 'Maintenance'], ['CLEANING', 'Cleaning']] as const).map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => setTypeFilter(val as typeof typeFilter)}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                typeFilter === val
+                  ? 'bg-surface text-on-surface shadow-sm'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Kanban View */}
       {view === 'kanban' && (
         <div className={`grid gap-4 flex-1 min-h-0 ${activeTicketFresh ? 'grid-cols-4' : 'grid-cols-3'}`}>
@@ -199,7 +220,14 @@ export default function TicketsPage() {
                   onClick={() => setListDetailTicket(t)}
                   className="border-b border-outline-variant hover:bg-surface-container cursor-pointer transition-colors last:border-0"
                 >
-                  <td className="px-4 py-3 font-mono text-xs text-on-surface-variant">{ticketNumber(t.id)}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-on-surface-variant">
+                    <span className="flex items-center gap-1">
+                      {ticketNumber(t.id)}
+                      {t.type === 'CLEANING' && (
+                        <span className="material-symbols-outlined text-[14px] text-on-surface-variant" title="Cleaning">cleaning_services</span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-on-surface font-bold">
                     <span className="flex items-center flex-wrap gap-0.5">
                       Apt. {t.apartment.number}
