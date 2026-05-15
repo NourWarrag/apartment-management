@@ -243,3 +243,46 @@ export async function checkout(req: AuthRequest, res: Response): Promise<void> {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+export async function getById(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+    if (!id || id <= 0) {
+      res.status(400).json({ message: 'Invalid booking ID' });
+      return;
+    }
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        tenant: { select: { id: true, fullName: true, phone: true, idNumber: true } },
+        apartment: {
+          select: {
+            id: true,
+            number: true,
+            floor: true,
+            type: true,
+            building: { select: { name: true } },
+          },
+        },
+        payments: {
+          select: {
+            id: true,
+            method: true,
+            amount: true,
+            status: true,
+            paidAt: true,
+            referenceNumber: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    if (!booking) {
+      res.status(404).json({ message: 'Booking not found' });
+      return;
+    }
+    res.json(booking);
+  } catch {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}

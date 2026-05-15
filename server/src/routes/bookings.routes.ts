@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { create, collectDeposit, checkout } from '../controllers/bookings.controller';
+import { create, collectDeposit, checkout, getById } from '../controllers/bookings.controller';
 import { makeAttachmentHandlers } from '../controllers/attachments.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -10,6 +10,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.post('/', requireRole(Role.ADMIN, Role.RECEPTIONIST), create);
+router.get('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), getById);
 router.patch('/:id/deposit', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), collectDeposit);
 router.patch('/:id/checkout', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), checkout);
 

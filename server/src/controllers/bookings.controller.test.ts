@@ -471,3 +471,73 @@ describe('POST /api/v1/bookings — auth, roles, validation', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('GET /api/v1/bookings/:id', () => {
+  let invoiceBookingId: number;
+
+  beforeAll(async () => {
+    // Clean up any prior runs
+    await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" IN (SELECT id FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number = 'INV-001'))`;
+    await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number = 'INV-001')`;
+    await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number = 'INV-001'`;
+
+    const apt = await testPrisma.apartment.create({
+      data: { number: 'INV-001', floor: 3, buildingId },
+    });
+
+    const futureIn = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const futureOut = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const booking = await testPrisma.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date(futureIn),
+        checkOut: new Date(futureOut),
+        totalAmount: 8000,
+      },
+    });
+    invoiceBookingId = booking.id;
+
+    await testPrisma.payment.create({
+      data: {
+        bookingId: booking.id,
+        method: 'CASH',
+        amount: 4000,
+        status: 'PAID',
+        paidAt: new Date(),
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" = ${invoiceBookingId}`;
+    await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE id = ${invoiceBookingId}`;
+    await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number = 'INV-001'`;
+  });
+
+  it('returns booking with tenant, apartment, building, and payments', async () => {
+    const res = await request(app)
+      .get(`/api/v1/bookings/${invoiceBookingId}`)
+      .set('Cookie', adminToken);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(invoiceBookingId);
+    expect(res.body.totalAmount).toBeDefined();
+    expect(res.body.tenant).toMatchObject({ fullName: 'Test Tenant', phone: '0500000001' });
+    expect(res.body.apartment).toMatchObject({ number: 'INV-001', floor: 3 });
+    expect(res.body.apartment.building).toMatchObject({ name: 'Test Building' });
+    expect(Array.isArray(res.body.payments)).toBe(true);
+    expect(res.body.payments.length).toBe(1);
+    expect(res.body.payments[0]).toMatchObject({ method: 'CASH', status: 'PAID' });
+  });
+
+  it('returns 404 for unknown booking', async () => {
+    const res = await request(app)
+      .get('/api/v1/bookings/99999')
+      .set('Cookie', adminToken);
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('Booking not found');
+  });
+});
