@@ -182,10 +182,21 @@ export default function ApartmentsPage() {
           <h2 className="text-display-lg text-primary">Apartment Monitoring</h2>
           <p className="text-on-surface-variant text-body-base mt-1">Real-time status tracking for LuxStay properties.</p>
         </div>
-        <button className="flex items-center gap-2 bg-surface-container-high text-primary px-4 py-2.5 rounded font-bold text-body-sm hover:bg-surface-container-highest transition-colors self-start md:self-auto">
-          <span className="material-symbols-outlined text-[20px]">cloud_download</span>
-          Daily Apartment Status Report
-        </button>
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          {canEdit && (
+            <button
+              onClick={() => { setEditTarget(null); setShowModal(true); }}
+              className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded font-bold text-body-sm hover:bg-primary/90 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">add</span>
+              Add Apartment
+            </button>
+          )}
+          <button className="flex items-center gap-2 bg-surface-container-high text-primary px-4 py-2.5 rounded font-bold text-body-sm hover:bg-surface-container-highest transition-colors">
+            <span className="material-symbols-outlined text-[20px]">cloud_download</span>
+            Daily Apartment Status Report
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}

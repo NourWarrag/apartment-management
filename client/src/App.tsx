@@ -39,8 +39,7 @@ export default function App() {
 }
 
 function AppRoutes() {
-  const { data: flags, isLoading } = useFeatureFlags();
-  if (isLoading) return null;
+  const { data: flags } = useFeatureFlags();
   const f = flags ?? ({} as Partial<Record<FeatureFlag, boolean>>);
 
   return (
