@@ -14,6 +14,7 @@ import bookingsRoutes from './routes/bookings.routes';
 import buildingsRoutes from './routes/buildings.routes';
 import reportsRoutes from './routes/reports.routes';
 import settingsRoutes from './routes/settings.routes';
+import configRoutes from './routes/config.routes';
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(requestLogger);
 app.use(express.json());
 app.use(cookieParser());
 
+app.use('/api/v1/config', configRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/apartments', apartmentsRoutes);
 app.use('/api/v1/tenants', tenantsRoutes);

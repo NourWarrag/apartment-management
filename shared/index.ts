@@ -66,6 +66,15 @@ export enum TicketType {
   CLEANING = 'CLEANING',
 }
 
+export enum FeatureFlag {
+  BOOKINGS = 'BOOKINGS',
+  PAYMENTS = 'PAYMENTS',
+  TICKETS = 'TICKETS',
+  STAFF = 'STAFF',
+  REPORTS = 'REPORTS',
+  MULTI_BUILDING = 'MULTI_BUILDING',
+}
+
 export enum AttachmentEntity {
   APARTMENT = 'APARTMENT',
   TENANT = 'TENANT',
