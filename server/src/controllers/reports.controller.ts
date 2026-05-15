@@ -157,10 +157,50 @@ export async function occupancy(_req: AuthRequest, res: Response, next: NextFunc
 
 // ─── outstanding ─────────────────────────────────────────────────────────────
 
-export async function outstanding(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+export async function outstanding(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    // placeholder — implemented in Task 2
-    res.status(501).json({ message: 'Not implemented' });
+    const { start, end } = parseDateRange(req.query as Record<string, unknown>);
+    const createdAtWhere = dateFilter(start, end);
+
+    const payments = await prisma.payment.findMany({
+      where: { status: 'PENDING', ...(createdAtWhere && { createdAt: createdAtWhere }) },
+      select: {
+        amount: true,
+        createdAt: true,
+        booking: {
+          select: {
+            apartment: { select: { number: true } },
+            tenant: { select: { id: true, fullName: true } },
+          },
+        },
+      },
+    });
+
+    const tenantMap = new Map<
+      number,
+      { tenantName: string; apartmentNumber: string; pendingAmount: number; oldestDue: Date }
+    >();
+    for (const p of payments) {
+      const tid = p.booking.tenant.id;
+      const entry = tenantMap.get(tid);
+      if (entry) {
+        entry.pendingAmount += Number(p.amount);
+        if (p.createdAt < entry.oldestDue) entry.oldestDue = p.createdAt;
+      } else {
+        tenantMap.set(tid, {
+          tenantName: p.booking.tenant.fullName,
+          apartmentNumber: p.booking.apartment.number,
+          pendingAmount: Number(p.amount),
+          oldestDue: p.createdAt,
+        });
+      }
+    }
+
+    res.json(
+      [...tenantMap.values()]
+        .sort((a, b) => b.pendingAmount - a.pendingAmount)
+        .map((r) => ({ ...r, oldestDue: r.oldestDue.toISOString() }))
+    );
   } catch (err) {
     next(err);
   }
@@ -168,10 +208,21 @@ export async function outstanding(_req: AuthRequest, res: Response, next: NextFu
 
 // ─── maintenance ─────────────────────────────────────────────────────────────
 
-export async function maintenance(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+export async function maintenance(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    // placeholder — implemented in Task 2
-    res.status(501).json({ message: 'Not implemented' });
+    const { start, end } = parseDateRange(req.query as Record<string, unknown>);
+    const createdAtWhere = dateFilter(start, end);
+    const where = createdAtWhere ? { createdAt: createdAtWhere } : undefined;
+
+    const [byStatusRaw, byTypeRaw] = await Promise.all([
+      prisma.maintenanceTicket.groupBy({ by: ['status'], where, _count: { _all: true } }),
+      prisma.maintenanceTicket.groupBy({ by: ['type'], where, _count: { _all: true } }),
+    ]);
+
+    res.json({
+      byStatus: byStatusRaw.map((r) => ({ status: r.status, count: r._count._all })),
+      byType: byTypeRaw.map((r) => ({ type: r.type, count: r._count._all })),
+    });
   } catch (err) {
     next(err);
   }

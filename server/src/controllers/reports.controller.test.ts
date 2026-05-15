@@ -109,3 +109,70 @@ describe('GET /api/v1/reports/revenue', () => {
     expect(res.status).toBe(200);
   });
 });
+
+// ─── Outstanding ─────────────────────────────────────────────────────────────
+
+describe('GET /api/v1/reports/outstanding', () => {
+  it('returns 401 without auth', async () => {
+    const res = await request(app).get('/api/v1/reports/outstanding');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for receptionist', async () => {
+    const res = await request(app).get('/api/v1/reports/outstanding').set('Cookie', receptionistCookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns pending payment rows for admin', async () => {
+    const res = await request(app).get('/api/v1/reports/outstanding').set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    const row = res.body.find((r: { tenantName: string }) => r.tenantName === 'Report Tenant');
+    expect(row).toBeDefined();
+    expect(row.pendingAmount).toBe(4000);
+    expect(typeof row.oldestDue).toBe('string');
+    expect(row.apartmentNumber).toBe('RPT-101');
+  });
+
+  it('finance role can access outstanding', async () => {
+    const res = await request(app).get('/api/v1/reports/outstanding').set('Cookie', financeCookie);
+    expect(res.status).toBe(200);
+  });
+});
+
+// ─── Maintenance ─────────────────────────────────────────────────────────────
+
+describe('GET /api/v1/reports/maintenance', () => {
+  it('returns 401 without auth', async () => {
+    const res = await request(app).get('/api/v1/reports/maintenance');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for receptionist', async () => {
+    const res = await request(app).get('/api/v1/reports/maintenance').set('Cookie', receptionistCookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns ticket counts by status and type for admin', async () => {
+    const res = await request(app).get('/api/v1/reports/maintenance').set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.byStatus)).toBe(true);
+    expect(Array.isArray(res.body.byType)).toBe(true);
+    const openEntry = res.body.byStatus.find((e: { status: string }) => e.status === 'OPEN');
+    expect(openEntry).toBeDefined();
+    expect(openEntry.count).toBeGreaterThanOrEqual(1);
+    const maintEntry = res.body.byType.find((e: { type: string }) => e.type === 'MAINTENANCE');
+    expect(maintEntry).toBeDefined();
+    expect(maintEntry.count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('date filter scopes results', async () => {
+    const res = await request(app)
+      .get('/api/v1/reports/maintenance?startDate=2020-01-01&endDate=2020-12-31')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    // 2020 has no test tickets — verify response shape is correct even when empty
+    expect(Array.isArray(res.body.byStatus)).toBe(true);
+    expect(Array.isArray(res.body.byType)).toBe(true);
+  });
+});
