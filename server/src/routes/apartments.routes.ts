@@ -15,7 +15,7 @@ const att = makeAttachmentHandlers(AttachmentEntity.APARTMENT);
 router.get('/', list);
 router.post('/', requireRole(Role.ADMIN, Role.RECEPTIONIST), create);
 router.get('/:id', getById);
-router.put('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
+router.put('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update); // supports both PUT and PATCH for backward compatibility
 router.patch('/:id/mark-ready', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), markReady);
 router.patch('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
 router.delete('/:id', requireRole(Role.ADMIN), remove);

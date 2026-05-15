@@ -15,6 +15,7 @@ router.patch('/:id/checkout', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BU
 
 const att = makeAttachmentHandlers(AttachmentEntity.BOOKING);
 router.post('/:id/attachments', requireRole(Role.ADMIN, Role.RECEPTIONIST), uploadFile, att.upload);
+// booking attachments require role guard (no open GET /:id route on bookings)
 router.get('/:id/attachments', requireRole(Role.ADMIN, Role.RECEPTIONIST), att.list);
 router.delete('/:id/attachments/:attId', requireRole(Role.ADMIN, Role.RECEPTIONIST), att.remove);
 

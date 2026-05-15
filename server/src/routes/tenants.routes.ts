@@ -10,14 +10,14 @@ const router = Router();
 
 router.use(authMiddleware);
 
+const att = makeAttachmentHandlers(AttachmentEntity.TENANT);
+
 router.get('/', list);
 router.post('/', requireRole(Role.ADMIN, Role.RECEPTIONIST), create);
 router.get('/:id', getById);
 router.put('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
 router.patch('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST), update);
 router.delete('/:id', requireRole(Role.ADMIN), remove);
-
-const att = makeAttachmentHandlers(AttachmentEntity.TENANT);
 router.post('/:id/attachments', requireRole(Role.ADMIN, Role.RECEPTIONIST), uploadFile, att.upload);
 router.get('/:id/attachments', att.list);
 router.delete('/:id/attachments/:attId', requireRole(Role.ADMIN, Role.RECEPTIONIST), att.remove);
