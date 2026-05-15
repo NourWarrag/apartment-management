@@ -225,8 +225,8 @@ function OutstandingTab({ startDate, endDate }: { startDate?: string; endDate?: 
           </tr>
         </thead>
         <tbody className="divide-y divide-outline-variant/30">
-          {data.map((r, i) => (
-            <tr key={i} className="hover:bg-surface-container-low transition-colors">
+          {data.map((r) => (
+            <tr key={`${r.tenantName}-${r.apartmentNumber}`} className="hover:bg-surface-container-low transition-colors">
               <td className={tdCls}>{r.tenantName}</td>
               <td className={tdCls}>{r.apartmentNumber}</td>
               <td className={`${tdNum} text-error font-medium`}>{formatAed(r.pendingAmount)}</td>
