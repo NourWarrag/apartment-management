@@ -2,11 +2,37 @@ import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 
-export async function buildingStats(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
+function parseDateRange(query: Record<string, unknown>): { start?: Date; end?: Date } {
+  const start =
+    typeof query.startDate === 'string' && query.startDate
+      ? new Date(query.startDate + 'T00:00:00.000Z')
+      : undefined;
+  const end =
+    typeof query.endDate === 'string' && query.endDate
+      ? new Date(query.endDate + 'T23:59:59.999Z')
+      : undefined;
+  return { start, end };
+}
+
+function dateFilter(
+  start?: Date,
+  end?: Date,
+): { gte?: Date; lte?: Date } | undefined {
+  if (!start && !end) return undefined;
+  const f: { gte?: Date; lte?: Date } = {};
+  if (start) f.gte = start;
+  if (end) f.lte = end;
+  return f;
+}
+
+// ─── buildingStats ───────────────────────────────────────────────────────────
+
+export async function buildingStats(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const { start, end } = parseDateRange(req.query as Record<string, unknown>);
+    const paidAtWhere = dateFilter(start, end);
 
     const buildings = await prisma.building.findMany({
       select: { id: true, name: true, code: true },
@@ -21,7 +47,7 @@ export async function buildingStats(_req: AuthRequest, res: Response, next: Next
           prisma.payment.aggregate({
             where: {
               status: 'PAID',
-              paidAt: { gte: startOfMonth, lt: startOfNextMonth },
+              ...(paidAtWhere && { paidAt: paidAtWhere }),
               booking: { apartment: { buildingId: b.id } },
             },
             _sum: { amount: true },
@@ -37,7 +63,8 @@ export async function buildingStats(_req: AuthRequest, res: Response, next: Next
           buildingCode: b.code,
           totalApartments,
           occupied,
-          occupancyRate: totalApartments === 0 ? 0 : Math.round((occupied / totalApartments) * 100) / 100,
+          occupancyRate:
+            totalApartments === 0 ? 0 : Math.round((occupied / totalApartments) * 100) / 100,
           monthlyRevenue,
           openTickets,
         };
@@ -62,10 +89,87 @@ export async function buildingStats(_req: AuthRequest, res: Response, next: Next
         buildingCode: null,
         totalApartments: global.totalApartments,
         occupied: global.occupied,
-        occupancyRate: global.totalApartments === 0 ? 0 : Math.round((global.occupied / global.totalApartments) * 100) / 100,
+        occupancyRate:
+          global.totalApartments === 0
+            ? 0
+            : Math.round((global.occupied / global.totalApartments) * 100) / 100,
         monthlyRevenue: global.monthlyRevenue,
         openTickets: global.openTickets,
       },
     ]);
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── revenue ─────────────────────────────────────────────────────────────────
+
+export async function revenue(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { start, end } = parseDateRange(req.query as Record<string, unknown>);
+    const paidAtWhere = dateFilter(start, end);
+
+    const payments = await prisma.payment.findMany({
+      where: { status: 'PAID', ...(paidAtWhere && { paidAt: paidAtWhere }) },
+      select: { method: true, amount: true, paidAt: true },
+    });
+
+    const totalRevenue = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+    const methodMap = new Map<string, { amount: number; count: number }>();
+    const monthMap = new Map<string, number>();
+    for (const p of payments) {
+      const m = methodMap.get(p.method) ?? { amount: 0, count: 0 };
+      m.amount += Number(p.amount);
+      m.count += 1;
+      methodMap.set(p.method, m);
+      if (p.paidAt) {
+        const mo = p.paidAt.toISOString().slice(0, 7);
+        monthMap.set(mo, (monthMap.get(mo) ?? 0) + Number(p.amount));
+      }
+    }
+
+    res.json({
+      totalRevenue,
+      byMethod: [...methodMap.entries()].map(([method, v]) => ({ method, ...v })),
+      byMonth: [...monthMap.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, amount]) => ({ month, amount })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── occupancy ───────────────────────────────────────────────────────────────
+
+export async function occupancy(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // placeholder — implemented in Task 3
+    res.status(501).json({ message: 'Not implemented' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── outstanding ─────────────────────────────────────────────────────────────
+
+export async function outstanding(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // placeholder — implemented in Task 2
+    res.status(501).json({ message: 'Not implemented' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── maintenance ─────────────────────────────────────────────────────────────
+
+export async function maintenance(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // placeholder — implemented in Task 2
+    res.status(501).json({ message: 'Not implemented' });
+  } catch (err) {
+    next(err);
+  }
 }
