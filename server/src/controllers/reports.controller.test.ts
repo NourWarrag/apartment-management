@@ -224,6 +224,6 @@ describe('GET /api/v1/reports/occupancy', () => {
     const res = await request(app).get('/api/v1/reports/occupancy').set('Cookie', adminCookie);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThanOrEqual(12);
+    expect(res.body.length).toBe(12);
   });
 });
