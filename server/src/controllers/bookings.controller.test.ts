@@ -530,6 +530,11 @@ describe('GET /api/v1/bookings/:id', () => {
     expect(Array.isArray(res.body.payments)).toBe(true);
     expect(res.body.payments.length).toBe(1);
     expect(res.body.payments[0]).toMatchObject({ method: 'CASH', status: 'PAID' });
+    expect(res.body.tenant.idNumber).toBeDefined();
+    expect(res.body.depositStatus).toBeDefined();
+    expect(res.body.createdAt).toBeDefined();
+    expect(res.body.checkIn).toBeDefined();
+    expect(res.body.checkOut).toBeDefined();
   });
 
   it('returns 404 for unknown booking', async () => {
