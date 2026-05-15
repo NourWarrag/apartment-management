@@ -13,6 +13,8 @@ import BookingFormModal from '../bookings/BookingFormModal';
 import CheckoutModal from './CheckoutModal';
 import { useAuth } from '../../hooks/useAuth';
 import { useBuilding } from '../../context/BuildingContext';
+import { useMaintenanceStaff } from '../../hooks/useTickets';
+import NewTicketModal from '../tickets/NewTicketModal';
 
 const PAGE_SIZE = 10;
 
@@ -89,6 +91,7 @@ export default function ApartmentsPage() {
 
   const [bookingAptId, setBookingAptId] = useState<number | null>(null);
   const [checkoutTarget, setCheckoutTarget] = useState<BookingOnApartment | null>(null);
+  const [dispatchOpen, setDispatchOpen] = useState(false);
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
   const canCheckout =
     user?.role === Role.ADMIN ||
@@ -96,6 +99,7 @@ export default function ApartmentsPage() {
     user?.role === Role.BUILDING_ADMIN;
   const { selectedBuilding } = useBuilding();
   const showBuildingBadge = selectedBuilding === 'all';
+  const { data: staffList = [] } = useMaintenanceStaff();
 
   // Load all apartments (unfiltered) for stats
   const { data: allApartments = [] } = useApartments();
@@ -513,22 +517,35 @@ export default function ApartmentsPage() {
             <h4 className="text-headline-md font-bold text-white mb-2">Staff Distribution</h4>
             <p className="text-on-primary-container/80 text-body-sm mb-6">Current housekeeping and maintenance teams on site.</p>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-body-sm text-white">Housekeeping (Team A)</span>
-                <span className="bg-green-500/20 text-green-400 text-[11px] font-bold px-2 py-0.5 rounded border border-green-500/30">ACTIVE</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-body-sm text-white">Maintenance (Emergency)</span>
-                <span className="bg-red-500/20 text-red-400 text-[11px] font-bold px-2 py-0.5 rounded border border-red-500/30">ON-CALL</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-body-sm text-white">Front Desk Night Shift</span>
-                <span className="bg-white/10 text-white/50 text-[11px] font-bold px-2 py-0.5 rounded border border-white/20">SCHEDULED</span>
-              </div>
+              {staffList.length === 0 && (
+                <p className="text-white/60 text-body-sm">No staff on record.</p>
+              )}
+              {staffList.map((staff) => {
+                const statusColor =
+                  staff.staffStatus === 'ACTIVE' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                  staff.staffStatus === 'ON_CALL' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                  'bg-white/10 text-white/50 border-white/20';
+                const statusLabel =
+                  staff.staffStatus === 'ACTIVE' ? 'ACTIVE' :
+                  staff.staffStatus === 'ON_CALL' ? 'ON CALL' : 'OFF DUTY';
+                return (
+                  <div key={staff.id} className="flex justify-between items-center">
+                    <span className="text-body-sm text-white">{staff.name}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${statusColor}`}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            <button className="w-full mt-8 border border-white/20 hover:bg-white/10 py-2.5 rounded font-bold text-body-sm transition-colors text-white">
-              Dispatch New Task
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setDispatchOpen(true)}
+                className="w-full mt-8 border border-white/20 hover:bg-white/10 py-2.5 rounded font-bold text-body-sm transition-colors text-white"
+              >
+                Dispatch New Task
+              </button>
+            )}
           </div>
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
         </div>
@@ -559,6 +576,12 @@ export default function ApartmentsPage() {
         <CheckoutModal
           booking={checkoutTarget}
           onClose={() => setCheckoutTarget(null)}
+        />
+      )}
+      {dispatchOpen && (
+        <NewTicketModal
+          open={dispatchOpen}
+          onClose={() => setDispatchOpen(false)}
         />
       )}
     </div>

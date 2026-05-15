@@ -66,8 +66,14 @@ export function useTicketStats() {
   });
 }
 
+export interface MaintenanceStaffMember {
+  id: number;
+  name: string;
+  staffStatus: 'ACTIVE' | 'ON_CALL' | 'OFF_DUTY';
+}
+
 export function useMaintenanceStaff(options?: { enabled?: boolean }) {
-  return useQuery<{ id: number; name: string }[]>({
+  return useQuery<MaintenanceStaffMember[]>({
     queryKey: ['users', 'maintenance-staff'],
     queryFn: async () => {
       const res = await api.get('/users/maintenance-staff');

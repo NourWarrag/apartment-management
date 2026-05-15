@@ -33,6 +33,15 @@ export function useUpdateUser(id: number) {
   });
 }
 
+export function useUpdateUserById() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: number; [key: string]: unknown }) =>
+      api.patch(`/users/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 export function useDeactivateUser() {
   const qc = useQueryClient();
   return useMutation({

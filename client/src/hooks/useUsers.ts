@@ -11,6 +11,7 @@ export interface UserListItem {
   assignedBuilding: { id: number; name: string; code: string } | null;
   createdAt: string;
   deletedAt: string | null;
+  staffStatus?: string;
 }
 
 export function useUsers() {

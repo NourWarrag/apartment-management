@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Role } from '@hotel/shared';
 import { useUsers, UserListItem } from '../../hooks/useUsers';
-import { useDeactivateUser, useReactivateUser } from '../../hooks/useUsersMutations';
+import { useDeactivateUser, useReactivateUser, useUpdateUserById } from '../../hooks/useUsersMutations';
 import { useAuth } from '../../hooks/useAuth';
 import UserFormModal from './UserFormModal';
+import toast from 'react-hot-toast';
 
 const ROLE_BADGE: Record<Role, string> = {
   [Role.SUPER_ADMIN]: 'bg-purple-100 text-purple-700',
@@ -15,17 +16,47 @@ const ROLE_BADGE: Record<Role, string> = {
   [Role.MAINTENANCE]: 'bg-orange-100 text-orange-700',
 };
 
+const STAFF_STATUS_BADGE: Record<string, string> = {
+  ACTIVE: 'bg-green-100 text-green-700',
+  ON_CALL: 'bg-amber-100 text-amber-700',
+  OFF_DUTY: 'bg-surface-container text-on-surface-variant',
+};
+
+const STAFF_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: 'Active',
+  ON_CALL: 'On Call',
+  OFF_DUTY: 'Off Duty',
+};
+
+type Tab = 'all' | 'staff';
+
 export default function UsersPage() {
   const { t } = useTranslation();
   const { data: currentUser } = useAuth();
   const { data: users = [], isLoading } = useUsers();
   const deactivate = useDeactivateUser();
   const reactivate = useReactivateUser();
+  const updateUser = useUpdateUserById();
   const [modalUser, setModalUser] = useState<UserListItem | null | undefined>(undefined);
-  // undefined = modal closed, null = create mode, UserListItem = edit mode
+  const [tab, setTab] = useState<Tab>('all');
+  const isAdmin = currentUser?.role === Role.ADMIN || currentUser?.role === Role.SUPER_ADMIN;
+
+  const visibleUsers = tab === 'staff'
+    ? users.filter(u => u.role === Role.MAINTENANCE)
+    : users;
 
   if (isLoading) {
     return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>;
+  }
+
+  function handleStatusChange(userId: number, staffStatus: string) {
+    updateUser.mutate(
+      { id: userId, staffStatus },
+      {
+        onSuccess: () => toast.success('Status updated'),
+        onError: () => toast.error('Failed to update status'),
+      }
+    );
   }
 
   return (
@@ -41,6 +72,23 @@ export default function UsersPage() {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 bg-surface-container rounded-xl p-1 w-fit">
+        {(['all', 'staff'] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === t
+                ? 'bg-surface text-on-surface shadow-sm'
+                : 'text-on-surface-variant hover:text-on-surface'
+            }`}
+          >
+            {t === 'all' ? 'All Users' : 'Staff'}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-surface-container rounded-2xl overflow-hidden border border-outline-variant">
         <table className="w-full text-sm">
           <thead>
@@ -54,7 +102,7 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
+            {visibleUsers.map((user) => {
               const isDeactivated = !!user.deletedAt;
               const isSelf = user.id === currentUser?.id;
               return (
@@ -72,11 +120,31 @@ export default function UsersPage() {
                   <td className="px-4 py-3 text-on-surface-variant">
                     {user.assignedBuilding ? `${user.assignedBuilding.name} (${user.assignedBuilding.code})` : '—'}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold ${isDeactivated ? 'text-error' : 'text-tertiary'}`}>
-                      {isDeactivated ? 'Deactivated' : 'Active'}
-                    </span>
-                  </td>
+                  {tab === 'staff' ? (
+                    <td className="px-4 py-3">
+                      {isAdmin ? (
+                        <select
+                          value={user.staffStatus ?? 'OFF_DUTY'}
+                          onChange={(e) => handleStatusChange(user.id, e.target.value)}
+                          className="px-2 py-1 rounded-lg border border-outline-variant bg-surface text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="ACTIVE">Active</option>
+                          <option value="ON_CALL">On Call</option>
+                          <option value="OFF_DUTY">Off Duty</option>
+                        </select>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STAFF_STATUS_BADGE[user.staffStatus ?? 'OFF_DUTY']}`}>
+                          {STAFF_STATUS_LABEL[user.staffStatus ?? 'OFF_DUTY']}
+                        </span>
+                      )}
+                    </td>
+                  ) : (
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold ${isDeactivated ? 'text-error' : 'text-tertiary'}`}>
+                        {isDeactivated ? 'Deactivated' : 'Active'}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right space-x-2">
                     {!isDeactivated && (
                       <button
@@ -107,6 +175,13 @@ export default function UsersPage() {
                 </tr>
               );
             })}
+            {visibleUsers.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center py-10 text-on-surface-variant">
+                  {tab === 'staff' ? 'No maintenance staff found.' : 'No users found.'}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
