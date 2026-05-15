@@ -55,6 +55,13 @@ export enum DepositStatus {
   FORFEITED = 'FORFEITED',
 }
 
+export enum AttachmentEntity {
+  APARTMENT = 'APARTMENT',
+  TENANT = 'TENANT',
+  BOOKING = 'BOOKING',
+  TICKET = 'TICKET',
+}
+
 export enum Priority {
   LOW = 'LOW',
   MEDIUM = 'MEDIUM',

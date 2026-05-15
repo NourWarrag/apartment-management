@@ -50,6 +50,7 @@ model User {
 
   assignedBuildingId Int?
   assignedBuilding   Building? @relation("UserAssignedBuilding", fields: [assignedBuildingId], references: [id], onDelete: SetNull)
+  uploadedAttachments Attachment[] @relation("AttachmentUploadedBy")
 }
 
 model Apartment {
@@ -277,6 +278,28 @@ enum DepositStatus {
   HELD
   RELEASED
   FORFEITED
+}
+
+enum AttachmentEntity {
+  APARTMENT
+  TENANT
+  BOOKING
+  TICKET
+}
+
+model Attachment {
+  id          Int              @id @default(autoincrement())
+  entityType  AttachmentEntity
+  entityId    Int
+  filename    String
+  storagePath String
+  mimeType    String
+  size        Int
+  uploadedBy  Int
+  uploader    User             @relation("AttachmentUploadedBy", fields: [uploadedBy], references: [id])
+  createdAt   DateTime         @default(now())
+
+  @@index([entityType, entityId])
 }
 
 model SystemSettings {
