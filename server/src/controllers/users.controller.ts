@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { Role } from '@hotel/shared';
+import { Role, StaffStatus } from '@hotel/shared';
 import { hashPassword } from '../lib/password';
 import { Prisma, PrismaClient } from '@prisma/client';
 
@@ -10,6 +10,7 @@ const userSelect = {
   name: true,
   email: true,
   role: true,
+  staffStatus: true,
   assignedBuildingId: true,
   assignedBuilding: { select: { id: true, name: true, code: true } },
   createdAt: true,
@@ -26,7 +27,7 @@ export async function maintenanceStaff(_req: AuthRequest, res: Response): Promis
   try {
     const users = await prisma.user.findMany({
       where: { role: 'MAINTENANCE' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, staffStatus: true },
       orderBy: { name: 'asc' },
     });
     res.json(users);
@@ -131,15 +132,22 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: 'Invalid user id' }); return; }
 
-  const { name, email, role, assignedBuildingId } = req.body as {
+  const { name, email, role, assignedBuildingId, staffStatus } = req.body as {
     name?: string;
     email?: string;
     role?: string;
     assignedBuildingId?: number | null;
+    staffStatus?: string;
   };
 
-  if (!name && !email && !role && assignedBuildingId === undefined) {
+  if (!name && !email && !role && assignedBuildingId === undefined && staffStatus === undefined) {
     res.status(400).json({ message: 'At least one field required' });
+    return;
+  }
+
+  const VALID_STAFF_STATUSES = Object.values(StaffStatus) as string[];
+  if (staffStatus !== undefined && !VALID_STAFF_STATUSES.includes(staffStatus)) {
+    res.status(400).json({ message: 'Invalid staff status' });
     return;
   }
 
@@ -183,6 +191,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
   if (role) data.role = role;
   if (assignedBuildingId !== undefined) data.assignedBuildingId = assignedBuildingId;
   if (role && role !== Role.BUILDING_ADMIN) data.assignedBuildingId = null;
+  if (staffStatus !== undefined) data.staffStatus = staffStatus;
 
   try {
     const user = await prisma.user.update({ where: { id }, data, select: userSelect });
