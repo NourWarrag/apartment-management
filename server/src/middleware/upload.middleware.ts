@@ -12,6 +12,8 @@ const ALLOWED_MIME_TYPES = new Set([
 const _multer = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  // MIME type is client-supplied and spoofable; this is a first-line filter only.
+  // A magic-byte check (e.g. file-type package) would provide stronger guarantees.
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
       cb(null, true);

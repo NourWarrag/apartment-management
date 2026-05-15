@@ -46,17 +46,24 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
       const storagePath = buildStoragePath(entityType, entityId, req.file.originalname);
       await storage.save(req.file, storagePath);
 
-      const attachment = await prisma.attachment.create({
-        data: {
-          entityType,
-          entityId,
-          filename: req.file.originalname,
-          storagePath,
-          mimeType: req.file.mimetype,
-          size: req.file.size,
-          uploadedBy: req.user!.id,
-        },
-      });
+      let attachment: Awaited<ReturnType<typeof prisma.attachment.create>>;
+      try {
+        attachment = await prisma.attachment.create({
+          data: {
+            entityType,
+            entityId,
+            filename: req.file.originalname,
+            storagePath,
+            mimeType: req.file.mimetype,
+            size: req.file.size,
+            uploadedBy: req.user!.id,
+          },
+        });
+      } catch {
+        await storage.delete(storagePath).catch(() => undefined);
+        res.status(500).json({ message: 'Failed to save file' });
+        return;
+      }
 
       res.status(201).json({
         id: attachment.id,
@@ -76,6 +83,11 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
       const entityId = Number(req.params.id);
       if (!entityId || entityId <= 0) {
         res.status(400).json({ message: 'Invalid ID' });
+        return;
+      }
+      const exists = await ENTITY_EXISTS[entityType](entityId);
+      if (!exists) {
+        res.status(404).json({ message: `${ENTITY_LABEL[entityType]} not found` });
         return;
       }
 
@@ -120,8 +132,8 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
       }
 
       const storage = getStorage();
-      await storage.delete(attachment.storagePath);
       await prisma.attachment.delete({ where: { id: attId } });
+      await storage.delete(attachment.storagePath).catch(() => undefined);
 
       res.status(204).end();
     } catch {

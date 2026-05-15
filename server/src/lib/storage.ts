@@ -39,9 +39,16 @@ class S3StorageProvider implements StorageProvider {
   }
 }
 
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.docx']);
+
 export function buildStoragePath(entityType: string, entityId: number, originalName: string): string {
-  const ext = path.extname(originalName);
-  const base = path.basename(originalName, ext).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+  const ext = path.extname(originalName).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    throw new Error(`Unsupported file extension: ${ext}`);
+  }
+  const base = path.basename(originalName, path.extname(originalName))
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 60);
   return `${entityType}/${entityId}/${uuidv4()}-${base}${ext}`;
 }
 
