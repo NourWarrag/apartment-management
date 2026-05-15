@@ -6,6 +6,7 @@ import { useTenant } from '../../hooks/useTenants';
 import TenantFormModal from './TenantFormModal';
 import BookingFormModal from '../bookings/BookingFormModal';
 import { useAuth } from '../../hooks/useAuth';
+import AttachmentPanel from '../../components/AttachmentPanel';
 
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -153,6 +154,8 @@ export default function TenantDetailPage() {
           </div>
         )}
       </div>
+
+      <AttachmentPanel entityType="TENANT" entityId={tenantId} canEdit={canEdit} />
 
       {showEdit && (
         <TenantFormModal tenant={tenant} onClose={() => setShowEdit(false)} />

@@ -8,6 +8,7 @@ import ApartmentStatusBadge from '../../components/apartments/ApartmentStatusBad
 import ApartmentFormModal from './ApartmentFormModal';
 import { useAuth } from '../../hooks/useAuth';
 import CollectDepositModal from './CollectDepositModal';
+import AttachmentPanel from '../../components/AttachmentPanel';
 
 export default function ApartmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -219,6 +220,19 @@ export default function ApartmentDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      <AttachmentPanel entityType="APARTMENT" entityId={aptId} canEdit={canEdit} />
+
+      {apartment.currentBooking && (
+        <div className="mt-6">
+          <p className="text-sm font-bold text-on-surface mb-2">Booking Attachments</p>
+          <AttachmentPanel
+            entityType="BOOKING"
+            entityId={apartment.currentBooking.id}
+            canEdit={canEdit}
+          />
         </div>
       )}
 

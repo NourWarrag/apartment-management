@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { TicketItem } from '../../hooks/useTickets';
 import { useUpdateTicket, useMaintenanceStaff } from '../../hooks/useTickets';
+import AttachmentPanel from '../../components/AttachmentPanel';
 
 const VALID_TRANSITIONS: Record<TicketItem['status'], TicketItem['status'][]> = {
   OPEN: ['IN_PROGRESS'],
@@ -150,6 +151,8 @@ export default function TicketDetailPanel({ ticket, onClose, canEditAll }: Ticke
       </div>
 
       {apiError && <p className="text-xs text-error">{apiError}</p>}
+
+      <AttachmentPanel entityType="TICKET" entityId={ticket.id} canEdit={canEditAll} />
 
       {/* Actions */}
       <div className="flex flex-col gap-2 mt-auto">
