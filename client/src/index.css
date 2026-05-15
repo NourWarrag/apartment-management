@@ -64,3 +64,39 @@ body {
 [dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
 }
+
+@media print {
+  nav,
+  aside,
+  header,
+  [data-sidebar],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+
+  .hidden.print\:block {
+    display: block !important;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
