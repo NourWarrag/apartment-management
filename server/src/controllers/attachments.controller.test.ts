@@ -11,9 +11,6 @@ import { Role } from '@hotel/shared';
 import { _resetStorage } from '../lib/storage';
 
 const TEST_UPLOADS = path.resolve('./test-uploads-att');
-process.env.STORAGE_PATH = TEST_UPLOADS;
-process.env.STORAGE_TYPE = 'local';
-_resetStorage();
 
 const testPrisma = new PrismaClient({
   datasources: { db: { url: process.env.TEST_DATABASE_URL } },
@@ -29,6 +26,10 @@ let ticketId: number;
 const PDF_BUFFER = Buffer.from('%PDF-1.4 fake pdf content');
 
 beforeAll(async () => {
+  process.env.STORAGE_PATH = TEST_UPLOADS;
+  process.env.STORAGE_TYPE = 'local';
+  _resetStorage();
+
   fs.mkdirSync(TEST_UPLOADS, { recursive: true });
 
   // Clean up all attachments uploaded by test users (catches leftovers from prior failed runs)
@@ -145,6 +146,15 @@ describe('POST /api/v1/apartments/:id/attachments', () => {
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('Apartment not found');
   });
+
+  it('returns 400 when no file is attached', async () => {
+    const res = await request(app)
+      .post(`/api/v1/apartments/${aptId}/attachments`)
+      .set('Cookie', adminToken);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('File is required');
+  });
 });
 
 describe('GET /api/v1/apartments/:id/attachments', () => {
@@ -155,6 +165,7 @@ describe('GET /api/v1/apartments/:id/attachments', () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
     const att = res.body[0];
     expect(att.filename).toBe('test.pdf');
     expect(att.url).toMatch(/^\/files\//);
@@ -196,6 +207,20 @@ describe('DELETE /api/v1/apartments/:id/attachments/:attId', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('Attachment not found');
+
+    // clean up the orphaned attachment
+    await request(app)
+      .delete(`/api/v1/apartments/${aptId}/attachments/${attId}`)
+      .set('Cookie', adminToken);
+  });
+});
+
+describe('Auth enforcement', () => {
+  it('returns 401 when not authenticated', async () => {
+    const res = await request(app)
+      .get(`/api/v1/apartments/${aptId}/attachments`);
+
+    expect(res.status).toBe(401);
   });
 });
 

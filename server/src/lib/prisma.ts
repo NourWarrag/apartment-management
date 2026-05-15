@@ -5,7 +5,7 @@ const prismaBase = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 
-// Models that have createdBy/updatedBy audit fields. Attachment, AuditLog, SystemSettings do not.
+// Models with createdBy/updatedBy. Add new models here if they have those fields.
 const AUDIT_MODELS = new Set(['User', 'Apartment', 'Tenant', 'Booking', 'Payment', 'MaintenanceTicket', 'Building']);
 
 function buildExtendedClient(base: typeof prismaBase) {
