@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { ApartmentStatus, Role } from '@hotel/shared';
+import { ApartmentStatus, Role, DepositStatus } from '@hotel/shared';
 import { useApartment, useUpdateApartment } from '../../hooks/useApartments';
 import ApartmentStatusBadge from '../../components/apartments/ApartmentStatusBadge';
 import ApartmentFormModal from './ApartmentFormModal';
 import { useAuth } from '../../hooks/useAuth';
+import CollectDepositModal from './CollectDepositModal';
 
 export default function ApartmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ export default function ApartmentDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
 
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
+  const [showCollectDeposit, setShowCollectDeposit] = useState(false);
 
   const handleStatusChange = async (status: ApartmentStatus) => {
     try {
@@ -59,6 +61,15 @@ export default function ApartmentDetailPage() {
           >
             <span className="material-symbols-outlined text-[16px]">edit</span>
             {t('common.edit')}
+          </button>
+        )}
+        {canEdit && apartment.currentBooking?.depositStatus === DepositStatus.NONE && (
+          <button
+            onClick={() => setShowCollectDeposit(true)}
+            className="flex items-center gap-2 border border-outline-variant text-on-surface-variant rounded-lg px-4 py-2 text-sm font-medium hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px]">savings</span>
+            Collect Deposit
           </button>
         )}
       </div>
@@ -215,6 +226,14 @@ export default function ApartmentDetailPage() {
         <ApartmentFormModal
           apartment={apartment}
           onClose={() => setShowEdit(false)}
+        />
+      )}
+
+      {showCollectDeposit && apartment.currentBooking && (
+        <CollectDepositModal
+          bookingId={apartment.currentBooking.id}
+          tenantName={apartment.currentBooking.tenant.fullName}
+          onClose={() => setShowCollectDeposit(false)}
         />
       )}
     </div>
