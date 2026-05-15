@@ -10,3 +10,6 @@ logs/
 
 # Playwright MCP output
 .playwright-mcp/
+
+# Root-level screenshots
+/*.png
