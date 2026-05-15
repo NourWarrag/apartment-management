@@ -108,7 +108,7 @@ afterAll(async () => {
 
 async function createAvailableApartment(suffix: string) {
   return testPrisma.apartment.create({
-    data: { number: `TEST-${suffix}`, floor: 1, buildingId },
+    data: { number: `TEST-${suffix}`, floor: 1, buildingId, status: 'AVAILABLE' as const },
   });
 }
 
@@ -327,6 +327,19 @@ describe('PATCH /api/v1/bookings/:id/checkout', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('depositRefundAmount is required when deposit is held');
+  });
+
+  it('returns 400 when depositRefundAmount exceeds deposit amount', async () => {
+    const apt = await createAvailableApartment('CO-EXCEED');
+    const booking = await createOccupiedBookingWithDeposit(apt.id, 1000);
+
+    const res = await request(app)
+      .patch(`/api/v1/bookings/${booking.id}/checkout`)
+      .set('Cookie', adminToken)
+      .send({ depositRefundAmount: 1500 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Refund amount cannot exceed deposit amount');
   });
 });
 
