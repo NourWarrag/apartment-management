@@ -33,6 +33,7 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
       where.priority = priority as Priority;
     }
 
+    // Unlike status/priority filters (which silently ignore invalid values), type returns 400 on invalid input
     const typeParam = req.query.type as string | undefined;
     if (typeParam !== undefined) {
       if (!VALID_TICKET_TYPES.includes(typeParam as TicketType)) {

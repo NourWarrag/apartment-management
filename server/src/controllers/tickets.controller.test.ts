@@ -320,6 +320,41 @@ describe('TicketType — CLEANING tickets', () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Invalid ticket type');
   });
+
+  it('MAINTENANCE staff cannot change ticket type (silently ignored)', async () => {
+    // Create a maintenance user and a cleaning ticket, then try to change type
+    const maintenanceUser = await testPrisma.user.create({
+      data: {
+        name: 'Maint User',
+        email: `maint-type-${Date.now()}@test.com`,
+        password: 'x',
+        role: 'MAINTENANCE',
+      },
+    });
+    const cleaningTicket = await testPrisma.maintenanceTicket.create({
+      data: {
+        apartmentId: apartment.id,
+        description: 'Test cleaning',
+        priority: 'LOW',
+        type: 'CLEANING',
+        assignedToId: maintenanceUser.id,
+      },
+    });
+
+    const maintToken = signToken({ id: maintenanceUser.id, role: maintenanceUser.role, assignedBuildingId: null });
+    const res = await request(app)
+      .patch(`/api/v1/tickets/${cleaningTicket.id}`)
+      .set('Cookie', `token=${maintToken}`)
+      .send({ status: 'IN_PROGRESS', type: 'MAINTENANCE' });
+
+    expect(res.status).toBe(200);
+    // type must remain CLEANING — not changed by MAINTENANCE user
+    expect(res.body).toHaveProperty('type', 'CLEANING');
+
+    // Cleanup
+    await testPrisma.maintenanceTicket.delete({ where: { id: cleaningTicket.id } });
+    await testPrisma.$executeRaw`DELETE FROM "User" WHERE email LIKE 'maint-type-%'`;
+  });
 });
 
 // ─── GET /api/v1/users/maintenance-staff ────────────────────────────────────
