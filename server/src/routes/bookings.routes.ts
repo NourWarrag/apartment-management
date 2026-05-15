@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { create, collectDeposit, checkout, getById } from '../controllers/bookings.controller';
+import { create, collectDeposit, checkout, getById, list } from '../controllers/bookings.controller';
 import { makeAttachmentHandlers } from '../controllers/attachments.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -9,6 +9,7 @@ import { Role, AttachmentEntity } from '@hotel/shared';
 const router = Router();
 router.use(authMiddleware);
 
+router.get('/', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), list);
 router.post('/', requireRole(Role.ADMIN, Role.RECEPTIONIST), create);
 router.get('/:id', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), getById);
 router.patch('/:id/deposit', requireRole(Role.ADMIN, Role.RECEPTIONIST, Role.BUILDING_ADMIN), collectDeposit);

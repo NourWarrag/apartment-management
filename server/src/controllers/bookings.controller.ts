@@ -244,6 +244,91 @@ export async function checkout(req: AuthRequest, res: Response): Promise<void> {
   }
 }
 
+export async function list(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const pageRaw = parseInt((req.query.page as string) ?? '1');
+    const limitRaw = parseInt((req.query.limit as string) ?? '20');
+    const page = isNaN(pageRaw) || pageRaw < 1 ? 1 : pageRaw;
+    const limit = isNaN(limitRaw) || limitRaw < 1 ? 20 : Math.min(limitRaw, 100);
+
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+    const buildingId = req.query.buildingId as string | undefined;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+
+    if (from && isNaN(new Date(from).getTime())) {
+      res.status(400).json({ message: 'Invalid date format' });
+      return;
+    }
+    if (to && isNaN(new Date(to).getTime())) {
+      res.status(400).json({ message: 'Invalid date format' });
+      return;
+    }
+
+    const now = new Date();
+    const bid = buildingId ? parseInt(buildingId) : NaN;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { tenant: { fullName: { contains: search, mode: 'insensitive' } } },
+        { apartment: { number: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+    if (!isNaN(bid)) {
+      where.apartment = { buildingId: bid };
+    }
+    if (from) where.checkIn = { ...(where.checkIn ?? {}), gte: new Date(from) };
+    if (to) where.checkIn = { ...(where.checkIn ?? {}), lte: new Date(to) };
+
+    if (status === 'ACTIVE') {
+      where.checkIn = { ...(where.checkIn ?? {}), lte: now };
+      where.checkedOutAt = null;
+    } else if (status === 'UPCOMING') {
+      where.checkIn = { ...(where.checkIn ?? {}), gt: now };
+      where.checkedOutAt = null;
+    } else if (status === 'CHECKED_OUT') {
+      where.checkedOutAt = { not: null };
+    }
+
+    const [total, data] = await prisma.$transaction([
+      prisma.booking.count({ where }),
+      prisma.booking.findMany({
+        where,
+        select: {
+          id: true,
+          checkIn: true,
+          checkOut: true,
+          totalAmount: true,
+          depositStatus: true,
+          checkedOutAt: true,
+          createdAt: true,
+          tenant: { select: { id: true, fullName: true, phone: true } },
+          apartment: {
+            select: {
+              id: true,
+              number: true,
+              floor: true,
+              type: true,
+              building: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    res.json({ data, total, page, limit });
+  } catch {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
 export async function getById(req: AuthRequest, res: Response): Promise<void> {
   try {
     const id = Number(req.params.id);

@@ -546,3 +546,81 @@ describe('GET /api/v1/bookings/:id', () => {
     expect(res.body.message).toBe('Booking not found');
   });
 });
+
+describe('GET /api/v1/bookings (list)', () => {
+  let adminToken: string;
+  let building: { id: number };
+  let apartment: { id: number };
+  let tenant: { id: number };
+  let booking: { id: number };
+
+  beforeAll(async () => {
+    const user = await testPrisma.user.create({
+      data: {
+        name: 'List Admin',
+        email: `list-admin-${Date.now()}@test.com`,
+        password: 'x',
+        role: 'ADMIN',
+      },
+    });
+    adminToken = signToken({ id: user.id, email: user.email, role: user.role });
+
+    building = await testPrisma.building.create({
+      data: { name: 'List Tower', code: `LIST-${Date.now()}`, address: '1 List St' },
+    });
+    apartment = await testPrisma.apartment.create({
+      data: { number: 'LST-001', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: building.id },
+    });
+    tenant = await testPrisma.tenant.create({
+      data: { fullName: 'List Tenant', phone: `0510${Date.now().toString().slice(-6)}`, idNumber: `LT-${Date.now()}` },
+    });
+    booking = await testPrisma.booking.create({
+      data: {
+        apartmentId: apartment.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-01-01'),
+        checkOut: new Date('2026-02-01'),
+        totalAmount: 3000,
+        createdBy: user.id,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await testPrisma.booking.deleteMany({ where: { apartmentId: apartment.id } });
+    await testPrisma.apartment.delete({ where: { id: apartment.id } });
+    await testPrisma.tenant.update({ where: { id: tenant.id }, data: { deletedAt: new Date() } });
+    await testPrisma.building.delete({ where: { id: building.id } });
+  });
+
+  it('returns paginated list with correct shape', async () => {
+    const res = await request(app)
+      .get('/api/v1/bookings')
+      .set('Cookie', `token=${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body).toHaveProperty('total');
+    expect(res.body).toHaveProperty('page', 1);
+    expect(res.body).toHaveProperty('limit', 20);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    const found = res.body.data.find((b: any) => b.id === booking.id);
+    expect(found).toBeDefined();
+    expect(found.tenant).toMatchObject({ fullName: 'List Tenant' });
+    expect(found.apartment).toMatchObject({ number: 'LST-001' });
+    expect(found.apartment.building).toMatchObject({ name: 'List Tower' });
+  });
+
+  it('returns only ACTIVE bookings when status=ACTIVE', async () => {
+    const res = await request(app)
+      .get('/api/v1/bookings?status=ACTIVE')
+      .set('Cookie', `token=${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    const found = res.body.data.find((b: any) => b.id === booking.id);
+    expect(found).toBeDefined();
+    res.body.data.forEach((b: any) => {
+      expect(new Date(b.checkIn).getTime()).toBeLessThanOrEqual(Date.now());
+      expect(b.checkedOutAt).toBeNull();
+    });
+  });
+});
