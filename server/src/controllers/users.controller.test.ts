@@ -256,4 +256,23 @@ describe('Staff status', () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Invalid staff status');
   });
+
+  it('PATCH /users/:id cannot set staffStatus on non-MAINTENANCE user', async () => {
+    const adminUser = await testPrisma.user.create({
+      data: {
+        name: 'Non Maint',
+        email: `non-maint-${Date.now()}@test.com`,
+        password: 'x',
+        role: 'ADMIN',
+      },
+    });
+    const res = await request(app)
+      .patch(`/api/v1/users/${adminUser.id}`)
+      .set('Cookie', staffAdminToken)
+      .send({ staffStatus: 'ACTIVE' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Staff status can only be set on MAINTENANCE role users');
+
+    await testPrisma.$executeRaw`DELETE FROM "User" WHERE email LIKE 'non-maint-%'`;
+  });
 });

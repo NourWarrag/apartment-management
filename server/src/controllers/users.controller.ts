@@ -151,6 +151,20 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
     return;
   }
 
+  if (staffStatus !== undefined) {
+    const raw = getRawClient();
+    let targetUser: { role: string } | null;
+    try {
+      targetUser = await raw.user.findUnique({ where: { id }, select: { role: true } });
+    } finally {
+      await raw.$disconnect();
+    }
+    if (!targetUser || targetUser.role !== Role.MAINTENANCE) {
+      res.status(400).json({ message: 'Staff status can only be set on MAINTENANCE role users' });
+      return;
+    }
+  }
+
   if (role) {
     const validRoles = Object.values(Role) as string[];
     if (!validRoles.includes(role)) {
