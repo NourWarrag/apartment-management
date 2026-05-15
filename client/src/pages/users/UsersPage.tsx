@@ -74,17 +74,17 @@ export default function UsersPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 bg-surface-container rounded-xl p-1 w-fit">
-        {(['all', 'staff'] as Tab[]).map((t) => (
+        {(['all', 'staff'] as Tab[]).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === t
+              tab === tabKey
                 ? 'bg-surface text-on-surface shadow-sm'
                 : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            {t === 'all' ? 'All Users' : 'Staff'}
+            {tabKey === 'all' ? 'All Users' : 'Staff'}
           </button>
         ))}
       </div>
