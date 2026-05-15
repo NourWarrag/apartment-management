@@ -55,6 +55,17 @@ export enum DepositStatus {
   FORFEITED = 'FORFEITED',
 }
 
+export enum StaffStatus {
+  ACTIVE = 'ACTIVE',
+  ON_CALL = 'ON_CALL',
+  OFF_DUTY = 'OFF_DUTY',
+}
+
+export enum TicketType {
+  MAINTENANCE = 'MAINTENANCE',
+  CLEANING = 'CLEANING',
+}
+
 export enum AttachmentEntity {
   APARTMENT = 'APARTMENT',
   TENANT = 'TENANT',

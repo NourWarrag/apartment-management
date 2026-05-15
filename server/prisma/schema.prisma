@@ -13,6 +13,7 @@ model User {
   email     String    @unique
   password  String
   role      Role
+  staffStatus StaffStatus @default(OFF_DUTY)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -154,6 +155,7 @@ model MaintenanceTicket {
   description  String
   priority     Priority
   status       TicketStatus @default(OPEN)
+  type         TicketType   @default(MAINTENANCE)
   assignedToId Int?
   notes        String?
   createdAt    DateTime     @default(now())
@@ -278,6 +280,17 @@ enum DepositStatus {
   HELD
   RELEASED
   FORFEITED
+}
+
+enum StaffStatus {
+  ACTIVE
+  ON_CALL
+  OFF_DUTY
+}
+
+enum TicketType {
+  MAINTENANCE
+  CLEANING
 }
 
 enum AttachmentEntity {
