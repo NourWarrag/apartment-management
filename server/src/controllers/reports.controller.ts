@@ -146,10 +146,53 @@ export async function revenue(req: AuthRequest, res: Response, next: NextFunctio
 
 // ─── occupancy ───────────────────────────────────────────────────────────────
 
-export async function occupancy(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+export async function occupancy(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    // placeholder — implemented in Task 3
-    res.status(501).json({ message: 'Not implemented' });
+    const { start, end } = parseDateRange(req.query as Record<string, unknown>);
+
+    // Default: last 12 calendar months
+    const rangeEnd = end ?? new Date();
+    const rangeStart =
+      start ??
+      new Date(Date.UTC(rangeEnd.getUTCFullYear() - 1, rangeEnd.getUTCMonth() + 1, 1));
+
+    const total = await prisma.apartment.count();
+
+    // Enumerate calendar months between rangeStart and rangeEnd
+    const months: Array<{ label: string; ms: Date; me: Date }> = [];
+    let cur = new Date(Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), 1));
+    while (
+      cur.getUTCFullYear() < rangeEnd.getUTCFullYear() ||
+      (cur.getUTCFullYear() === rangeEnd.getUTCFullYear() &&
+        cur.getUTCMonth() <= rangeEnd.getUTCMonth())
+    ) {
+      const ms = new Date(cur);
+      const me = new Date(
+        Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + 1, 0, 23, 59, 59, 999)
+      );
+      months.push({ label: cur.toISOString().slice(0, 7), ms, me });
+      cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + 1, 1));
+    }
+
+    const result = await Promise.all(
+      months.map(async ({ label, ms, me }) => {
+        // Count distinct apartments that had an active booking overlapping this month
+        const bookings = await prisma.booking.findMany({
+          where: { checkIn: { lte: me }, checkOut: { gte: ms } },
+          select: { apartmentId: true },
+          distinct: ['apartmentId'],
+        });
+        const occupied = bookings.length;
+        return {
+          month: label,
+          occupied,
+          total,
+          rate: total === 0 ? 0 : Math.round((occupied / total) * 1000) / 10,
+        };
+      })
+    );
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

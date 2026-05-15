@@ -176,3 +176,54 @@ describe('GET /api/v1/reports/maintenance', () => {
     expect(Array.isArray(res.body.byType)).toBe(true);
   });
 });
+
+// ─── Occupancy ────────────────────────────────────────────────────────────────
+
+describe('GET /api/v1/reports/occupancy', () => {
+  it('returns 401 without auth', async () => {
+    const res = await request(app).get('/api/v1/reports/occupancy');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for receptionist', async () => {
+    const res = await request(app).get('/api/v1/reports/occupancy').set('Cookie', receptionistCookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns month rows covering the requested range', async () => {
+    // Test booking spans 2030-01-01 to 2030-03-31
+    const res = await request(app)
+      .get('/api/v1/reports/occupancy?startDate=2030-01-01&endDate=2030-03-31')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(3); // Jan, Feb, Mar
+    expect(res.body[0].month).toBe('2030-01');
+    expect(res.body[1].month).toBe('2030-02');
+    expect(res.body[2].month).toBe('2030-03');
+    // Each month should have at least 1 occupied apartment (our test booking)
+    for (const row of res.body) {
+      expect(row.occupied).toBeGreaterThanOrEqual(1);
+      expect(typeof row.total).toBe('number');
+      expect(typeof row.rate).toBe('number');
+    }
+  });
+
+  it('returns single month with zero occupied when no bookings exist in range', async () => {
+    const res = await request(app)
+      .get('/api/v1/reports/occupancy?startDate=2025-06-01&endDate=2025-06-30')
+      .set('Cookie', financeCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1); // Just June
+    expect(res.body[0].month).toBe('2025-06');
+    expect(typeof res.body[0].occupied).toBe('number');
+  });
+
+  it('defaults to 12 months when no date range provided', async () => {
+    const res = await request(app).get('/api/v1/reports/occupancy').set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThanOrEqual(12);
+  });
+});
