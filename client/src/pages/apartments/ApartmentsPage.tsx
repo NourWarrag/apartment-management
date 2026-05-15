@@ -1,12 +1,16 @@
 import { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { ApartmentStatus, ApartmentType, Role } from '@hotel/shared';
 import { useApartments, ApartmentListItem } from '../../hooks/useApartments';
+import type { BookingOnApartment } from '../../hooks/useApartments';
+import { useMarkReady } from '../../hooks/useApartments';
 import ApartmentStatusBadge from '../../components/apartments/ApartmentStatusBadge';
 import ApartmentFormModal from './ApartmentFormModal';
 import PaymentFormModal from '../payments/PaymentFormModal';
 import BookingFormModal from '../bookings/BookingFormModal';
+import CheckoutModal from './CheckoutModal';
 import { useAuth } from '../../hooks/useAuth';
 import { useBuilding } from '../../context/BuildingContext';
 
@@ -38,6 +42,30 @@ function isWithinDays(dateStr: string, days: number): boolean {
   return d >= now && d <= cutoff;
 }
 
+function MarkReadyButton({ apartmentId }: { apartmentId: number }) {
+  const markReady = useMarkReady(apartmentId);
+
+  const handleClick = async () => {
+    try {
+      await markReady.mutateAsync();
+      toast.success('Apartment marked as available');
+    } catch {
+      toast.error('Failed to mark apartment as ready');
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={markReady.isPending}
+      className="p-1 hover:bg-surface-container rounded-full disabled:opacity-50"
+      title="Mark ready (cleaning done)"
+    >
+      <span className="material-symbols-outlined text-[20px] text-green-600">done_all</span>
+    </button>
+  );
+}
+
 export default function ApartmentsPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -60,7 +88,12 @@ export default function ApartmentsPage() {
   } | null>(null);
 
   const [bookingAptId, setBookingAptId] = useState<number | null>(null);
+  const [checkoutTarget, setCheckoutTarget] = useState<BookingOnApartment | null>(null);
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
+  const canCheckout =
+    user?.role === Role.ADMIN ||
+    user?.role === Role.RECEPTIONIST ||
+    user?.role === Role.BUILDING_ADMIN;
   const { selectedBuilding } = useBuilding();
   const showBuildingBadge = selectedBuilding === 'all';
 
@@ -364,6 +397,18 @@ export default function ApartmentsPage() {
                             >
                               <span className="material-symbols-outlined text-[20px]">more_vert</span>
                             </button>
+                            {apt.status === ApartmentStatus.OCCUPIED && apt.currentBooking && canCheckout && (
+                              <button
+                                onClick={() => setCheckoutTarget(apt.currentBooking!)}
+                                className="p-1 hover:bg-surface-container rounded-full"
+                                title="Checkout"
+                              >
+                                <span className="material-symbols-outlined text-[20px] text-amber-600">logout</span>
+                              </button>
+                            )}
+                            {apt.status === ApartmentStatus.CLEANING && canCheckout && (
+                              <MarkReadyButton apartmentId={apt.id} />
+                            )}
                           </div>
                         ) : (
                           apt.status === ApartmentStatus.AVAILABLE && (
@@ -507,6 +552,12 @@ export default function ApartmentsPage() {
           open={true}
           onClose={() => setBookingAptId(null)}
           prefilledApartmentId={bookingAptId}
+        />
+      )}
+      {checkoutTarget && (
+        <CheckoutModal
+          booking={checkoutTarget}
+          onClose={() => setCheckoutTarget(null)}
         />
       )}
     </div>
