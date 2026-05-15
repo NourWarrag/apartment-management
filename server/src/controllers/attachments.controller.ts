@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
-import { AuthRequest, UploadRequest } from '../middleware/auth.middleware';
+import { AuthRequest, UploadRequest, assertAuthenticated } from '../middleware/auth.middleware';
 import { getStorage, buildStoragePath } from '../lib/storage';
 import { AttachmentEntity } from '@hotel/shared';
 
@@ -26,6 +26,7 @@ const ENTITY_LABEL: Record<AttachmentEntity, string> = {
 
 export function makeAttachmentHandlers(entityType: AttachmentEntity) {
   async function upload(req: UploadRequest, res: Response): Promise<void> {
+    assertAuthenticated(req);
     try {
       const entityId = Number(req.params.id);
       if (!entityId || entityId <= 0) {
@@ -56,7 +57,7 @@ export function makeAttachmentHandlers(entityType: AttachmentEntity) {
             storagePath,
             mimeType: req.file.mimetype,
             size: req.file.size,
-            uploadedBy: req.user!.id,
+            uploadedBy: req.user.id,
           },
         });
       } catch {

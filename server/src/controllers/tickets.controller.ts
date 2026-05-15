@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest, assertAuthenticated } from '../middleware/auth.middleware';
 import { Priority, Role, TicketStatus, TicketType } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
 import { assertBuildingAccess } from '../lib/assertBuildingAccess';
@@ -119,6 +119,7 @@ export async function create(req: AuthRequest, res: Response): Promise<void> {
 }
 
 export async function update(req: AuthRequest, res: Response): Promise<void> {
+  assertAuthenticated(req);
   try {
     const id = Number(req.params.id);
     if (isNaN(id) || id <= 0) {
@@ -209,7 +210,7 @@ export async function update(req: AuthRequest, res: Response): Promise<void> {
       // updateMany with compound where atomically checks ownership + applies update (no TOCTOU).
       // Prisma's update only accepts unique where-fields, so updateMany is the correct primitive here.
       const result = await prisma.maintenanceTicket.updateMany({
-        where: { id, assignedToId: req.user!.id },
+        where: { id, assignedToId: req.user.id },
         data,
       });
       if (result.count === 0) {

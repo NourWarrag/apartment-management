@@ -7,7 +7,13 @@ export interface AuthRequest extends Request {
   user?: { id: number; role: Role; assignedBuildingId: number | null };
 }
 
+export type AuthenticatedRequest = AuthRequest & { user: NonNullable<AuthRequest['user']> };
+
 export type UploadRequest = AuthRequest & { file?: Express.Multer.File };
+
+export function assertAuthenticated(req: AuthRequest): asserts req is AuthenticatedRequest {
+  if (!req.user) throw new Error('authMiddleware must run before this handler');
+}
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const token = req.cookies?.token as string | undefined;
