@@ -247,7 +247,7 @@ export async function checkout(req: AuthRequest, res: Response): Promise<void> {
 export async function getById(req: AuthRequest, res: Response): Promise<void> {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) {
+    if (isNaN(id) || id <= 0) {
       res.status(400).json({ message: 'Invalid booking ID' });
       return;
     }

@@ -482,7 +482,7 @@ describe('GET /api/v1/bookings/:id', () => {
     await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number = 'INV-001'`;
 
     const apt = await testPrisma.apartment.create({
-      data: { number: 'INV-001', floor: 3, buildingId },
+      data: { number: 'INV-001', floor: 3, buildingId, status: 'AVAILABLE' },
     });
 
     const futureIn = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
