@@ -9,6 +9,7 @@ import ApartmentFormModal from './ApartmentFormModal';
 import { useAuth } from '../../hooks/useAuth';
 import CollectDepositModal from './CollectDepositModal';
 import AttachmentPanel from '../../components/AttachmentPanel';
+import BookingInvoiceModal from '../../components/BookingInvoiceModal';
 
 export default function ApartmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,7 @@ export default function ApartmentDetailPage() {
 
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
   const [showCollectDeposit, setShowCollectDeposit] = useState(false);
+  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
 
   const handleStatusChange = async (status: ApartmentStatus) => {
     try {
@@ -71,6 +73,15 @@ export default function ApartmentDetailPage() {
           >
             <span className="material-symbols-outlined text-[16px]">savings</span>
             Collect Deposit
+          </button>
+        )}
+        {canEdit && apartment.currentBooking && (
+          <button
+            onClick={() => setInvoiceBookingId(apartment.currentBooking!.id)}
+            className="flex items-center gap-2 border border-outline-variant text-on-surface-variant rounded-lg px-4 py-2 text-sm font-medium hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            Download Invoice
           </button>
         )}
       </div>
@@ -248,6 +259,13 @@ export default function ApartmentDetailPage() {
           bookingId={apartment.currentBooking.id}
           tenantName={apartment.currentBooking.tenant.fullName}
           onClose={() => setShowCollectDeposit(false)}
+        />
+      )}
+
+      {invoiceBookingId !== null && (
+        <BookingInvoiceModal
+          bookingId={invoiceBookingId}
+          onClose={() => setInvoiceBookingId(null)}
         />
       )}
     </div>
