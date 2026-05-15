@@ -16,6 +16,7 @@ const schema = z.object({
   paymentMethod: z.enum(['CASH', 'CARD', 'INSTALLMENT']),
   paymentAmount: z.coerce.number().min(0.01, 'Payment amount must be greater than 0'),
   referenceNumber: z.string().optional(),
+  depositAmount: z.coerce.number().min(0).optional(),
 }).refine(
   (d) => !d.checkIn || !d.checkOut || new Date(d.checkOut) > new Date(d.checkIn),
   { message: 'Check-out must be after check-in', path: ['checkOut'] }
@@ -74,6 +75,9 @@ export default function BookingFormModal({
           amount: values.paymentAmount,
           referenceNumber: values.referenceNumber?.trim() || undefined,
         },
+        ...(values.depositAmount && values.depositAmount > 0
+          ? { deposit: { amount: values.depositAmount } }
+          : {}),
       });
       reset();
       onClose();
@@ -217,6 +221,23 @@ export default function BookingFormModal({
                   />
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Security Deposit */}
+          <div className="border-t border-outline-variant pt-4">
+            <p className="text-sm font-bold text-on-surface mb-3">Security Deposit <span className="font-normal text-on-surface-variant">(optional)</span></p>
+            <div>
+              <label className={labelCls}>Deposit Amount (AED)</label>
+              <input
+                {...register('depositAmount')}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                className={inputCls}
+              />
+              <p className="text-xs text-on-surface-variant mt-1">Leave empty if no deposit collected at check-in.</p>
             </div>
           </div>
 
