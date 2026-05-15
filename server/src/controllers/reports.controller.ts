@@ -33,8 +33,8 @@ export async function buildingStats(req: AuthRequest, res: Response, next: NextF
   try {
     const { start, end } = parseDateRange(req.query as Record<string, unknown>);
     const now = new Date();
-    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const defaultEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     const paidAtWhere = dateFilter(start, end) ?? { gte: defaultStart, lt: defaultEnd };
 
     const buildings = await prisma.building.findMany({
