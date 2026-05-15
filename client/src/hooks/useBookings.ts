@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 
 export interface CreateBookingDto {
@@ -13,6 +13,39 @@ export interface CreateBookingDto {
     referenceNumber?: string;
   };
   deposit?: { amount: number };
+}
+
+export interface BookingDetail {
+  id: number;
+  checkIn: string;
+  checkOut: string;
+  totalAmount: string;
+  depositAmount: string | null;
+  depositStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
+  depositRefundAmount: string | null;
+  checkedOutAt: string | null;
+  createdAt: string;
+  tenant: {
+    id: number;
+    fullName: string;
+    phone: string;
+    idNumber: string;
+  };
+  apartment: {
+    id: number;
+    number: string;
+    floor: number;
+    type: string;
+    building: { name: string };
+  };
+  payments: Array<{
+    id: number;
+    method: string;
+    amount: string;
+    status: string;
+    paidAt: string | null;
+    referenceNumber: string | null;
+  }>;
 }
 
 export function useCreateBooking() {
@@ -40,5 +73,16 @@ export function useCheckout(bookingId: number) {
     mutationFn: (depositRefundAmount?: number) =>
       api.patch(`/bookings/${bookingId}/checkout`, { depositRefundAmount }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['apartments'] }),
+  });
+}
+
+export function useBooking(bookingId: number) {
+  return useQuery({
+    queryKey: ['booking', bookingId],
+    queryFn: async () => {
+      const res = await api.get(`/bookings/${bookingId}`);
+      return res.data as BookingDetail;
+    },
+    enabled: bookingId > 0,
   });
 }
