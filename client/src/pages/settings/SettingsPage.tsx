@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Role } from '@hotel/shared';
+import { Role, FeatureFlag } from '@hotel/shared';
 import { useAuth } from '../../hooks/useAuth';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useSettings, useUpdateSettings, SystemSettings } from '../../hooks/useSettings';
 
 type BooksMode = 'CONSOLIDATED' | 'PER_BUILDING';
@@ -125,6 +126,7 @@ function InlineField({ field, value, canEdit, onSave }: InlineFieldProps) {
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { data: currentUser } = useAuth();
+  const { data: flags } = useFeatureFlags();
   const { data: settings, isLoading, isError } = useSettings();
   const updateSettings = useUpdateSettings();
 
@@ -186,6 +188,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Accounting */}
+      {flags?.[FeatureFlag.ACCOUNTING] && (
       <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant">
         <fieldset className="mt-0 border-t-0">
           <legend className="text-base font-bold mb-2">{t('settings.accounting.title', 'Accounting')}</legend>
@@ -218,6 +221,7 @@ export default function SettingsPage() {
           </label>
         </fieldset>
       </div>
+      )}
 
       {/* User Preferences */}
       <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant">

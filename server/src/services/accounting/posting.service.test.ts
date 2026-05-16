@@ -147,6 +147,13 @@ describe('PostingService.post()', () => {
     );
     await expect(service().post(e.id, userId)).rejects.toMatchObject({ code: 'ALREADY_POSTED' });
   });
+
+  // INVALID_BUILDING is defended at two levels: the Postgres FK on
+  // JournalEntry.buildingId / JournalLine.buildingId catches a bad ID at
+  // createDraft insert time (well before post's validate() runs).
+  // PostingService.validate() retains a building-existence check as defense
+  // in depth against direct DB writes that bypass the service. That path is
+  // intentionally unreachable through the public API and therefore untested.
 });
 
 describe('PostingService.deleteDraft()', () => {
