@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 # Hotel Apartment Management System
 
-**Version:** 2.0 — Updated 2026-05-16 to reflect implemented system
+**Version:** 2.1 — Updated 2026-05-16 — Accounting module (Phase 1) added
 
 ---
 
@@ -127,6 +127,19 @@ All reports support optional date range filtering (start/end date) and CSV downl
 - Staff status tracking for maintenance personnel
 - Ticket assignment limited to MAINTENANCE-role users
 
+### 4.10 Accounting Module (Phase 1)
+
+- Chart of Accounts: CRUD with five account types (Asset, Liability, Equity, Income, Expense), optional self-referential parent for hierarchy. Accounts with journal activity cannot be deleted — they are deactivated instead.
+- Manual journal entries with DRAFT and POSTED states. Posted entries are immutable; corrections require a reversing entry (workflow shipped in a later phase).
+- Balance invariant: every posted entry must have ≥2 lines where `Σ debits = Σ credits` to the cent. Enforced by `PostingService` and a Postgres CHECK constraint on `JournalLine`.
+- Journal entry numbers are monotonic (`JE-000001`); gaps from rolled-back transactions are expected and never reused.
+- Building tag at both entry-header and line level; line-level wins at read time.
+- General Ledger view per account with opening/closing balances and running balance. CSV export.
+- Trial Balance grouped by account type with grand totals and an imbalance alarm banner. CSV export.
+- `booksMode` setting (`CONSOLIDATED` default, `PER_BUILDING`) toggles report defaults; does not change data shape.
+
+Auto-posting from operations, VAT, financial statements, period locking, and bank reconciliation are scoped to Phases 2–4.
+
 ---
 
 ## 5. User Roles
@@ -137,6 +150,8 @@ All reports support optional date range filtering (start/end date) and CSV downl
 | **RECEPTIONIST** | Apartments, tenants, bookings, payments, maintenance tickets (own building) |
 | **FINANCE** | Payments, reports (read-only financial view) |
 | **MAINTENANCE** | View and update own assigned maintenance tickets only |
+
+**Accounting module access:** ADMIN, SUPER_ADMIN, and FINANCE have full access to the Accounting module (Chart of Accounts, journal entries, general ledger, trial balance). All other roles have no access.
 
 ---
 
@@ -152,6 +167,7 @@ Modules can be enabled/disabled per environment via server-side feature flags (`
 | `FEATURE_STAFF` | Staff management UI |
 | `FEATURE_REPORTS` | Reports page and API |
 | `FEATURE_MULTI_BUILDING` | Buildings management and per-building filtering |
+| `FEATURE_ACCOUNTING` | Accounting module (Phase 1) — Chart of Accounts, journal entries, general ledger, trial balance |
 
 ---
 

@@ -834,3 +834,29 @@ If any of these fail, block the release.
 ## Maintenance
 
 When new features ship, add test cases under the appropriate area before the feature is considered "done." When existing flows change, mark superseded TCs `[REMOVED]` rather than deleting — keeps the test history searchable.
+
+## 19. Accounting Module (Phase 1)
+
+**Prerequisites:** `FEATURE_ACCOUNTING=true` in `.env`. Log in as an ADMIN user. The starter chart has been seeded (run "Add starter chart" once on the Chart of Accounts page if needed).
+
+| # | Scenario | Steps | Expected |
+|---|---|---|---|
+| 19.1 | Sidebar gating — feature off | Set `FEATURE_ACCOUNTING=false`, restart, log in as ADMIN | The four Accounting items are not in the sidebar |
+| 19.2 | Sidebar gating — role | Log in as RECEPTIONIST with the flag on | Accounting items are not in the sidebar |
+| 19.3 | Sidebar visible — FINANCE | Log in as FINANCE with the flag on | All four accounting items appear |
+| 19.4 | Empty state — seed starter chart | Visit Chart of Accounts with no accounts | "Add starter chart" button appears; clicking it seeds ~14 accounts |
+| 19.5 | Create a new account | Click New Account, code 1099, name "Test", type ASSET, save | Row appears in ASSET group |
+| 19.6 | Duplicate code rejection | Create another account with code 1099 | 409 response, modal shows error |
+| 19.7 | Deactivate account | Toggle the active pill on the new account | Pill shows "Inactive" |
+| 19.8 | Account picker hides inactive | Open Journal Entry editor, open account picker | The inactive account does not appear |
+| 19.9 | Create draft JE | New Entry, two lines (Cash debit 100, Revenue credit 100), Save as Draft | DRAFT entry created; list shows it with DRAFT pill |
+| 19.10 | Unbalanced post is rejected | Edit draft to debit 100/credit 90, click Save & Post | Save & Post button disabled OR server returns UNBALANCED with diff |
+| 19.11 | Successful post | Balance the draft and Save & Post | Confirm dialog appears; on accept, entry number becomes `JE-NNNNNN`, status POSTED |
+| 19.12 | Posted entry is read-only | Reopen the posted entry | All inputs disabled; no Save buttons |
+| 19.13 | Cannot delete posted | Try DELETE via UI on a posted row | UI does not offer delete; manual API call returns 400 ALREADY_POSTED |
+| 19.14 | Trial balance reflects only posted | View Trial Balance; create a new draft after | Draft does not change totals; grand totals equal |
+| 19.15 | GL running balance | Add 3 posted entries to Cash; visit GL with Cash selected | Opening/closing rows present; running balance increments correctly per line |
+| 19.16 | Books mode toggle | In Settings, switch to Per-building; visit TB | Building selector appears with default "All (consolidated)" |
+| 19.17 | CSV export | Click Export CSV on Trial Balance | CSV downloads, opens cleanly in Excel, includes all rows |
+| 19.18 | Arabic RTL | Switch UI to Arabic; visit JE editor | Line columns mirror correctly; account picker dropdown opens in RTL |
+| 19.19 | Imbalance banner | Manually insert one unbalanced line via psql; refresh TB | Red banner at top of Trial Balance |

@@ -12,6 +12,7 @@ import ticketsRoutes from './routes/tickets.routes';
 import usersRoutes from './routes/users.routes';
 import bookingsRoutes from './routes/bookings.routes';
 import buildingsRoutes from './routes/buildings.routes';
+import accountingRoutes from './routes/accounting.routes';
 import reportsRoutes from './routes/reports.routes';
 import settingsRoutes from './routes/settings.routes';
 import configRoutes from './routes/config.routes';
@@ -35,6 +36,7 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/bookings', requireFeature(FeatureFlag.BOOKINGS), bookingsRoutes);
 app.use('/api/v1/buildings', buildingsRoutes);
 app.use('/api/v1/reports', requireFeature(FeatureFlag.REPORTS), reportsRoutes);
+app.use('/api/v1/accounting', requireFeature(FeatureFlag.ACCOUNTING), accountingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 
 app.get('/api/v1/health', (_req, res) => {

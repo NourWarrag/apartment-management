@@ -8,7 +8,11 @@
     "buildings": "Buildings",
     "reports": "Reports",
     "users": "Users",
-    "settings": "Settings"
+    "settings": "Settings",
+    "accountingAccounts": "Chart of Accounts",
+    "accountingJournal": "Journal Entries",
+    "accountingGL": "General Ledger",
+    "accountingTB": "Trial Balance"
   },
   "auth": {
     "login": "Login",
@@ -119,5 +123,30 @@
     "SILVER": "Silver Tier Resident",
     "GOLD": "Gold Tier Resident",
     "PLATINUM": "Platinum Tier Resident"
+  },
+  "accounting": {
+    "accounts": {
+      "title": "Chart of Accounts",
+      "new": "New Account",
+      "empty": "No accounts yet. Start with the standard chart.",
+      "seed": "Add starter chart"
+    },
+    "je": {
+      "title": "Journal Entries",
+      "new": "New Entry",
+      "edit": "Edit Journal Entry",
+      "detail": "Journal Entry",
+      "confirmPost": "Posting is permanent. To correct a posted entry later, you'll create a reversing entry. Continue?"
+    },
+    "gl": { "title": "General Ledger" },
+    "tb": { "title": "Trial Balance" }
+  },
+  "settings": {
+    "accounting": {
+      "title": "Accounting",
+      "booksModeHelp": "Switching modes never changes the underlying data — only how reports group and which filters appear.",
+      "consolidated": "Consolidated (single set of books)",
+      "perBuilding": "Per-building (separate books with consolidation view)"
+    }
   }
 }
