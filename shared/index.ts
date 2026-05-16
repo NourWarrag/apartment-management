@@ -73,6 +73,7 @@ export enum FeatureFlag {
   STAFF = 'STAFF',
   REPORTS = 'REPORTS',
   MULTI_BUILDING = 'MULTI_BUILDING',
+  ACCOUNTING = 'ACCOUNTING',
 }
 
 export enum AttachmentEntity {
@@ -112,3 +113,36 @@ export interface AuthUser {
   role: Role;
   assignedBuildingId: number | null;
 }
+
+export enum AccountType {
+  ASSET = 'ASSET',
+  LIABILITY = 'LIABILITY',
+  EQUITY = 'EQUITY',
+  INCOME = 'INCOME',
+  EXPENSE = 'EXPENSE',
+}
+
+export enum JEStatus {
+  DRAFT = 'DRAFT',
+  POSTED = 'POSTED',
+}
+
+export enum JESource {
+  MANUAL = 'MANUAL',
+  PAYMENT_AUTO = 'PAYMENT_AUTO',
+  VAT_ADJUST = 'VAT_ADJUST',
+  YEAR_END_CLOSE = 'YEAR_END_CLOSE',
+}
+
+export enum BooksMode {
+  CONSOLIDATED = 'CONSOLIDATED',
+  PER_BUILDING = 'PER_BUILDING',
+}
+
+export type AccountingErrorCode =
+  | 'UNBALANCED'
+  | 'INVALID_LINE'
+  | 'MIN_LINES'
+  | 'INVALID_ACCOUNT'
+  | 'INVALID_BUILDING'
+  | 'ALREADY_POSTED';
