@@ -14,6 +14,11 @@ import PaymentsPage from './pages/payments/PaymentsPage';
 import TicketsPage from './pages/tickets/TicketsPage';
 import BuildingsPage from './pages/buildings/BuildingsPage';
 import ReportsPage from './pages/reports/ReportsPage';
+import AccountsPage from './pages/accounting/AccountsPage';
+import JournalEntriesPage from './pages/accounting/JournalEntriesPage';
+import JournalEntryEditorPage from './pages/accounting/JournalEntryEditorPage';
+import GeneralLedgerPage from './pages/accounting/GeneralLedgerPage';
+import TrialBalancePage from './pages/accounting/TrialBalancePage';
 import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
@@ -142,6 +147,66 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+        )}
+        {f[FeatureFlag.ACCOUNTING] && (
+          <>
+            <Route
+              path="accounting/accounts"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <AccountsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <JournalEntriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries/new"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <JournalEntryEditorPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries/:id"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <JournalEntryEditorPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries/:id/edit"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <JournalEntryEditorPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/general-ledger"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <GeneralLedgerPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/trial-balance"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <TrialBalancePage />
+                </ProtectedRoute>
+              }
+            />
+          </>
         )}
         <Route
           path="users"
