@@ -105,7 +105,7 @@ export default function AccountsPage() {
         <AccountFormModal
           accounts={accounts}
           hasActivity={false}
-          onSubmit={(d) => createMut.mutateAsync(d)}
+          onSubmit={(d) => createMut.mutateAsync(d).then(() => {})}
           onClose={() => setShowNew(false)}
         />
       )}
@@ -114,7 +114,7 @@ export default function AccountsPage() {
           initial={editing}
           accounts={accounts}
           hasActivity={true}
-          onSubmit={(d) => updateMut.mutateAsync({ id: editing.id, d })}
+          onSubmit={(d) => updateMut.mutateAsync({ id: editing.id, d }).then(() => {})}
           onClose={() => setEditing(null)}
         />
       )}
