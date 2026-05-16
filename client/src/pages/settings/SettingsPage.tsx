@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Role } from '@hotel/shared';
 import { useAuth } from '../../hooks/useAuth';
 import { useSettings, useUpdateSettings, SystemSettings } from '../../hooks/useSettings';
+
+type BooksMode = 'CONSOLIDATED' | 'PER_BUILDING';
 
 type EditableField = keyof Omit<SystemSettings, 'id'>;
 
@@ -126,10 +128,26 @@ export default function SettingsPage() {
   const { data: settings, isLoading, isError } = useSettings();
   const updateSettings = useUpdateSettings();
 
+  const [booksMode, setBooksMode] = useState<BooksMode>('CONSOLIDATED');
+
+  useEffect(() => {
+    if (settings) {
+      const raw = (settings as SystemSettings & { booksMode?: BooksMode }).booksMode;
+      setBooksMode(raw ?? 'CONSOLIDATED');
+    }
+  }, [settings]);
+
   const canEdit = currentUser?.role === Role.ADMIN || currentUser?.role === Role.SUPER_ADMIN;
 
   async function handleSave(field: EditableField, value: string) {
     await updateSettings.mutateAsync({ [field]: value });
+  }
+
+  async function handleBooksModeChange(value: BooksMode) {
+    setBooksMode(value);
+    if (canEdit) {
+      await updateSettings.mutateAsync({ booksMode: value } as Parameters<typeof updateSettings.mutateAsync>[0]);
+    }
   }
 
   function toggleLanguage() {
@@ -165,6 +183,40 @@ export default function SettingsPage() {
             onSave={handleSave}
           />
         ))}
+      </div>
+
+      {/* Accounting */}
+      <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant">
+        <fieldset className="mt-0 border-t-0">
+          <legend className="text-base font-bold mb-2">{t('settings.accounting.title', 'Accounting')}</legend>
+          <p className="text-sm text-on-surface-variant mb-3">
+            {t('settings.accounting.booksModeHelp', 'Switching modes never changes the underlying data — only how reports group and which filters appear.')}
+          </p>
+          <label className="block text-sm mb-1">
+            <input
+              type="radio"
+              name="booksMode"
+              value="CONSOLIDATED"
+              checked={booksMode === 'CONSOLIDATED'}
+              onChange={() => handleBooksModeChange('CONSOLIDATED')}
+              disabled={!canEdit}
+              className="ltr:mr-2 rtl:ml-2"
+            />
+            {t('settings.accounting.consolidated', 'Consolidated (single set of books)')}
+          </label>
+          <label className="block text-sm">
+            <input
+              type="radio"
+              name="booksMode"
+              value="PER_BUILDING"
+              checked={booksMode === 'PER_BUILDING'}
+              onChange={() => handleBooksModeChange('PER_BUILDING')}
+              disabled={!canEdit}
+              className="ltr:mr-2 rtl:ml-2"
+            />
+            {t('settings.accounting.perBuilding', 'Per-building (separate books with consolidation view)')}
+          </label>
+        </fieldset>
       </div>
 
       {/* User Preferences */}
