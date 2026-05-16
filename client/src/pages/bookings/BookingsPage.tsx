@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { useBookingsList, BookingListItem } from '../../hooks/useBookings';
 import BookingInvoiceModal from '../../components/BookingInvoiceModal';
 import { useBuildings } from '../../hooks/useBuildings';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
+import TableContainer from '../../components/ui/TableContainer';
+import TablePagination from '../../components/ui/TablePagination';
+import Badge from '../../components/ui/Badge';
 
 const PAGE_SIZE = 20;
 
@@ -97,8 +101,6 @@ export default function BookingsPage() {
   }
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
-  const startRow = data && data.data.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0;
-  const endRow = data ? (page - 1) * PAGE_SIZE + data.data.length : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -183,7 +185,7 @@ export default function BookingsPage() {
           <div className="flex gap-2">
             <button
               onClick={applyFilters}
-              className="flex-1 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="flex-1 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
             >
               Apply
             </button>
@@ -198,94 +200,49 @@ export default function BookingsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface-container-low rounded-2xl border border-outline-variant overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-outline-variant bg-surface-container">
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Tenant</th>
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Apartment</th>
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Building</th>
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Check-in</th>
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Check-out</th>
-                <th className="text-right px-4 py-3 font-semibold text-on-surface-variant">Total</th>
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Deposit</th>
-                <th className="text-left px-4 py-3 font-semibold text-on-surface-variant">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-on-surface-variant">
-                    <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
-                  </td>
-                </tr>
-              )}
-              {!isLoading && data?.data.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-on-surface-variant">
-                    No bookings found.
-                  </td>
-                </tr>
-              )}
-              {!isLoading && data?.data.map((booking) => {
-                const status = deriveStatus(booking);
-                const statusBadge = STATUS_BADGE[status];
-                const depositBadge = DEPOSIT_BADGE[booking.depositStatus];
-                return (
-                  <tr
-                    key={booking.id}
-                    onClick={() => setSelectedBookingId(booking.id)}
-                    className="border-b border-outline-variant hover:bg-surface-container cursor-pointer transition-colors last:border-0"
-                  >
-                    <td className="px-4 py-3 font-medium text-on-surface">{booking.tenant.fullName}</td>
-                    <td className="px-4 py-3 text-on-surface">{booking.apartment.number}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{booking.apartment.building.name}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{formatDate(booking.checkIn)}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{formatDate(booking.checkOut)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-on-surface">{formatAed(booking.totalAmount)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${depositBadge.classes}`}>
-                        {depositBadge.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge.classes}`}>
-                        {statusBadge.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {data && data.total > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-outline-variant">
-            <p className="text-sm text-on-surface-variant">
-              Showing {startRow}–{endRow} of {data.total}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-outline-variant text-sm text-on-surface disabled:opacity-40 hover:bg-surface-container transition-colors"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 rounded-lg border border-outline-variant text-sm text-on-surface disabled:opacity-40 hover:bg-surface-container transition-colors"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <TableContainer
+        isLoading={isLoading}
+        isEmpty={!isLoading && (data?.data.length ?? 0) === 0}
+        emptyMessage="No bookings found."
+      >
+        <Table
+          footer={
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={data?.total ?? 0}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+              variant="prev-next"
+            />
+          }
+        >
+          <TableHead headers={['Tenant', 'Apartment', 'Building', 'Check-in', 'Check-out', 'Total', 'Deposit', 'Status']} />
+          <TableBody>
+            {data?.data.map((booking) => {
+              const status = deriveStatus(booking);
+              const statusBadge = STATUS_BADGE[status];
+              const depositBadge = DEPOSIT_BADGE[booking.depositStatus];
+              return (
+                <TableRow key={booking.id} onClick={() => setSelectedBookingId(booking.id)}>
+                  <TableCell variant="strong">{booking.tenant.fullName}</TableCell>
+                  <TableCell variant="text">{booking.apartment.number}</TableCell>
+                  <TableCell variant="muted">{booking.apartment.building.name}</TableCell>
+                  <TableCell variant="muted">{formatDate(booking.checkIn)}</TableCell>
+                  <TableCell variant="muted">{formatDate(booking.checkOut)}</TableCell>
+                  <TableCell align="right" className="font-mono text-on-surface">{formatAed(booking.totalAmount)}</TableCell>
+                  <TableCell>
+                    <Badge className={depositBadge.classes}>{depositBadge.label}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusBadge.classes}>{statusBadge.label}</Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Invoice modal */}
       {selectedBookingId !== null && (

@@ -53,7 +53,7 @@ export default function LoginPage() {
             <input
               {...register('email')}
               type="email"
-              className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
+              className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary bg-background"
             />
             {errors.email && <p className="text-error text-xs mt-1">{errors.email.message}</p>}
           </div>
@@ -64,7 +64,7 @@ export default function LoginPage() {
             <input
               {...register('password')}
               type="password"
-              className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
+              className="w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary bg-background"
             />
             {errors.password && <p className="text-error text-xs mt-1">{errors.password.message}</p>}
           </div>

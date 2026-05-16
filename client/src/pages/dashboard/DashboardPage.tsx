@@ -102,9 +102,9 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="flex items-center gap-3 animate-pulse">
-                <div className="w-5 h-5 rounded-full bg-on-surface/10 shrink-0" />
-                <div className="flex-1 h-4 bg-on-surface/10 rounded" />
-                <div className="w-16 h-3 bg-on-surface/10 rounded" />
+                <div className="w-5 h-5 rounded-full bg-surface-container-high shrink-0" />
+                <div className="flex-1 h-4 bg-surface-container-high rounded" />
+                <div className="w-16 h-3 bg-surface-container-high rounded" />
               </div>
             ))}
           </div>

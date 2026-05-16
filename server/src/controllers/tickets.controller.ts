@@ -114,6 +114,78 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
   } catch (err) { next(err); }
 }
 
+interface TicketUpdateBody {
+  status?: string;
+  notes?: string;
+  priority?: string;
+  assignedToId?: number | null;
+  apartmentId?: number;
+  type?: string;
+}
+
+type TicketUpdateData = {
+  status?: TicketStatus;
+  resolvedAt?: Date | null;
+  notes?: string | null;
+  priority?: Priority;
+  assignedToId?: number | null;
+  apartmentId?: number;
+  type?: TicketType;
+};
+
+type CheckResult = { ok: true } | { ok: false; status: number; message: string };
+
+function validateTicketUpdateInput(body: TicketUpdateBody): CheckResult {
+  if (body.status !== undefined && !VALID_NON_CLOSED_STATUSES.includes(body.status as TicketStatus)) {
+    return { ok: false, status: 400, message: `Invalid status. Must be one of: ${VALID_NON_CLOSED_STATUSES.join(', ')}` };
+  }
+  if (body.priority !== undefined && !VALID_PRIORITIES.includes(body.priority as Priority)) {
+    return { ok: false, status: 400, message: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` };
+  }
+  return { ok: true };
+}
+
+async function validateTicketReferences(body: TicketUpdateBody): Promise<CheckResult> {
+  if (body.assignedToId != null) {
+    const assignee = await prisma.user.findUnique({ where: { id: Number(body.assignedToId) } });
+    if (!assignee || assignee.role !== Role.MAINTENANCE) {
+      return { ok: false, status: 400, message: 'assignedToId must refer to a MAINTENANCE user' };
+    }
+  }
+  if (body.apartmentId !== undefined) {
+    const apt = await prisma.apartment.findUnique({ where: { id: Number(body.apartmentId) } });
+    if (!apt) {
+      return { ok: false, status: 404, message: 'Apartment not found' };
+    }
+  }
+  return { ok: true };
+}
+
+function buildTicketUpdatePayload(
+  body: TicketUpdateBody,
+  isMaintenance: boolean
+): { ok: true; data: TicketUpdateData } | { ok: false; status: number; message: string } {
+  const data: TicketUpdateData = {};
+  if (body.status !== undefined) {
+    data.status = body.status as TicketStatus;
+    data.resolvedAt = body.status === TicketStatus.COMPLETED ? new Date() : null;
+  }
+  if (body.notes !== undefined) data.notes = body.notes.trim() === '' ? null : body.notes.trim();
+  // MAINTENANCE can only touch status/notes; other fields are silently dropped (type) or rejected upstream
+  if (!isMaintenance) {
+    if (body.priority !== undefined) data.priority = body.priority as Priority;
+    if (body.assignedToId !== undefined) data.assignedToId = body.assignedToId === null ? null : Number(body.assignedToId);
+    if (body.apartmentId !== undefined) data.apartmentId = Number(body.apartmentId);
+    if (body.type !== undefined) {
+      if (!VALID_TICKET_TYPES.includes(body.type as TicketType)) {
+        return { ok: false, status: 400, message: 'Invalid ticket type' };
+      }
+      data.type = body.type as TicketType;
+    }
+  }
+  return { ok: true, data };
+}
+
 export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   assertAuthenticated(req);
   try {
@@ -123,14 +195,7 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
       return;
     }
 
-    const { status, notes, priority, assignedToId, apartmentId, type } = req.body as {
-      status?: string;
-      notes?: string;
-      priority?: string;
-      assignedToId?: number | null;
-      apartmentId?: number;
-      type?: string;
-    };
+    const body = req.body as TicketUpdateBody;
 
     const isMaintenance = req.user?.role === Role.MAINTENANCE;
     const isAdminOrReceptionist = req.user?.role === Role.ADMIN || req.user?.role === Role.RECEPTIONIST;
@@ -141,65 +206,27 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
     }
 
     // Field restriction check against request body only — no DB read needed
-    if (isMaintenance && (priority !== undefined || assignedToId !== undefined || apartmentId !== undefined)) {
+    if (isMaintenance && (body.priority !== undefined || body.assignedToId !== undefined || body.apartmentId !== undefined)) {
       res.status(403).json({ message: 'MAINTENANCE staff can only update status and notes' });
       return;
     }
 
-    // Validate enum values before any DB operation
-    if (status !== undefined && !VALID_NON_CLOSED_STATUSES.includes(status as TicketStatus)) {
-      res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_NON_CLOSED_STATUSES.join(', ')}` });
-      return;
-    }
-    if (priority !== undefined && !VALID_PRIORITIES.includes(priority as Priority)) {
-      res.status(400).json({ message: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
+    const inputCheck = validateTicketUpdateInput(body);
+    if (!inputCheck.ok) {
+      res.status(inputCheck.status).json({ message: inputCheck.message });
       return;
     }
 
-    // Validate assignedToId refers to a MAINTENANCE user before writing
-    if (assignedToId != null) {
-      const assignee = await prisma.user.findUnique({ where: { id: Number(assignedToId) } });
-      if (!assignee || assignee.role !== Role.MAINTENANCE) {
-        res.status(400).json({ message: 'assignedToId must refer to a MAINTENANCE user' });
-        return;
-      }
+    const refsCheck = await validateTicketReferences(body);
+    if (!refsCheck.ok) {
+      res.status(refsCheck.status).json({ message: refsCheck.message });
+      return;
     }
 
-    // Validate apartmentId exists when being updated
-    if (apartmentId !== undefined) {
-      const apt = await prisma.apartment.findUnique({ where: { id: Number(apartmentId) } });
-      if (!apt) {
-        res.status(404).json({ message: 'Apartment not found' });
-        return;
-      }
-    }
-
-    // Build scalar update payload (compatible with both updateMany and update)
-    const data: {
-      status?: TicketStatus;
-      resolvedAt?: Date | null;
-      notes?: string | null;
-      priority?: Priority;
-      assignedToId?: number | null;
-      apartmentId?: number;
-      type?: TicketType;
-    } = {};
-    if (status !== undefined) {
-      data.status = status as TicketStatus;
-      data.resolvedAt = status === TicketStatus.COMPLETED ? new Date() : null;
-    }
-    if (notes !== undefined) data.notes = notes.trim() === '' ? null : notes.trim();
-    if (!isMaintenance) {
-      if (priority !== undefined) data.priority = priority as Priority;
-      if (assignedToId !== undefined) data.assignedToId = assignedToId === null ? null : Number(assignedToId);
-      if (apartmentId !== undefined) data.apartmentId = Number(apartmentId);
-      if (type !== undefined) {
-        if (!VALID_TICKET_TYPES.includes(type as TicketType)) {
-          res.status(400).json({ message: 'Invalid ticket type' });
-          return;
-        }
-        data.type = type as TicketType;
-      }
+    const payload = buildTicketUpdatePayload(body, isMaintenance);
+    if (!payload.ok) {
+      res.status(payload.status).json({ message: payload.message });
+      return;
     }
 
     if (isMaintenance) {
@@ -207,7 +234,7 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
       // Prisma's update only accepts unique where-fields, so updateMany is the correct primitive here.
       const result = await prisma.maintenanceTicket.updateMany({
         where: { id, assignedToId: req.user.id },
-        data,
+        data: payload.data,
       });
       if (result.count === 0) {
         // Distinguish 404 (ticket absent) from 403 (ticket exists but not owned by this user)
@@ -229,7 +256,7 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
       try {
         const updated = await prisma.maintenanceTicket.update({
           where: { id },
-          data,
+          data: payload.data,
           include: ticketInclude,
         });
         res.json(updated);

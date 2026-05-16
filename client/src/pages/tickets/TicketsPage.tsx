@@ -3,70 +3,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTickets, useTicketStats } from '../../hooks/useTickets';
 import type { TicketItem } from '../../hooks/useTickets';
 import { Role } from '@hotel/shared';
-import TicketCard from './TicketCard';
 import TicketDetailPanel from './TicketDetailPanel';
 import NewTicketModal from './NewTicketModal';
-
-function ticketNumber(id: number): string {
-  return `MNT-${String(id).padStart(4, '0')}`;
-}
-
-const PRIORITY_BADGE: Record<TicketItem['priority'], string> = {
-  HIGH: 'bg-primary text-on-primary',
-  MEDIUM: 'bg-tertiary-fixed text-on-tertiary-fixed-variant',
-  LOW: 'bg-surface-container-high text-on-surface-variant',
-};
-
-const STATUS_BADGE: Record<TicketItem['status'], string> = {
-  OPEN: 'bg-error/10 text-error',
-  IN_PROGRESS: 'bg-secondary/10 text-secondary',
-  COMPLETED: 'bg-on-tertiary-container/10 text-on-tertiary-container',
-};
-
-const STATUS_LABEL: Record<TicketItem['status'], string> = {
-  OPEN: 'Open',
-  IN_PROGRESS: 'In Progress',
-  COMPLETED: 'Completed',
-};
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-interface KanbanColumnProps {
-  label: string;
-  dotColor: string;
-  tickets: TicketItem[];
-  activeTicketId: number | null;
-  onTicketClick: (ticket: TicketItem) => void;
-}
-
-function KanbanColumn({ label, dotColor, tickets, activeTicketId, onTicketClick }: KanbanColumnProps) {
-  return (
-    <div className="bg-surface-container rounded-2xl p-3 flex flex-col gap-2 min-h-0 overflow-hidden">
-      <div className="flex items-center gap-2 px-1 mb-1 flex-shrink-0">
-        <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-        <span className="text-sm font-bold text-on-surface">{label}</span>
-        <span className="ml-auto text-xs font-bold text-on-surface-variant bg-surface-container-high rounded-full px-2 py-0.5">
-          {tickets.length}
-        </span>
-      </div>
-      <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-        {tickets.map(t => (
-          <TicketCard
-            key={t.id}
-            ticket={t}
-            isActive={activeTicketId === t.id}
-            onClick={() => onTicketClick(t)}
-          />
-        ))}
-        {tickets.length === 0 && (
-          <p className="text-xs text-on-surface-variant text-center py-6">No tickets</p>
-        )}
-      </div>
-    </div>
-  );
-}
+import TicketsKanbanView from './TicketsKanbanView';
+import TicketsListView from './TicketsListView';
 
 type ViewMode = 'kanban' | 'list';
 
@@ -149,7 +89,6 @@ export default function TicketsPage() {
 
       {/* Filter Bar */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        {/* Type filter */}
         <div className="flex gap-1 bg-surface-container rounded-lg p-0.5">
           {([['', 'All'], ['MAINTENANCE', 'Maintenance'], ['CLEANING', 'Cleaning']] as const).map(([val, label]) => (
             <button
@@ -167,104 +106,20 @@ export default function TicketsPage() {
         </div>
       </div>
 
-      {/* Kanban View */}
       {view === 'kanban' && (
-        <div className={`grid gap-4 flex-1 min-h-0 ${activeTicketFresh ? 'grid-cols-4' : 'grid-cols-3'}`}>
-          <KanbanColumn
-            label="Open"
-            dotColor="bg-error"
-            tickets={openTickets}
-            activeTicketId={activeTicketFresh?.id ?? null}
-            onTicketClick={handleKanbanTicketClick}
-          />
-          <KanbanColumn
-            label="In Progress"
-            dotColor="bg-secondary"
-            tickets={inProgressTickets}
-            activeTicketId={activeTicketFresh?.id ?? null}
-            onTicketClick={handleKanbanTicketClick}
-          />
-          <KanbanColumn
-            label="Completed"
-            dotColor="bg-on-tertiary-container"
-            tickets={completedTickets}
-            activeTicketId={activeTicketFresh?.id ?? null}
-            onTicketClick={handleKanbanTicketClick}
-          />
-          {activeTicketFresh && (
-            <TicketDetailPanel
-              key={activeTicketFresh.id}
-              ticket={activeTicketFresh}
-              onClose={() => setActiveTicket(null)}
-              canEditAll={canEditAll}
-            />
-          )}
-        </div>
+        <TicketsKanbanView
+          openTickets={openTickets}
+          inProgressTickets={inProgressTickets}
+          completedTickets={completedTickets}
+          activeTicket={activeTicketFresh}
+          onTicketClick={handleKanbanTicketClick}
+          onCloseDetail={() => setActiveTicket(null)}
+          canEditAll={canEditAll}
+        />
       )}
 
-      {/* List View */}
       {view === 'list' && (
-        <div className="bg-surface-container rounded-2xl border border-outline-variant overflow-auto flex-1">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-outline-variant bg-surface-container-high">
-                {['Ticket #', 'Apartment', 'Description', 'Priority', 'Status', 'Assigned To', 'Created'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-on-surface-variant whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tickets.map(t => (
-                <tr
-                  key={t.id}
-                  onClick={() => setListDetailTicket(t)}
-                  className="border-b border-outline-variant hover:bg-surface-container cursor-pointer transition-colors last:border-0"
-                >
-                  <td className="px-4 py-3 font-mono text-xs text-on-surface-variant">
-                    <span className="flex items-center gap-1">
-                      {ticketNumber(t.id)}
-                      {t.type === 'CLEANING' && (
-                        <span className="material-symbols-outlined text-[14px] text-on-surface-variant" title="Cleaning">cleaning_services</span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-on-surface font-bold">
-                    <span className="flex items-center flex-wrap gap-0.5">
-                      Apt. {t.apartment.number}
-                      {t.apartment.deletedAt && (
-                        <span className="ml-1 text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
-                          Deleted
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-on-surface">
-                    {t.description.length > 60 ? t.description.slice(0, 60) + '…' : t.description}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIORITY_BADGE[t.priority]}`}>
-                      {t.priority.charAt(0) + t.priority.slice(1).toLowerCase()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[t.status]}`}>
-                      {STATUS_LABEL[t.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-on-surface-variant">{t.assignedTo?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap">{formatDate(t.createdAt)}</td>
-                </tr>
-              ))}
-              {tickets.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-on-surface-variant text-sm">
-                    No tickets found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <TicketsListView tickets={tickets} onRowClick={setListDetailTicket} />
       )}
 
       {/* Metrics Row */}

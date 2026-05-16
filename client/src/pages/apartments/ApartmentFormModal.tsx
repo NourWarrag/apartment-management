@@ -73,7 +73,7 @@ export default function ApartmentFormModal({ apartment, onClose }: Props) {
     }
   };
 
-  const inputCls = 'w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/30';
+  const inputCls = 'w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary';
   const labelCls = 'block text-sm font-semibold text-on-surface mb-1.5';
 
   return (

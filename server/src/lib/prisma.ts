@@ -142,7 +142,7 @@ type ExtendedPrisma = ReturnType<typeof buildExtendedClient>;
 
 const globalForPrisma = globalThis as unknown as { prisma?: ExtendedPrisma };
 
-export const prisma: ExtendedPrisma =
+const prisma: ExtendedPrisma =
   globalForPrisma.prisma ?? buildExtendedClient(prismaBase);
 
 if (process.env.NODE_ENV !== 'production') {

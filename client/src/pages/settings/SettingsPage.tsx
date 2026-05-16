@@ -94,7 +94,7 @@ function InlineField({ field, value, canEdit, onSave }: InlineFieldProps) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="text-xs px-3 py-1 rounded-lg bg-primary text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="text-xs px-3 py-1 rounded-lg bg-primary text-on-primary hover:opacity-90 disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>

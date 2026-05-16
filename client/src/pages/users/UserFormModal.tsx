@@ -172,7 +172,7 @@ export default function UserFormModal({ user, onClose }: Props) {
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 rounded-lg text-sm bg-primary text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 rounded-lg text-sm bg-primary text-on-primary hover:opacity-90 disabled:opacity-50 transition-colors"
             >
               {isPending ? t('common.loading') : t('common.save')}
             </button>

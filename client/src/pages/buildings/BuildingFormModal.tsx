@@ -43,17 +43,17 @@ export default function BuildingFormModal({ building, onClose }: Props) {
           <div>
             <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Name</label>
             <input value={name} onChange={e => setName(e.target.value)} required
-              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
           <div>
             <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Code (short ID, e.g. "TA")</label>
             <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} required maxLength={10}
-              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
           <div>
             <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Address</label>
             <input value={address} onChange={e => setAddress(e.target.value)}
-              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
           {error && <p className="text-sm text-error">{error}</p>}
           <div className="flex justify-end gap-3 pt-2">

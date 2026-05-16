@@ -563,7 +563,7 @@ describe('GET /api/v1/bookings (list)', () => {
         role: 'ADMIN',
       },
     });
-    adminToken = signToken({ id: user.id, email: user.email, role: user.role });
+    adminToken = signToken({ id: user.id, role: user.role, assignedBuildingId: null });
 
     building = await testPrisma.building.create({
       data: { name: 'List Tower', code: `LIST-${Date.now()}`, address: '1 List St' },

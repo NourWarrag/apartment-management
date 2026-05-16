@@ -35,6 +35,7 @@ export default function TicketCard({ ticket, isActive, onClick }: TicketCardProp
       onClick={onClick}
       className={`w-full text-left p-3 rounded-xl bg-surface-container-low transition-all ${
         isActive
+          // fallow-ignore: needs design pass
           ? 'border-2 border-primary ring-4 ring-primary/5'
           : 'border border-outline-variant hover:bg-surface-container'
       }`}

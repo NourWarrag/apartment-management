@@ -7,11 +7,14 @@ import { useDeactivateUser, useReactivateUser, useUpdateUserById } from '../../h
 import { useAuth } from '../../hooks/useAuth';
 import UserFormModal from './UserFormModal';
 import toast from 'react-hot-toast';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
+import TableContainer from '../../components/ui/TableContainer';
+import Badge from '../../components/ui/Badge';
 
 const ROLE_BADGE: Record<Role, string> = {
   [Role.SUPER_ADMIN]: 'bg-purple-100 text-purple-700',
-  [Role.ADMIN]: 'bg-primary/10 text-primary',
-  [Role.BUILDING_ADMIN]: 'bg-secondary/10 text-secondary',
+  [Role.ADMIN]: 'bg-primary-container text-on-primary-container',
+  [Role.BUILDING_ADMIN]: 'bg-secondary-container text-on-secondary-container',
   [Role.RECEPTIONIST]: 'bg-amber-100 text-amber-700',
   [Role.FINANCE]: 'bg-green-100 text-green-700',
   [Role.MAINTENANCE]: 'bg-orange-100 text-orange-700',
@@ -92,39 +95,28 @@ export default function UsersPage() {
         ))}
       </div>
 
-      <div className="bg-surface-container rounded-2xl overflow-hidden border border-outline-variant">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-outline-variant">
-              <th className="text-left px-4 py-3 text-on-surface-variant font-medium">Name</th>
-              <th className="text-left px-4 py-3 text-on-surface-variant font-medium">Email</th>
-              <th className="text-left px-4 py-3 text-on-surface-variant font-medium">Role</th>
-              <th className="text-left px-4 py-3 text-on-surface-variant font-medium">Building</th>
-              <th className="text-left px-4 py-3 text-on-surface-variant font-medium">Status</th>
-              <th className="text-right px-4 py-3 text-on-surface-variant font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <TableContainer
+        isEmpty={visibleUsers.length === 0}
+        emptyMessage={tab === 'staff' ? 'No maintenance staff found.' : 'No users found.'}
+      >
+        <Table>
+          <TableHead headers={['Name', 'Email', 'Role', 'Building', 'Status', 'Actions']} />
+          <TableBody>
             {visibleUsers.map((user) => {
               const isDeactivated = !!user.deletedAt;
               const isSelf = user.id === currentUser?.id;
               return (
-                <tr
-                  key={user.id}
-                  className={`border-b border-outline-variant last:border-0 ${isDeactivated ? 'opacity-50' : ''}`}
-                >
-                  <td className="px-4 py-3 font-medium text-on-surface">{user.name}</td>
-                  <td className="px-4 py-3 text-on-surface-variant">{user.email}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ROLE_BADGE[user.role]}`}>
-                      {user.role.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-on-surface-variant">
+                <TableRow key={user.id} muted={isDeactivated}>
+                  <TableCell variant="strong">{user.name}</TableCell>
+                  <TableCell variant="muted">{user.email}</TableCell>
+                  <TableCell>
+                    <Badge className={ROLE_BADGE[user.role]}>{user.role.replace('_', ' ')}</Badge>
+                  </TableCell>
+                  <TableCell variant="muted">
                     {user.assignedBuilding ? `${user.assignedBuilding.name} (${user.assignedBuilding.code})` : '—'}
-                  </td>
+                  </TableCell>
                   {(tab === 'staff' && staffEnabled) ? (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       {isAdmin ? (
                         <select
                           value={user.staffStatus ?? 'OFF_DUTY'}
@@ -136,19 +128,19 @@ export default function UsersPage() {
                           <option value="OFF_DUTY">Off Duty</option>
                         </select>
                       ) : (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STAFF_STATUS_BADGE[user.staffStatus ?? 'OFF_DUTY']}`}>
+                        <Badge className={STAFF_STATUS_BADGE[user.staffStatus ?? 'OFF_DUTY']}>
                           {STAFF_STATUS_LABEL[user.staffStatus ?? 'OFF_DUTY']}
-                        </span>
+                        </Badge>
                       )}
-                    </td>
+                    </TableCell>
                   ) : (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <span className={`text-xs font-semibold ${isDeactivated ? 'text-error' : 'text-tertiary'}`}>
                         {isDeactivated ? 'Deactivated' : 'Active'}
                       </span>
-                    </td>
+                    </TableCell>
                   )}
-                  <td className="px-4 py-3 text-right space-x-2">
+                  <TableCell align="right" className="space-x-2">
                     {!isDeactivated && (
                       <button
                         onClick={() => setModalUser(user)}
@@ -174,20 +166,13 @@ export default function UsersPage() {
                         Deactivate
                       </button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-            {visibleUsers.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-on-surface-variant">
-                  {tab === 'staff' ? 'No maintenance staff found.' : 'No users found.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {modalUser !== undefined && (
         <UserFormModal user={modalUser} onClose={() => setModalUser(undefined)} />

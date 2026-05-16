@@ -30,7 +30,7 @@ export default function BuildingSelector() {
       <select
         value={currentId}
         onChange={handleChange}
-        className="text-sm font-medium text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="text-sm font-medium text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
         aria-label="Select building"
       >
         <option value="all">All Buildings</option>

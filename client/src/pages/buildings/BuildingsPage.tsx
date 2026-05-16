@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { useBuildings, Building } from '../../hooks/useBuildings';
 import { useDeleteBuilding } from '../../hooks/useBuildingsMutations';
 import BuildingFormModal from './BuildingFormModal';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
+import TableContainer from '../../components/ui/TableContainer';
+import Badge from '../../components/ui/Badge';
+import IconButton from '../../components/ui/IconButton';
 
 export default function BuildingsPage() {
   const { data: buildings = [], isLoading } = useBuildings();
@@ -37,44 +41,28 @@ export default function BuildingsPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{deleteError}</div>
       )}
 
-      {isLoading ? (
-        <div className="text-on-surface-variant text-sm p-8 text-center">Loading…</div>
-      ) : (
-        <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant">
-                {['NAME', 'CODE', 'ADDRESS', 'ACTIONS'].map(h => (
-                  <th key={h} className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/30">
-              {buildings.map(b => (
-                <tr key={b.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-4 py-3 text-sm font-bold text-on-surface">{b.name}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-[10px] font-bold bg-secondary/10 text-secondary px-1.5 py-0.5 rounded uppercase tracking-wide">{b.code}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-on-surface-variant">{b.address || '—'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { setEditing(b); setShowForm(true); }}
-                        className="p-1 hover:bg-surface-container rounded-full" title="Edit">
-                        <span className="material-symbols-outlined text-[20px] text-on-surface-variant">edit</span>
-                      </button>
-                      <button onClick={() => handleDelete(b.id)}
-                        className="p-1 hover:bg-surface-container rounded-full" title="Delete">
-                        <span className="material-symbols-outlined text-[20px] text-error">delete</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <TableContainer isLoading={isLoading} isEmpty={buildings.length === 0} emptyMessage="No buildings yet">
+        <Table>
+          <TableHead headers={['Name', 'Code', 'Address', 'Actions']} />
+          <TableBody>
+            {buildings.map(b => (
+              <TableRow key={b.id}>
+                <TableCell variant="strong">{b.name}</TableCell>
+                <TableCell>
+                  <Badge variant="tag" tone="secondary">{b.code}</Badge>
+                </TableCell>
+                <TableCell variant="muted">{b.address || '—'}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <IconButton icon="edit" title="Edit" onClick={() => { setEditing(b); setShowForm(true); }} />
+                    <IconButton icon="delete" tone="error" title="Delete" onClick={() => handleDelete(b.id)} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {showForm && <BuildingFormModal building={editing} onClose={() => setShowForm(false)} />}
     </div>

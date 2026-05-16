@@ -4,23 +4,24 @@ import { KycStatus, TenantTier, Role } from '@hotel/shared';
 import { useTenants, TenantListItem, useTenant } from '../../hooks/useTenants';
 import TenantFormModal from './TenantFormModal';
 import { useAuth } from '../../hooks/useAuth';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
+import TableContainer from '../../components/ui/TableContainer';
+import Badge from '../../components/ui/Badge';
+
+const KYC_BADGE_COLORS: Record<KycStatus, string> = {
+  [KycStatus.VERIFIED]: 'bg-green-100 text-green-800',
+  [KycStatus.PENDING]: 'bg-amber-100 text-amber-800',
+  [KycStatus.ACTION_REQUIRED]: 'bg-red-100 text-red-800',
+};
+
+const KYC_BADGE_LABELS: Record<KycStatus, string> = {
+  [KycStatus.VERIFIED]: 'Verified',
+  [KycStatus.PENDING]: 'Pending',
+  [KycStatus.ACTION_REQUIRED]: 'Action Req.',
+};
 
 function KycBadge({ status }: { status: KycStatus }) {
-  const colorMap: Record<KycStatus, string> = {
-    [KycStatus.VERIFIED]: 'bg-green-100 text-green-800',
-    [KycStatus.PENDING]: 'bg-amber-100 text-amber-800',
-    [KycStatus.ACTION_REQUIRED]: 'bg-red-100 text-red-800',
-  };
-  const labelMap: Record<KycStatus, string> = {
-    [KycStatus.VERIFIED]: 'Verified',
-    [KycStatus.PENDING]: 'Pending',
-    [KycStatus.ACTION_REQUIRED]: 'Action Req.',
-  };
-  return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-full text-status-pill font-bold ${colorMap[status]}`}>
-      {labelMap[status]}
-    </span>
-  );
+  return <Badge className={KYC_BADGE_COLORS[status]}>{KYC_BADGE_LABELS[status]}</Badge>;
 }
 
 function TierSubtitle({ tier }: { tier: TenantTier }) {
@@ -187,8 +188,6 @@ export default function TenantsPage() {
     setShowModal(true);
   };
 
-  const thCls = 'px-table-cell-padding-x py-table-cell-padding-y text-label-caps font-bold text-on-surface-variant uppercase tracking-wider';
-
   return (
     <div className="flex gap-widget-gap flex-col xl:flex-row">
       {/* Left: Registry */}
@@ -228,90 +227,78 @@ export default function TenantsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            {isLoading ? (
-              <div className="p-8 text-center text-on-surface-variant text-body-sm">{t('common.loading')}</div>
-            ) : tenants.length === 0 ? (
-              <div className="p-8 text-center text-on-surface-variant text-body-sm">{t('common.noData')}</div>
-            ) : (
-              <table className="w-full text-left">
-                <thead className="bg-surface-container border-b border-outline-variant">
-                  <tr>
-                    <th className={thCls}>Full Name</th>
-                    <th className={thCls}>Phone &amp; ID</th>
-                    <th className={thCls}>Active Apartment</th>
-                    <th className={thCls}>Rental Period</th>
-                    <th className={thCls}>KYC Status</th>
-                    <th className={thCls} />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant">
-                  {tenants.map((tenant) => {
-                    const isSelected = selectedTenant?.id === tenant.id;
-                    return (
-                      <tr
-                        key={tenant.id}
-                        onClick={() => handleRowClick(tenant)}
-                        className={`hover:bg-surface-container-low transition-colors group cursor-pointer border-l-4 ${
-                          isSelected
-                            ? 'bg-secondary-container/10 border-l-primary'
-                            : 'border-l-transparent'
-                        }`}
-                      >
-                        <td className="px-table-cell-padding-x py-table-cell-padding-y">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary text-xs shrink-0 border border-outline-variant">
-                              {initials(tenant.fullName)}
-                            </div>
-                            <div>
-                              <div className="text-table-data text-primary font-medium">{tenant.fullName}</div>
-                              <TierSubtitle tier={tenant.tier} />
-                            </div>
+        <TableContainer
+          isLoading={isLoading}
+          isEmpty={!isLoading && tenants.length === 0}
+          loadingMessage={t('common.loading')}
+          emptyMessage={t('common.noData')}
+        >
+          <Table>
+            <TableHead headers={['Full Name', 'Phone & ID', 'Active Apartment', 'Rental Period', 'KYC Status', '']} />
+            <TableBody>
+              {tenants.map((tenant) => {
+                const isSelected = selectedTenant?.id === tenant.id;
+                return (
+                  <TableRow
+                    key={tenant.id}
+                    onClick={() => handleRowClick(tenant)}
+                    className={`group border-l-4 ${
+                      isSelected
+                        ? 'bg-surface-container border-l-primary'
+                        : 'border-l-transparent'
+                    }`}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary text-xs shrink-0 border border-outline-variant">
+                          {initials(tenant.fullName)}
+                        </div>
+                        <div>
+                          <div className="text-sm text-primary font-medium">{tenant.fullName}</div>
+                          <TierSubtitle tier={tenant.tier} />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell variant="text">
+                      <div>{tenant.phone}</div>
+                      <div className="text-[11px] text-on-surface-variant font-normal">ID: {tenant.idNumber}</div>
+                    </TableCell>
+                    <TableCell>
+                      {tenant.currentBooking ? (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary text-white rounded-lg text-xs font-bold">
+                          <span className="material-symbols-outlined text-[14px]">apartment</span>
+                          {tenant.currentBooking.apartment.number}
+                        </div>
+                      ) : (
+                        <span className="text-on-surface-variant/50 text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell variant="text">
+                      {tenant.currentBooking ? (
+                        <>
+                          <div>{new Date(tenant.currentBooking.checkIn).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                          <div className="text-[11px] text-on-surface-variant font-normal">
+                            to {new Date(tenant.currentBooking.checkOut).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
-                        </td>
-                        <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data text-on-surface">
-                          <div>{tenant.phone}</div>
-                          <div className="text-[11px] text-on-surface-variant font-normal">ID: {tenant.idNumber}</div>
-                        </td>
-                        <td className="px-table-cell-padding-x py-table-cell-padding-y">
-                          {tenant.currentBooking ? (
-                            <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary text-white rounded-lg text-status-pill font-bold">
-                              <span className="material-symbols-outlined text-[14px]">apartment</span>
-                              {tenant.currentBooking.apartment.number}
-                            </div>
-                          ) : (
-                            <span className="text-on-surface-variant/50 text-table-data">—</span>
-                          )}
-                        </td>
-                        <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data text-on-surface">
-                          {tenant.currentBooking ? (
-                            <>
-                              <div>{new Date(tenant.currentBooking.checkIn).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                              <div className="text-[11px] text-on-surface-variant font-normal">
-                                to {new Date(tenant.currentBooking.checkOut).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-on-surface-variant/50">—</span>
-                          )}
-                        </td>
-                        <td className="px-table-cell-padding-x py-table-cell-padding-y">
-                          <KycBadge status={tenant.kycStatus} />
-                        </td>
-                        <td className="px-table-cell-padding-x py-table-cell-padding-y text-right">
-                          <span className="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
-                            chevron_right
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+                        </>
+                      ) : (
+                        <span className="text-on-surface-variant/50">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <KycBadge status={tenant.kycStatus} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <span className="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+                        chevron_right
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </div>
 
       {/* Right: Drill-down Panel */}

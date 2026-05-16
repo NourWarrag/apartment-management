@@ -6,6 +6,8 @@ import { useReportsOccupancy } from '../../hooks/useReportsOccupancy';
 import { useReportsOutstanding } from '../../hooks/useReportsOutstanding';
 import { useReportsMaintenance } from '../../hooks/useReportsMaintenance';
 import { useReportsBuildings, BuildingReportRow } from '../../hooks/useReportsBuildings';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
+import Badge from '../../components/ui/Badge';
 
 type TabId = 'revenue' | 'occupancy' | 'outstanding' | 'maintenance' | 'buildings';
 
@@ -27,20 +29,6 @@ function formatPct(n: number) {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-const thCls = 'px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-left';
-const tdCls = 'px-4 py-3 text-sm text-on-surface';
-const tdNum = 'px-4 py-3 text-sm text-on-surface text-right tabular-nums';
-
-function TableShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">{children}</table>
-      </div>
-    </div>
-  );
 }
 
 function LoadingState() {
@@ -96,48 +84,37 @@ function RevenueTab({ startDate, endDate }: { startDate?: string; endDate?: stri
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <TableShell>
-          <thead>
-            <tr className="bg-surface-container-low border-b border-outline-variant">
-              <th className={thCls}>Payment Method</th>
-              <th className={thCls + ' text-right'}>Count</th>
-              <th className={thCls + ' text-right'}>Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/30">
+        <Table>
+          <TableHead headers={['Payment Method', 'Count', 'Amount']} />
+          <TableBody>
             {data.byMethod.map((r) => (
-              <tr key={r.method} className="hover:bg-surface-container-low transition-colors">
-                <td className={tdCls}>{r.method}</td>
-                <td className={tdNum}>{r.count}</td>
-                <td className={tdNum}>{formatAed(r.amount)}</td>
-              </tr>
+              <TableRow key={r.method}>
+                <TableCell variant="text">{r.method}</TableCell>
+                <TableCell variant="text" align="right" className="tabular-nums">{r.count}</TableCell>
+                <TableCell variant="text" align="right" className="tabular-nums">{formatAed(r.amount)}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </TableShell>
+          </TableBody>
+        </Table>
 
-        <TableShell>
-          <thead>
-            <tr className="bg-surface-container-low border-b border-outline-variant">
-              <th className={thCls}>Month</th>
-              <th className={thCls + ' text-right'}>Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/30">
+        <Table>
+          <TableHead headers={['Month', 'Amount']} />
+          <TableBody>
             {data.byMonth.map((r) => (
-              <tr key={r.month} className="hover:bg-surface-container-low transition-colors">
-                <td className={tdCls}>{r.month}</td>
-                <td className={tdNum}>{formatAed(r.amount)}</td>
-              </tr>
+              <TableRow key={r.month}>
+                <TableCell variant="text">{r.month}</TableCell>
+                <TableCell variant="text" align="right" className="tabular-nums">{formatAed(r.amount)}</TableCell>
+              </TableRow>
             ))}
             {data.byMonth.length === 0 && (
-              <tr>
-                <td colSpan={2} className="px-4 py-6 text-sm text-on-surface-variant text-center">
+              <TableRow>
+                <TableCell colSpan={2} variant="muted" align="center" className="py-6">
                   No data for selected period
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </TableShell>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -164,33 +141,24 @@ function OccupancyTab({ startDate, endDate }: { startDate?: string; endDate?: st
           )
         }
       />
-      <TableShell>
-        <thead>
-          <tr className="bg-surface-container-low border-b border-outline-variant">
-            <th className={thCls}>Month</th>
-            <th className={thCls + ' text-right'}>Occupied Apts</th>
-            <th className={thCls + ' text-right'}>Total Apts</th>
-            <th className={thCls + ' text-right'}>Rate</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-outline-variant/30">
+      <Table>
+        <TableHead headers={['Month', 'Occupied Apts', 'Total Apts', 'Rate']} />
+        <TableBody>
           {data.map((r) => (
-            <tr key={r.month} className="hover:bg-surface-container-low transition-colors">
-              <td className={tdCls}>{r.month}</td>
-              <td className={tdNum}>{r.occupied}</td>
-              <td className={tdNum}>{r.total}</td>
-              <td className={`${tdNum} font-bold ${rateColor(r.rate)}`}>{formatPct(r.rate)}</td>
-            </tr>
+            <TableRow key={r.month}>
+              <TableCell variant="text">{r.month}</TableCell>
+              <TableCell variant="text" align="right" className="tabular-nums">{r.occupied}</TableCell>
+              <TableCell variant="text" align="right" className="tabular-nums">{r.total}</TableCell>
+              <TableCell align="right" className={`tabular-nums font-bold ${rateColor(r.rate)}`}>{formatPct(r.rate)}</TableCell>
+            </TableRow>
           ))}
           {data.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-sm text-on-surface-variant text-center">
-                No data
-              </td>
-            </tr>
+            <TableRow>
+              <TableCell colSpan={4} variant="muted" align="center" className="py-6">No data</TableCell>
+            </TableRow>
           )}
-        </tbody>
-      </TableShell>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -215,33 +183,24 @@ function OutstandingTab({ startDate, endDate }: { startDate?: string; endDate?: 
           )
         }
       />
-      <TableShell>
-        <thead>
-          <tr className="bg-surface-container-low border-b border-outline-variant">
-            <th className={thCls}>Tenant</th>
-            <th className={thCls}>Apartment</th>
-            <th className={thCls + ' text-right'}>Pending Amount</th>
-            <th className={thCls + ' text-right'}>Oldest Due</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-outline-variant/30">
+      <Table>
+        <TableHead headers={['Tenant', 'Apartment', 'Pending Amount', 'Oldest Due']} />
+        <TableBody>
           {data.map((r) => (
-            <tr key={`${r.tenantName}-${r.apartmentNumber}`} className="hover:bg-surface-container-low transition-colors">
-              <td className={tdCls}>{r.tenantName}</td>
-              <td className={tdCls}>{r.apartmentNumber}</td>
-              <td className={`${tdNum} text-error font-medium`}>{formatAed(r.pendingAmount)}</td>
-              <td className={tdNum}>{formatDate(r.oldestDue)}</td>
-            </tr>
+            <TableRow key={`${r.tenantName}-${r.apartmentNumber}`}>
+              <TableCell variant="text">{r.tenantName}</TableCell>
+              <TableCell variant="text">{r.apartmentNumber}</TableCell>
+              <TableCell align="right" className="tabular-nums text-error font-medium">{formatAed(r.pendingAmount)}</TableCell>
+              <TableCell variant="text" align="right" className="tabular-nums">{formatDate(r.oldestDue)}</TableCell>
+            </TableRow>
           ))}
           {data.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-sm text-on-surface-variant text-center">
-                No outstanding balances
-              </td>
-            </tr>
+            <TableRow>
+              <TableCell colSpan={4} variant="muted" align="center" className="py-6">No outstanding balances</TableCell>
+            </TableRow>
           )}
-        </tbody>
-      </TableShell>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -265,38 +224,28 @@ function MaintenanceTab({ startDate, endDate }: { startDate?: string; endDate?: 
         }
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <TableShell>
-          <thead>
-            <tr className="bg-surface-container-low border-b border-outline-variant">
-              <th className={thCls}>Status</th>
-              <th className={thCls + ' text-right'}>Count</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/30">
+        <Table>
+          <TableHead headers={['Status', 'Count']} />
+          <TableBody>
             {data.byStatus.map((r) => (
-              <tr key={r.status} className="hover:bg-surface-container-low transition-colors">
-                <td className={tdCls}>{r.status}</td>
-                <td className={tdNum}>{r.count}</td>
-              </tr>
+              <TableRow key={r.status}>
+                <TableCell variant="text">{r.status}</TableCell>
+                <TableCell variant="text" align="right" className="tabular-nums">{r.count}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </TableShell>
-        <TableShell>
-          <thead>
-            <tr className="bg-surface-container-low border-b border-outline-variant">
-              <th className={thCls}>Type</th>
-              <th className={thCls + ' text-right'}>Count</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/30">
+          </TableBody>
+        </Table>
+        <Table>
+          <TableHead headers={['Type', 'Count']} />
+          <TableBody>
             {data.byType.map((r) => (
-              <tr key={r.type} className="hover:bg-surface-container-low transition-colors">
-                <td className={tdCls}>{r.type}</td>
-                <td className={tdNum}>{r.count}</td>
-              </tr>
+              <TableRow key={r.type}>
+                <TableCell variant="text">{r.type}</TableCell>
+                <TableCell variant="text" align="right" className="tabular-nums">{r.count}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </TableShell>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -311,25 +260,21 @@ function BuildingsTab({ startDate, endDate }: { startDate?: string; endDate?: st
   const global = data.find((r) => r.buildingId === null);
 
   function renderRow(r: BuildingReportRow, isGlobal = false) {
-    const rowCls = isGlobal
-      ? 'bg-surface-container font-bold border-t-2 border-outline-variant'
-      : 'hover:bg-surface-container-low transition-colors';
+    const rowCls = isGlobal ? 'bg-surface-container font-bold border-t-2 border-outline-variant' : '';
     return (
-      <tr key={r.buildingId ?? 'global'} className={rowCls}>
-        <td className={tdCls}>
+      <TableRow key={r.buildingId ?? 'global'} className={rowCls}>
+        <TableCell variant="text">
           {r.buildingCode && (
-            <span className="text-[10px] font-bold bg-secondary/10 text-secondary px-1.5 py-0.5 rounded uppercase tracking-wide mr-2">
-              {r.buildingCode}
-            </span>
+            <Badge variant="tag" tone="secondary" className="mr-2">{r.buildingCode}</Badge>
           )}
           {r.buildingName}
-        </td>
-        <td className={tdNum}>{r.totalApartments}</td>
-        <td className={tdNum}>{r.occupied}</td>
-        <td className={tdNum}>{Math.round(r.occupancyRate * 100)}%</td>
-        <td className={tdNum}>{formatAed(r.monthlyRevenue)}</td>
-        <td className={tdNum}>{r.openTickets}</td>
-      </tr>
+        </TableCell>
+        <TableCell variant="text" align="right" className="tabular-nums">{r.totalApartments}</TableCell>
+        <TableCell variant="text" align="right" className="tabular-nums">{r.occupied}</TableCell>
+        <TableCell variant="text" align="right" className="tabular-nums">{Math.round(r.occupancyRate * 100)}%</TableCell>
+        <TableCell variant="text" align="right" className="tabular-nums">{formatAed(r.monthlyRevenue)}</TableCell>
+        <TableCell variant="text" align="right" className="tabular-nums">{r.openTickets}</TableCell>
+      </TableRow>
     );
   }
 
@@ -350,22 +295,13 @@ function BuildingsTab({ startDate, endDate }: { startDate?: string; endDate?: st
           )
         }
       />
-      <TableShell>
-        <thead>
-          <tr className="bg-surface-container-low border-b border-outline-variant">
-            <th className={thCls}>Building</th>
-            <th className={thCls + ' text-right'}>Total Apts</th>
-            <th className={thCls + ' text-right'}>Occupied</th>
-            <th className={thCls + ' text-right'}>Occupancy</th>
-            <th className={thCls + ' text-right'}>Revenue</th>
-            <th className={thCls + ' text-right'}>Open Tickets</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-outline-variant/30">
+      <Table>
+        <TableHead headers={['Building', 'Total Apts', 'Occupied', 'Occupancy', 'Revenue', 'Open Tickets']} />
+        <TableBody>
           {rows.map((r) => renderRow(r))}
           {global && renderRow(global, true)}
-        </tbody>
-      </TableShell>
+        </TableBody>
+      </Table>
     </div>
   );
 }

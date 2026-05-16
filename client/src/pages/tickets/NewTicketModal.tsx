@@ -98,7 +98,7 @@ export default function NewTicketModal({ open, onClose, defaultType = 'MAINTENAN
                 {...register('description')}
                 rows={3}
                 placeholder="Describe the issue…"
-                className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface text-sm text-on-surface resize-none placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface text-sm text-on-surface resize-none placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
               {errors.description && <p className="text-xs text-error mt-1">{errors.description.message}</p>}
             </div>

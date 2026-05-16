@@ -8,6 +8,11 @@ import { useApartments, ApartmentListItem } from '../../hooks/useApartments';
 import type { BookingOnApartment } from '../../hooks/useApartments';
 import { useMarkReady } from '../../hooks/useApartments';
 import ApartmentStatusBadge from '../../components/apartments/ApartmentStatusBadge';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
+import TableContainer from '../../components/ui/TableContainer';
+import TablePagination from '../../components/ui/TablePagination';
+import Badge from '../../components/ui/Badge';
+import IconButton from '../../components/ui/IconButton';
 import ApartmentFormModal from './ApartmentFormModal';
 import PaymentFormModal from '../payments/PaymentFormModal';
 import BookingFormModal from '../bookings/BookingFormModal';
@@ -58,14 +63,13 @@ function MarkReadyButton({ apartmentId }: { apartmentId: number }) {
   };
 
   return (
-    <button
+    <IconButton
+      icon="done_all"
+      tone="success"
+      title="Mark ready (cleaning done)"
       onClick={handleClick}
       disabled={markReady.isPending}
-      className="p-1 hover:bg-surface-container rounded-full disabled:opacity-50"
-      title="Mark ready (cleaning done)"
-    >
-      <span className="material-symbols-outlined text-[20px] text-green-600">done_all</span>
-    </button>
+    />
   );
 }
 
@@ -171,8 +175,6 @@ export default function ApartmentsPage() {
     setAppliedStatus(statusFilter);
     setPage(1);
   };
-
-  const thCls = 'px-table-cell-padding-x py-table-cell-padding-y text-label-caps font-bold text-on-surface-variant uppercase tracking-wider';
 
   return (
     <div className="space-y-widget-gap">
@@ -303,192 +305,137 @@ export default function ApartmentsPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-8 text-center text-on-surface-variant text-body-sm">{t('common.loading')}</div>
-          ) : tableData.length === 0 ? (
-            <div className="p-8 text-center text-on-surface-variant text-body-sm">{t('common.noData')}</div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className={thCls}>APT. NO</th>
-                  <th className={thCls}>TYPE</th>
-                  <th className={thCls}>STATUS</th>
-                  <th className={thCls}>TENANT NAME</th>
-                  <th className={thCls}>CHECK-IN / OUT</th>
-                  <th className={thCls}>PAYMENT</th>
-                  <th className={thCls}>MAINTENANCE</th>
-                  <th className={thCls + ' text-right'}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/30">
-                {paged.map((apt) => {
-                  const payment = getPaymentLabel(apt);
-                  return (
-                    <tr key={apt.id} className="hover:bg-surface-container-low transition-colors group">
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y font-bold text-table-data">
-                        <span className="inline-flex items-center gap-1">
-                          <Link to={`/apartments/${apt.id}`} className="text-primary hover:underline">
-                            {apt.number}
-                          </Link>
-                          {showBuildingBadge && apt.building && (
-                            <span className="text-[10px] font-bold bg-secondary/10 text-secondary px-1.5 py-0.5 rounded uppercase tracking-wide ml-1">
-                              {apt.building.code}
-                            </span>
+      <TableContainer
+        isLoading={isLoading}
+        isEmpty={!isLoading && tableData.length === 0}
+        loadingMessage={t('common.loading')}
+        emptyMessage={t('common.noData')}
+      >
+        <Table
+          footer={
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={tableData.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+              variant="numeric"
+              itemLabel="units"
+              className="bg-surface-container-low"
+            />
+          }
+        >
+          <TableHead headers={['Apt. No', 'Type', 'Status', 'Tenant Name', 'Check-in / Out', 'Payment', 'Maintenance', 'Actions']} />
+          <TableBody>
+            {paged.map((apt) => {
+              const payment = getPaymentLabel(apt);
+              return (
+                <TableRow key={apt.id} className="group">
+                  <TableCell variant="strong">
+                    <span className="inline-flex items-center gap-1">
+                      <Link to={`/apartments/${apt.id}`} className="text-primary hover:underline">
+                        {apt.number}
+                      </Link>
+                      {showBuildingBadge && apt.building && (
+                        <Badge variant="tag" tone="secondary" className="ml-1">{apt.building.code}</Badge>
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell variant="text">{t(`apartmentType.${apt.type}`)}</TableCell>
+                  <TableCell>
+                    <ApartmentStatusBadge status={apt.status} />
+                  </TableCell>
+                  <TableCell variant="text">
+                    {apt.currentBooking ? (
+                      apt.currentBooking.tenant.fullName
+                    ) : (
+                      <span className="text-on-surface-variant italic">Vacant</span>
+                    )}
+                  </TableCell>
+                  <TableCell variant="muted">
+                    {apt.currentBooking ? (
+                      `${new Date(apt.currentBooking.checkIn).toLocaleDateString('en', { month: 'short', day: 'numeric' })} - ${new Date(apt.currentBooking.checkOut).toLocaleDateString('en', { month: 'short', day: 'numeric' })}`
+                    ) : '—'}
+                  </TableCell>
+                  <TableCell>
+                    {payment ? (
+                      <span className={`flex items-center gap-1 font-bold text-sm ${payment.color}`}>
+                        <span className="material-symbols-outlined text-[16px]">{payment.icon}</span>
+                        {payment.label}
+                      </span>
+                    ) : (
+                      <span className="text-on-surface-variant/50">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {apt.activeTicket ? (
+                      <span className="text-red-600 flex items-center gap-1 font-bold text-sm">
+                        <span className="material-symbols-outlined text-[16px]">build</span>
+                        {apt.activeTicket.status}
+                      </span>
+                    ) : (
+                      <span className="text-on-surface-variant/50">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell align="right">
+                    <div className="flex items-center justify-end gap-1">
+                      {canEdit && (
+                        <>
+                          {apt.currentBooking && (
+                            <IconButton
+                              icon="payments"
+                              tone="success"
+                              title="Record payment"
+                              onClick={() =>
+                                setPaymentTarget({
+                                  bookingId: apt.currentBooking!.id,
+                                  summary: {
+                                    tenantName: apt.currentBooking!.tenant.fullName,
+                                    apartmentNumber: apt.number,
+                                    checkIn: apt.currentBooking!.checkIn,
+                                    checkOut: apt.currentBooking!.checkOut,
+                                  },
+                                })
+                              }
+                            />
                           )}
-                        </span>
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data text-on-surface">
-                        {t(`apartmentType.${apt.type}`)}
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y">
-                        <ApartmentStatusBadge status={apt.status} />
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data text-on-surface">
-                        {apt.currentBooking ? (
-                          apt.currentBooking.tenant.fullName
-                        ) : (
-                          <span className="text-on-surface-variant italic">Vacant</span>
-                        )}
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data text-on-surface-variant">
-                        {apt.currentBooking ? (
-                          `${new Date(apt.currentBooking.checkIn).toLocaleDateString('en', { month: 'short', day: 'numeric' })} - ${new Date(apt.currentBooking.checkOut).toLocaleDateString('en', { month: 'short', day: 'numeric' })}`
-                        ) : '—'}
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data">
-                        {payment ? (
-                          <span className={`flex items-center gap-1 font-bold ${payment.color}`}>
-                            <span className="material-symbols-outlined text-[16px]">{payment.icon}</span>
-                            {payment.label}
-                          </span>
-                        ) : (
-                          <span className="text-on-surface-variant/50">—</span>
-                        )}
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y text-table-data">
-                        {apt.activeTicket ? (
-                          <span className="text-red-600 flex items-center gap-1 font-bold">
-                            <span className="material-symbols-outlined text-[16px]">build</span>
-                            {apt.activeTicket.status}
-                          </span>
-                        ) : (
-                          <span className="text-on-surface-variant/50">—</span>
-                        )}
-                      </td>
-                      <td className="px-table-cell-padding-x py-table-cell-padding-y text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canEdit && (
-                            <>
-                              {apt.currentBooking && (
-                                <button
-                                  onClick={() =>
-                                    setPaymentTarget({
-                                      bookingId: apt.currentBooking!.id,
-                                      summary: {
-                                        tenantName: apt.currentBooking!.tenant.fullName,
-                                        apartmentNumber: apt.number,
-                                        checkIn: apt.currentBooking!.checkIn,
-                                        checkOut: apt.currentBooking!.checkOut,
-                                      },
-                                    })
-                                  }
-                                  className="p-1 hover:bg-surface-container rounded-full"
-                                  title="Record payment"
-                                >
-                                  <span className="material-symbols-outlined text-[20px] text-green-600">payments</span>
-                                </button>
-                              )}
-                              {apt.status === ApartmentStatus.AVAILABLE && (
-                                <button
-                                  onClick={() => setBookingAptId(apt.id)}
-                                  className="p-1 hover:bg-surface-container rounded-full"
-                                  title="New reservation"
-                                >
-                                  <span className="material-symbols-outlined text-[20px] text-primary">add_home</span>
-                                </button>
-                              )}
-                              <button
-                                onClick={() => { setEditTarget(apt); setShowModal(true); }}
-                                className="p-1 hover:bg-surface-container rounded-full"
-                              >
-                                <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                              </button>
-                            </>
+                          {apt.status === ApartmentStatus.AVAILABLE && (
+                            <IconButton
+                              icon="add_home"
+                              tone="primary"
+                              title="New reservation"
+                              onClick={() => setBookingAptId(apt.id)}
+                            />
                           )}
-                          {apt.status === ApartmentStatus.OCCUPIED && apt.currentBooking && canCheckout && (
-                            <button
-                              onClick={() => setCheckoutTarget(apt.currentBooking!)}
-                              className="p-1 hover:bg-surface-container rounded-full"
-                              title="Checkout"
-                            >
-                              <span className="material-symbols-outlined text-[20px] text-amber-600">logout</span>
-                            </button>
-                          )}
-                          {apt.status === ApartmentStatus.CLEANING && canCheckout && (
-                            <MarkReadyButton apartmentId={apt.id} />
-                          )}
-                          {!canEdit && apt.status === ApartmentStatus.AVAILABLE && (
-                            <button className="text-primary font-bold hover:underline text-body-sm">Check In</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Pagination */}
-        {tableData.length > 0 && (
-          <div className="bg-surface-container-low px-container-padding py-3 border-t border-outline-variant flex items-center justify-between">
-            <p className="text-on-surface-variant text-body-sm">
-              Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, tableData.length)} of {tableData.length} units
-            </p>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface transition-colors disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                </button>
-                {(() => {
-                  const windowSize = 5;
-                  const half = Math.floor(windowSize / 2);
-                  const start = Math.max(1, Math.min(page - half, totalPages - windowSize + 1));
-                  const end = Math.min(totalPages, start + windowSize - 1);
-                  return Array.from({ length: end - start + 1 }, (_, i) => start + i).map((pageNum) => (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`w-8 h-8 flex items-center justify-center rounded text-body-sm font-bold transition-colors ${
-                        page === pageNum
-                          ? 'bg-primary text-on-primary'
-                          : 'border border-outline-variant hover:bg-surface'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  ));
-                })()}
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface transition-colors disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                          <IconButton
+                            icon="more_vert"
+                            title="More actions"
+                            onClick={() => { setEditTarget(apt); setShowModal(true); }}
+                          />
+                        </>
+                      )}
+                      {apt.status === ApartmentStatus.OCCUPIED && apt.currentBooking && canCheckout && (
+                        <IconButton
+                          icon="logout"
+                          tone="warning"
+                          title="Checkout"
+                          onClick={() => setCheckoutTarget(apt.currentBooking!)}
+                        />
+                      )}
+                      {apt.status === ApartmentStatus.CLEANING && canCheckout && (
+                        <MarkReadyButton apartmentId={apt.id} />
+                      )}
+                      {!canEdit && apt.status === ApartmentStatus.AVAILABLE && (
+                        <button className="text-primary font-bold hover:underline text-body-sm">Check In</button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Bottom Panels */}
       <div className="flex flex-col lg:flex-row gap-widget-gap">

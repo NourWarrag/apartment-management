@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { ApartmentStatus, ApartmentType } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
 import { assertBuildingAccess } from '../lib/assertBuildingAccess';
+import { handlePrismaError } from '../lib/handlePrismaError';
 
 const VALID_STATUSES = Object.values(ApartmentStatus);
 const VALID_TYPES = Object.values(ApartmentType);
@@ -180,11 +181,10 @@ export async function remove(req: AuthRequest, res: Response, next: NextFunction
     await prisma.apartment.delete({ where: { id } });
     res.status(204).send();
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
-      res.status(404).json({ message: 'Apartment not found' });
-      return;
-    }
-    next(err); return;
+    handlePrismaError(err, res, next, {
+      P2025: { status: 404, message: 'Apartment not found' },
+    });
+    return;
   }
 }
 
@@ -244,17 +244,11 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
     const apartment = await prisma.apartment.update({ where: { id }, data });
     res.json(apartment);
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError) {
-      if (err.code === 'P2025') {
-        res.status(404).json({ message: 'Apartment not found' });
-        return;
-      }
-      if (err.code === 'P2002') {
-        res.status(409).json({ message: 'Apartment number already exists in this building' });
-        return;
-      }
-    }
-    next(err); return;
+    handlePrismaError(err, res, next, {
+      P2025: { status: 404, message: 'Apartment not found' },
+      P2002: { status: 409, message: 'Apartment number already exists in this building' },
+    });
+    return;
   }
 }
 
