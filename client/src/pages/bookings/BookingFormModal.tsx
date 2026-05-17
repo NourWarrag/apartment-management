@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useCreateBooking } from '../../hooks/useBookings';
 import { useApartments } from '../../hooks/useApartments';
 import { useTenants } from '../../hooks/useTenants';
+import type { TenantListItem } from '../../hooks/useTenants';
+import QuickAddTenantModal from './QuickAddTenantModal';
 import { ApartmentStatus, FeatureFlag } from '@hotel/shared';
 import { taxCodesApi } from '../../lib/api/accounting-phase2';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -41,6 +43,7 @@ export default function BookingFormModal({
   prefilledTenantId,
 }: BookingFormModalProps) {
   const [apiError, setApiError] = useState<string | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [taxCodeId, setTaxCodeId] = useState<number | null>(null);
   const { data: flags } = useFeatureFlags();
   const accountingOn = !!flags?.[FeatureFlag.ACCOUNTING];
@@ -58,6 +61,7 @@ export default function BookingFormModal({
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -104,7 +108,8 @@ export default function BookingFormModal({
   const labelCls = 'block text-sm font-semibold text-on-surface mb-1.5';
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <>
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-[90vw] lg:max-w-lg p-6 border border-outline-variant max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-primary">New Reservation</h2>
@@ -143,18 +148,30 @@ export default function BookingFormModal({
           {/* Tenant */}
           <div>
             <label className={labelCls}>Tenant</label>
-            <select
-              {...register('tenantId')}
-              disabled={!!prefilledTenantId}
-              className={inputCls + (prefilledTenantId ? ' opacity-60 cursor-not-allowed' : '')}
-            >
-              <option value="">Select tenant…</option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.fullName} — {t.phone}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                {...register('tenantId')}
+                disabled={!!prefilledTenantId}
+                className={inputCls + (prefilledTenantId ? ' opacity-60 cursor-not-allowed' : '')}
+              >
+                <option value="">Select tenant…</option>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.fullName} — {t.phone}
+                  </option>
+                ))}
+              </select>
+              {!prefilledTenantId && (
+                <button
+                  type="button"
+                  onClick={() => setQuickAddOpen(true)}
+                  title="Add new tenant"
+                  className="shrink-0 px-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-center text-on-surface-variant"
+                >
+                  <span className="material-symbols-outlined text-[20px]">person_add</span>
+                </button>
+              )}
+            </div>
             {errors.tenantId && (
               <p className="text-red-600 text-xs mt-1">{errors.tenantId.message}</p>
             )}
@@ -293,5 +310,13 @@ export default function BookingFormModal({
         </form>
       </div>
     </div>
+    <QuickAddTenantModal
+      open={quickAddOpen}
+      onClose={() => setQuickAddOpen(false)}
+      onCreated={(tenant: TenantListItem) => {
+        setValue('tenantId', tenant.id, { shouldValidate: true });
+      }}
+    />
+    </>
   );
 }
