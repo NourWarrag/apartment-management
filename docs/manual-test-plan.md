@@ -860,3 +860,27 @@ When new features ship, add test cases under the appropriate area before the fea
 | 19.17 | CSV export | Click Export CSV on Trial Balance | CSV downloads, opens cleanly in Excel, includes all rows |
 | 19.18 | Arabic RTL | Switch UI to Arabic; visit JE editor | Line columns mirror correctly; account picker dropdown opens in RTL |
 | 19.19 | Imbalance banner | Manually insert one unbalanced line via psql; refresh TB | Red banner at top of Trial Balance |
+
+## 20. Accounting Module (Phase 2)
+
+**Prerequisites:** Phase 1 complete and `FEATURE_ACCOUNTING=true`. Log in as ADMIN.
+
+| # | Scenario | Steps | Expected |
+|---|---|---|---|
+| 20.1 | Run Setup from a clean Phase 1 state | Settings → Accounting → Run Setup | Creates 2 new accounts (2100, 4020), 3 tax codes, 8 mappings. unmappedKeys is empty. |
+| 20.2 | Account Mapping page shows all 8 rows mapped | Visit `/accounting/mapping` | All rows show codes; no red banner. |
+| 20.3 | Set custom mapping | Click Change on CASH_METHOD, pick a different Asset account, save | Mapping updates; banner clear. |
+| 20.4 | Cash payment auto-posts | Create a CASH payment for 1050 on a booking tagged VAT_STANDARD | Payment row shows postedEntryId set. JE has 3 lines (Cash 1050 debit, Revenue 1000 credit, VAT Payable 50 credit). |
+| 20.5 | Switch to ACCRUAL mode and create a Booking | Settings → Accrual basis; create new Booking 10500 | Booking has revenuePostedEntryId set; JE shows AR 10500 / Revenue 10000 / VAT 500. |
+| 20.6 | Mark an installment PAID in ACCRUAL mode | Mark a PENDING installment as PAID | New JE: Cash debit, AR credit, no VAT (already recognized at booking). |
+| 20.7 | Deposit collection auto-posts | Booking with depositAmount=500, status HELD | depositPostedEntryId set; JE Cash debit / Deposit Liability credit. |
+| 20.8 | Checkout with full refund (RELEASED) | Checkout with depositRefundAmount === depositAmount | JE Deposit Liability debit / Cash credit. |
+| 20.9 | Checkout with zero refund (FORFEITED) | Checkout with depositRefundAmount = 0 | JE Deposit Liability debit / Forfeit Income credit. |
+| 20.10 | Checkout with partial refund (FORFEITED) | Checkout with depositRefundAmount = 200 (deposit was 500) | JE 3 lines: Deposit Liability 500 debit / Cash 200 credit / Forfeit Income 300 credit. |
+| 20.11 | Reverse a paid payment | On a POSTED payment, click Reverse, confirm | Payment status REVERSED; new JE (reversal of JE-NNNNNN) with swapped lines. Outstanding balance updates. |
+| 20.12 | Run Backfill | Settings → Run Backfill (no fromDate) | Summary shows processed > 0. Subsequent run shows processed = 0. |
+| 20.13 | VAT Return for current period | Visit `/accounting/vat-return` | Output VAT totals match the sum of VAT_PAYABLE credits in the period. Net VAT Due = Output − Input. |
+| 20.14 | Setup is admin-only | Log in as FINANCE; visit Settings → Run Setup | Button is hidden / 403 returned from API. |
+| 20.15 | Backfill is admin-only | Log in as FINANCE | Same as above. |
+| 20.16 | Posting failure rolls back the operation | Delete REVENUE_DEFAULT mapping; create a CASH+PAID payment | Payment creation returns 400 MAPPING_MISSING; no Payment row left in DB. |
+| 20.17 | Arabic RTL | Switch to Arabic; visit mapping and VAT return pages | Layout mirrors correctly. |
