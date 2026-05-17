@@ -227,3 +227,94 @@ describe('MatchingService.unmatchByBankLine', () => {
     expect(await db.reconciliationMatch.count({ where: { bankStatementLineId: bankLine.id } })).toBe(0);
   });
 });
+
+describe('MatchingService.addAdjustmentAndMatch', () => {
+  it('posts a JE for an unmatched bank line and matches it', async () => {
+    await db.reconciliationMatch.deleteMany();
+    await db.bankStatementLine.deleteMany();
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+
+    const date = new Date('2026-05-25');
+    const feeAcc = await db.account.create({ data: { code: '5010', name: 'Bank Fees', type: 'EXPENSE' } });
+    const bankLine = await db.bankStatementLine.create({
+      data: { bankStatementId: statementId, bankAccountId, date, amount: '-30', description: 'Bank fee' },
+    });
+    const result = await svc().addAdjustmentAndMatch(
+      {
+        reconciliationId,
+        bankStatementLineId: bankLine.id,
+        offsetAccountId: feeAcc.id,
+        memo: 'Monthly bank fee',
+      },
+      userId,
+    );
+    expect(result).toBeDefined();
+    const matches = await db.reconciliationMatch.findMany({ where: { bankStatementLineId: bankLine.id } });
+    expect(matches).toHaveLength(1);
+    // Clean up in FK-safe order: matches → lines → entries → account
+    await db.reconciliationMatch.deleteMany();
+    await db.bankStatementLine.deleteMany();
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+    await db.account.delete({ where: { id: feeAcc.id } });
+  });
+});
+
+describe('MatchingService.close', () => {
+  beforeEach(async () => {
+    await db.reconciliationMatch.deleteMany();
+    await db.bankStatementLine.deleteMany();
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+  });
+
+  it('closes a balanced reconciliation and snapshots state', async () => {
+    const rec = await db.reconciliation.create({
+      data: { bankAccountId, endDate: new Date('2026-06-30'), statementBalance: '0' },
+    });
+    const closed = await svc().close(rec.id, userId);
+    expect(closed.status).toBe('CLOSED');
+    expect(closed.reportSnapshot).not.toBeNull();
+    expect(closed.closedAt).not.toBeNull();
+    await db.reconciliation.delete({ where: { id: rec.id } });
+  });
+
+  it('rejects unbalanced close', async () => {
+    const rec = await db.reconciliation.create({
+      data: { bankAccountId, endDate: new Date('2026-07-31'), statementBalance: '9999' },
+    });
+    await expect(svc().close(rec.id, userId))
+      .rejects.toMatchObject({ code: 'RECONCILIATION_UNBALANCED' });
+    await db.reconciliation.delete({ where: { id: rec.id } });
+  });
+
+  it('rejects double-close', async () => {
+    const rec = await db.reconciliation.create({
+      data: { bankAccountId, endDate: new Date('2026-08-31'), statementBalance: '0' },
+    });
+    await svc().close(rec.id, userId);
+    await expect(svc().close(rec.id, userId))
+      .rejects.toMatchObject({ code: 'RECONCILIATION_CLOSED' });
+    await db.reconciliation.delete({ where: { id: rec.id } });
+  });
+});
+
+describe('MatchingService.reopen', () => {
+  it('reopens a closed reconciliation, clears snapshot, preserves matches', async () => {
+    await db.reconciliationMatch.deleteMany();
+    await db.bankStatementLine.deleteMany();
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+
+    const rec = await db.reconciliation.create({
+      data: { bankAccountId, endDate: new Date('2026-09-30'), statementBalance: '0' },
+    });
+    await svc().close(rec.id, userId);
+    const reopened = await svc().reopen(rec.id, userId);
+    expect(reopened.status).toBe('OPEN');
+    expect(reopened.reportSnapshot).toBeNull();
+    expect(reopened.closedAt).toBeNull();
+    await db.reconciliation.delete({ where: { id: rec.id } });
+  });
+});
