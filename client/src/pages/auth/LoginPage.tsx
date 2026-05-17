@@ -14,7 +14,9 @@ const schema = z.object({
 });
 
 const ROLE_REDIRECTS: Record<Role, string> = {
+  [Role.SUPER_ADMIN]: '/dashboard',
   [Role.ADMIN]: '/dashboard',
+  [Role.BUILDING_ADMIN]: '/dashboard',
   [Role.RECEPTIONIST]: '/dashboard',
   [Role.MAINTENANCE]: '/tickets',
   [Role.FINANCE]: '/reports',
