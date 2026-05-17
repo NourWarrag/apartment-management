@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 # Hotel Apartment Management System
 
-**Version:** 2.1 — Updated 2026-05-16 — Accounting module (Phase 1) added
+**Version:** 2.2 — Updated 2026-05-17 — Accounting module Phase 2 (auto-posting, VAT, deposits, reversal, backfill)
 
 ---
 
@@ -139,6 +139,20 @@ All reports support optional date range filtering (start/end date) and CSV downl
 - `booksMode` setting (`CONSOLIDATED` default, `PER_BUILDING`) toggles report defaults; does not change data shape.
 
 Auto-posting from operations, VAT, financial statements, period locking, and bank reconciliation are scoped to Phases 2–4.
+
+### 4.11 Accounting Module (Phase 2)
+
+- **Auto-posting** of Payments and Bookings to the GL via PostingService. Trigger semantics are configurable via the `accountingMode` setting:
+  - **CASH (default):** A Payment becoming PAID posts a JE (Cash/Bank debit, Revenue net credit, VAT credit if applicable).
+  - **ACCRUAL:** Booking creation posts AR/Revenue/VAT. A Payment becoming PAID clears AR.
+- **VAT (tax-inclusive)** with banker's rounding. Each Booking carries a `taxCodeId` defaulting to the system default. Tax codes seeded: `VAT_STANDARD` (5%, default), `VAT_ZERO`, `VAT_EXEMPT`.
+- **Account mapping** in a dedicated `AccountMapping` table: 8 keys (CASH_METHOD, CARD_METHOD, INSTALLMENT_METHOD, AR_DEFAULT, REVENUE_DEFAULT, DEPOSIT_LIABILITY, DEPOSIT_FORFEIT_INCOME, VAT_PAYABLE). Editable via Account Mapping page.
+- **Deposit lifecycle** auto-posted on transitions: NONE→HELD (collect), HELD→RELEASED (full refund), HELD→FORFEITED (partial or zero refund — splits cash refund and forfeit income).
+- **Payment reversal**: a `REVERSED` PaymentStatus + a balancing JE referencing the original.
+- **Backfill tool** to retroactively post historical Payments and Bookings.
+- **VAT return report** grouping output and input VAT by tax code over a period; CSV export.
+
+Posting calls participate in the parent transaction so operational write and GL entry are atomic. Period close and reversal of manual JEs are scoped to Phase 3.
 
 ---
 
