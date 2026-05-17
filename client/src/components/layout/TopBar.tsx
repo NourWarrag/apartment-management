@@ -27,9 +27,9 @@ export default function TopBar() {
     : '??';
 
   return (
-    <header className="flex justify-between items-center h-16 px-8 bg-surface border-b border-outline-variant sticky top-0 z-10">
+    <header className="flex justify-between items-center h-16 px-6 bg-surface border-b border-outline-variant sticky top-0 z-10">
       {/* Search */}
-      <div className="flex items-center bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant w-80">
+      <div className="flex items-center bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant w-64 xl:w-80">
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] ltr:mr-2 rtl:ml-2">search</span>
         <input
           className="bg-transparent border-none outline-none text-sm w-full placeholder-on-surface-variant/60 text-on-surface"
