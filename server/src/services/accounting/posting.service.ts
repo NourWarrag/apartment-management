@@ -226,6 +226,75 @@ export class PostingService {
     return this.prisma.$transaction(runner);
   }
 
+  async postFromDepositTransition(
+    bookingId: number,
+    fromStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED',
+    toStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED',
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry | null> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry | null> => {
+      const booking = await db.booking.findUnique({ where: { id: bookingId } });
+      if (!booking) {
+        throw new AccountingError('INVALID_LINE', `Booking ${bookingId} not found`);
+      }
+
+      const cashAccountId = await this.mapping.resolveAccount(db, 'CASH_METHOD');
+      const liabilityId = await this.mapping.resolveAccount(db, 'DEPOSIT_LIABILITY');
+      const forfeitId = await this.mapping.resolveAccount(db, 'DEPOSIT_FORFEIT_INCOME');
+
+      let lines: LineInput[];
+      let memo: string;
+      const depAmt = new Prisma.Decimal(booking.depositAmount ?? 0);
+
+      if (fromStatus === 'NONE' && toStatus === 'HELD') {
+        lines = [
+          { accountId: cashAccountId, debit: depAmt },
+          { accountId: liabilityId, credit: depAmt },
+        ];
+        memo = `Deposit collected for Booking #${booking.id}`;
+      } else if (fromStatus === 'HELD' && toStatus === 'RELEASED') {
+        lines = [
+          { accountId: liabilityId, debit: depAmt },
+          { accountId: cashAccountId, credit: depAmt },
+        ];
+        memo = `Deposit released for Booking #${booking.id}`;
+      } else if (fromStatus === 'HELD' && toStatus === 'FORFEITED') {
+        const refundAmt = new Prisma.Decimal(booking.depositRefundAmount ?? 0);
+        const forfeitAmt = depAmt.minus(refundAmt);
+        lines = [{ accountId: liabilityId, debit: depAmt }];
+        if (refundAmt.gt(0)) lines.push({ accountId: cashAccountId, credit: refundAmt });
+        if (forfeitAmt.gt(0)) lines.push({ accountId: forfeitId, credit: forfeitAmt });
+        memo = `Deposit forfeited for Booking #${booking.id}`;
+      } else {
+        return null;
+      }
+
+      const entry = await this.createAndPost(
+        {
+          date: new Date(),
+          memo,
+          buildingId: null,
+          source: 'PAYMENT_AUTO',
+          sourceRefId: booking.id,
+          lines,
+        },
+        userId,
+        db,
+      );
+
+      await db.booking.update({
+        where: { id: booking.id },
+        data: { depositPostedEntryId: entry.id },
+      });
+
+      return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
   async postFromPayment(
     paymentId: number,
     userId: number,

@@ -511,3 +511,77 @@ describe('PostingService.postFromBookingCreated (ACCRUAL mode)', () => {
     await db.booking.delete({ where: { id: b.id } });
   });
 });
+
+describe('PostingService.postFromDepositTransition', () => {
+  let depBookingId: number;
+
+  beforeAll(async () => {
+    const apt = (await db.apartment.findFirst())!;
+    const tenant = (await db.tenant.findFirst())!;
+    const b = await db.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-01-01'),
+        checkOut: new Date('2026-02-01'),
+        totalAmount: 5000,
+        depositAmount: 1000,
+        depositStatus: 'HELD',
+        depositCollectedAt: new Date(),
+      },
+    });
+    depBookingId = b.id;
+  });
+
+  afterAll(async () => {
+    await db.booking.update({ where: { id: depBookingId }, data: { depositPostedEntryId: null } });
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+    await db.booking.delete({ where: { id: depBookingId } });
+  });
+
+  it('NONE → HELD: debit Cash, credit Deposit Liability for depositAmount', async () => {
+    const entry = await service().postFromDepositTransition(depBookingId, 'NONE', 'HELD', userId);
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id }, orderBy: { lineOrder: 'asc' } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === cashId)?.debit.toFixed(2)).toBe('1000.00');
+    expect(lines.find((l) => l.accountId === depositLiabilityId)?.credit.toFixed(2)).toBe('1000.00');
+  });
+
+  it('HELD → RELEASED (full refund): debit Liability, credit Cash for full amount', async () => {
+    await db.booking.update({
+      where: { id: depBookingId },
+      data: { depositStatus: 'RELEASED', depositRefundAmount: 1000, depositPostedEntryId: null },
+    });
+    const entry = await service().postFromDepositTransition(depBookingId, 'HELD', 'RELEASED', userId);
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === depositLiabilityId)?.debit.toFixed(2)).toBe('1000.00');
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('1000.00');
+  });
+
+  it('HELD → FORFEITED (zero refund): debit Liability, credit Forfeit Income for full amount', async () => {
+    await db.booking.update({
+      where: { id: depBookingId },
+      data: { depositStatus: 'FORFEITED', depositRefundAmount: 0, depositPostedEntryId: null },
+    });
+    const entry = await service().postFromDepositTransition(depBookingId, 'HELD', 'FORFEITED', userId);
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === depositLiabilityId)?.debit.toFixed(2)).toBe('1000.00');
+    expect(lines.find((l) => l.accountId === forfeitIncomeId)?.credit.toFixed(2)).toBe('1000.00');
+  });
+
+  it('HELD → FORFEITED (partial refund): splits Cash and Forfeit Income credit', async () => {
+    await db.booking.update({
+      where: { id: depBookingId },
+      data: { depositStatus: 'FORFEITED', depositRefundAmount: 400, depositPostedEntryId: null },
+    });
+    const entry = await service().postFromDepositTransition(depBookingId, 'HELD', 'FORFEITED', userId);
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id } });
+    expect(lines).toHaveLength(3);
+    expect(lines.find((l) => l.accountId === depositLiabilityId)?.debit.toFixed(2)).toBe('1000.00');
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('400.00');
+    expect(lines.find((l) => l.accountId === forfeitIncomeId)?.credit.toFixed(2)).toBe('600.00');
+  });
+});
