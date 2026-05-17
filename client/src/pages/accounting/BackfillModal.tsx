@@ -15,7 +15,7 @@ export default function BackfillModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/30 z-30 flex items-center justify-center">
-      <div className="bg-surface rounded-lg shadow-xl w-[480px] p-6">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-[90vw] lg:max-w-[480px] p-6">
         <h2 className="text-lg font-bold mb-4">Backfill auto-posting</h2>
         {!result ? (
           <>
