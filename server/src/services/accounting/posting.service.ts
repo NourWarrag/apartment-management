@@ -1,5 +1,7 @@
 import { Prisma, PrismaClient, JournalEntry, JEStatus } from '@prisma/client';
 import { AccountingError } from './posting.errors';
+import { splitTaxInclusive } from './tax';
+import { MappingService } from './mapping.service';
 
 type Decimalish = string | number | Prisma.Decimal;
 
@@ -27,10 +29,28 @@ const toDec = (v: Decimalish | undefined): Prisma.Decimal =>
 export class PostingService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async createDraft(input: EntryInput, userId: number): Promise<JournalEntry> {
+  private mapping = new MappingService(this.prisma);
+
+  private async getAccountingMode(tx: Prisma.TransactionClient | PrismaClient): Promise<'CASH' | 'ACCRUAL'> {
+    const s = await tx.systemSettings.findUnique({ where: { id: 1 } });
+    return (s?.accountingMode ?? 'CASH') as 'CASH' | 'ACCRUAL';
+  }
+
+  private async getEffectiveTaxCode(
+    tx: Prisma.TransactionClient | PrismaClient,
+    taxCodeId: number | null,
+  ) {
+    if (taxCodeId !== null) {
+      const tc = await tx.taxCode.findUnique({ where: { id: taxCodeId } });
+      if (tc) return tc;
+    }
+    return tx.taxCode.findFirst({ where: { isDefault: true, isActive: true } });
+  }
+
+  async createDraft(input: EntryInput, userId: number, tx?: Prisma.TransactionClient): Promise<JournalEntry> {
     const preparedLines = this.prepareLinesForWrite(input.lines);
-    return this.prisma.$transaction(async (tx) => {
-      const entry = await tx.journalEntry.create({
+    const runner = async (db: Prisma.TransactionClient) => {
+      const entry = await db.journalEntry.create({
         data: {
           entryNumber: `DRAFT-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           date: input.date,
@@ -45,26 +65,28 @@ export class PostingService {
       });
 
       if (preparedLines.length > 0) {
-        await tx.journalLine.createMany({
+        await db.journalLine.createMany({
           data: preparedLines.map((l) => ({ ...l, journalEntryId: entry.id })),
         });
       }
 
       return entry;
-    });
+    };
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
   }
 
-  async updateDraft(id: number, input: EntryInput, userId: number): Promise<JournalEntry> {
+  async updateDraft(id: number, input: EntryInput, userId: number, tx?: Prisma.TransactionClient): Promise<JournalEntry> {
     const preparedLines = this.prepareLinesForWrite(input.lines);
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.journalEntry.findUnique({ where: { id } });
+    const runner = async (db: Prisma.TransactionClient) => {
+      const existing = await db.journalEntry.findUnique({ where: { id } });
       if (!existing) throw new AccountingError('INVALID_LINE', `Entry ${id} not found`);
       if (existing.status !== JEStatus.DRAFT) {
         throw new AccountingError('ALREADY_POSTED', 'Cannot edit a posted entry');
       }
 
-      await tx.journalLine.deleteMany({ where: { journalEntryId: id } });
-      const updated = await tx.journalEntry.update({
+      await db.journalLine.deleteMany({ where: { journalEntryId: id } });
+      const updated = await db.journalEntry.update({
         where: { id },
         data: {
           date: input.date,
@@ -75,32 +97,36 @@ export class PostingService {
       });
 
       if (preparedLines.length > 0) {
-        await tx.journalLine.createMany({
+        await db.journalLine.createMany({
           data: preparedLines.map((l) => ({ ...l, journalEntryId: id })),
         });
       }
 
       return updated;
-    });
+    };
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
   }
 
-  async deleteDraft(id: number, _userId: number): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const e = await tx.journalEntry.findUnique({ where: { id } });
+  async deleteDraft(id: number, _userId: number, tx?: Prisma.TransactionClient): Promise<void> {
+    const runner = async (db: Prisma.TransactionClient) => {
+      const e = await db.journalEntry.findUnique({ where: { id } });
       if (!e) return;
       if (e.status !== JEStatus.DRAFT) {
         throw new AccountingError('ALREADY_POSTED', 'Cannot delete a posted entry');
       }
-      await tx.journalEntry.delete({ where: { id } });
-    });
+      await db.journalEntry.delete({ where: { id } });
+    };
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
   }
 
-  async post(id: number, userId: number): Promise<JournalEntry> {
-    return this.prisma.$transaction(async (tx) => {
+  async post(id: number, userId: number, tx?: Prisma.TransactionClient): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient) => {
       // Lock the row for the duration of the transaction
-      await tx.$queryRaw`SELECT id FROM "JournalEntry" WHERE id = ${id} FOR UPDATE`;
+      await db.$queryRaw`SELECT id FROM "JournalEntry" WHERE id = ${id} FOR UPDATE`;
 
-      const entry = await tx.journalEntry.findUnique({
+      const entry = await db.journalEntry.findUnique({
         where: { id },
         include: { lines: true },
       });
@@ -109,14 +135,14 @@ export class PostingService {
         throw new AccountingError('ALREADY_POSTED', 'Entry is already posted');
       }
 
-      await this.validate(tx, entry.lines, entry.buildingId);
+      await this.validate(db, entry.lines, entry.buildingId);
 
-      const [{ nextval }] = await tx.$queryRaw<{ nextval: bigint }[]>`
+      const [{ nextval }] = await db.$queryRaw<{ nextval: bigint }[]>`
         SELECT nextval('journal_entry_number_seq') AS nextval
       `;
       const entryNumber = `JE-${String(nextval).padStart(6, '0')}`;
 
-      return tx.journalEntry.update({
+      return db.journalEntry.update({
         where: { id },
         data: {
           entryNumber,
@@ -126,12 +152,111 @@ export class PostingService {
           updatedBy: userId,
         },
       });
-    });
+    };
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
   }
 
-  async createAndPost(input: EntryInput, userId: number): Promise<JournalEntry> {
-    const draft = await this.createDraft(input, userId);
-    return this.post(draft.id, userId);
+  async createAndPost(input: EntryInput, userId: number, tx?: Prisma.TransactionClient): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient) => {
+      const draft = await this.createDraft(input, userId, db);
+      return this.post(draft.id, userId, db);
+    };
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
+  async postFromPayment(
+    paymentId: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry | null> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry | null> => {
+      const payment = await db.payment.findUnique({
+        where: { id: paymentId },
+        include: { booking: true },
+      });
+      if (!payment) {
+        throw new AccountingError('INVALID_LINE', `Payment ${paymentId} not found`);
+      }
+      if (payment.postedEntryId) {
+        // idempotency: already posted, return existing entry
+        return db.journalEntry.findUnique({ where: { id: payment.postedEntryId } });
+      }
+      if (payment.status !== 'PAID') {
+        // Defensive: callers should only call on PAID; silently no-op
+        return null;
+      }
+
+      const mode = await this.getAccountingMode(db);
+      const methodKey =
+        payment.method === 'CASH' ? 'CASH_METHOD' :
+        payment.method === 'CARD' ? 'CARD_METHOD' :
+        'INSTALLMENT_METHOD';
+      const methodAccountId = await this.mapping.resolveAccount(db, methodKey as any);
+      const gross = new Prisma.Decimal(payment.amount);
+
+      let lines: LineInput[];
+      let memo: string;
+      let taxCodeForLines: { id: number } | null = null;
+
+      if (mode === 'ACCRUAL') {
+        const arId = await this.mapping.resolveAccount(db, 'AR_DEFAULT');
+        lines = [
+          { accountId: methodAccountId, debit: gross },
+          { accountId: arId, credit: gross },
+        ];
+        memo = `Cash collection: Payment #${payment.id}`;
+      } else {
+        // CASH mode
+        const revenueAccountId = await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT');
+        const taxCode = await this.getEffectiveTaxCode(db, payment.booking.taxCodeId);
+        const rate = taxCode ? new Prisma.Decimal(taxCode.ratePct) : new Prisma.Decimal(0);
+        const { net, vat } = splitTaxInclusive(gross, rate);
+
+        lines = [
+          { accountId: methodAccountId, debit: gross },
+          { accountId: revenueAccountId, credit: net },
+        ];
+        if (vat.gt(0) && taxCode) {
+          const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');
+          lines.push({ accountId: vatAccountId, credit: vat });
+        }
+        if (taxCode) taxCodeForLines = { id: taxCode.id };
+        memo = `Payment #${payment.id} (${payment.method})`;
+      }
+
+      const entry = await this.createAndPost(
+        {
+          date: payment.paidAt ?? new Date(),
+          memo,
+          buildingId: null,
+          source: 'PAYMENT_AUTO',
+          sourceRefId: payment.id,
+          lines,
+        },
+        userId,
+        db,
+      );
+
+      // Tag non-cash lines with the tax code (CASH mode only)
+      if (mode === 'CASH' && taxCodeForLines) {
+        await db.journalLine.updateMany({
+          where: { journalEntryId: entry.id, accountId: { not: methodAccountId } },
+          data: { taxCodeId: taxCodeForLines.id },
+        });
+      }
+
+      await db.payment.update({
+        where: { id: paymentId },
+        data: { postedEntryId: entry.id },
+      });
+
+      return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
   }
 
   private prepareLinesForWrite(lines: LineInput[]): Array<{
