@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import TableScroller from '../../components/ui/TableScroller';
 import { statementsApi } from '../../lib/api/accounting-phase3';
 
 function currentMonthRange() {
@@ -44,17 +45,19 @@ export default function CashFlowPage() {
             {data.workingCapitalChanges.length === 0 ? (
               <div className="text-on-surface-variant text-xs">No working capital changes in period.</div>
             ) : (
-              <table className="w-full text-xs">
-                <tbody>
-                  {data.workingCapitalChanges.map((wc) => (
-                    <tr key={wc.accountId} className="border-t border-outline-variant">
-                      <td className="py-1 font-mono">{wc.code}</td>
-                      <td className="py-1">{wc.name}</td>
-                      <td className="py-1 text-right font-mono">{wc.change}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <TableScroller minWidth={720}>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {data.workingCapitalChanges.map((wc) => (
+                      <tr key={wc.accountId} className="border-t border-outline-variant">
+                        <td className="py-1 font-mono">{wc.code}</td>
+                        <td className="py-1">{wc.name}</td>
+                        <td className="py-1 text-right font-mono">{wc.change}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroller>
             )}
           </div>
           <div className="flex justify-between font-bold pt-2 border-t border-outline-variant"><span>Net Cash from Operations</span><span className="font-mono">{data.netCashFromOperations}</span></div>
