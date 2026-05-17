@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCsv } from './csv-parser';
+import { parseCsv, parseDate } from './csv-parser';
 
 describe('parseCsv', () => {
   it('parses simple comma-separated rows', () => {
@@ -40,5 +40,40 @@ describe('parseCsv', () => {
       ['01/05/2026','Rent payment, Apt 1','1050.00','REF-001'],
       ['03/05/2026','Bank fee','-25.00',''],
     ]);
+  });
+});
+
+describe('parseDate', () => {
+  it('parses DD/MM/YYYY', () => {
+    const d = parseDate('15/05/2026', 'DD/MM/YYYY');
+    expect(d.getUTCFullYear()).toBe(2026);
+    expect(d.getUTCMonth()).toBe(4); // May = index 4
+    expect(d.getUTCDate()).toBe(15);
+  });
+
+  it('parses MM/DD/YYYY', () => {
+    const d = parseDate('05/15/2026', 'MM/DD/YYYY');
+    expect(d.getUTCMonth()).toBe(4);
+    expect(d.getUTCDate()).toBe(15);
+  });
+
+  it('parses YYYY-MM-DD', () => {
+    const d = parseDate('2026-05-15', 'YYYY-MM-DD');
+    expect(d.getUTCFullYear()).toBe(2026);
+    expect(d.getUTCMonth()).toBe(4);
+    expect(d.getUTCDate()).toBe(15);
+  });
+
+  it('parses YY with 20xx prefix', () => {
+    const d = parseDate('15/05/26', 'DD/MM/YY');
+    expect(d.getUTCFullYear()).toBe(2026);
+  });
+
+  it('throws on unparseable string', () => {
+    expect(() => parseDate('not a date', 'YYYY-MM-DD')).toThrow();
+  });
+
+  it('throws on mismatched format', () => {
+    expect(() => parseDate('15/05/2026', 'YYYY-MM-DD')).toThrow();
   });
 });
