@@ -14,7 +14,11 @@
     "accountingGL": "دفتر الأستاذ العام",
     "accountingTB": "ميزان المراجعة",
     "accountingMapping": "ربط الحسابات",
-    "accountingVAT": "إقرار ضريبة القيمة المضافة"
+    "accountingVAT": "إقرار ضريبة القيمة المضافة",
+    "accountingIncome": "قائمة الدخل",
+    "accountingBalance": "الميزانية العمومية",
+    "accountingCashflow": "التدفقات النقدية",
+    "accountingPeriods": "الفترات المحاسبية"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -144,7 +148,12 @@
     "tb": { "title": "ميزان المراجعة" },
     "mapping": { "title": "ربط الحسابات" },
     "vat":     { "title": "إقرار ضريبة القيمة المضافة" },
-    "taxCodes": { "title": "أكواد الضريبة", "new": "كود ضريبة جديد" }
+    "taxCodes": { "title": "أكواد الضريبة", "new": "كود ضريبة جديد" },
+    "income":   { "title": "قائمة الدخل" },
+    "balance":  { "title": "الميزانية العمومية" },
+    "cashflow": { "title": "قائمة التدفقات النقدية" },
+    "periods":  { "title": "الفترات المحاسبية" },
+    "expense":  { "title": "إضافة مصروف" }
   },
   "settings": {
     "accounting": {
@@ -157,7 +166,8 @@
       "cash": "النقدي",
       "accrual": "الاستحقاق",
       "runSetup": "تشغيل الإعداد",
-      "runBackfill": "ترحيل البيانات السابقة"
+      "runBackfill": "ترحيل البيانات السابقة",
+      "managePeriods": "إدارة الفترات المحاسبية"
     }
   }
 }
