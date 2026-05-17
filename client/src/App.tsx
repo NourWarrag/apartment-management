@@ -21,6 +21,10 @@ import GeneralLedgerPage from './pages/accounting/GeneralLedgerPage';
 import TrialBalancePage from './pages/accounting/TrialBalancePage';
 import AccountMappingPage from './pages/accounting/AccountMappingPage';
 import VatReturnPage from './pages/accounting/VatReturnPage';
+import IncomeStatementPage from './pages/accounting/IncomeStatementPage';
+import BalanceSheetPage from './pages/accounting/BalanceSheetPage';
+import CashFlowPage from './pages/accounting/CashFlowPage';
+import FiscalPeriodsPage from './pages/accounting/FiscalPeriodsPage';
 import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
@@ -224,6 +228,10 @@ function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+            <Route path="accounting/income-statement" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><IncomeStatementPage /></ProtectedRoute>} />
+            <Route path="accounting/balance-sheet" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><BalanceSheetPage /></ProtectedRoute>} />
+            <Route path="accounting/cash-flow" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><CashFlowPage /></ProtectedRoute>} />
+            <Route path="accounting/periods" element={<ProtectedRoute allowedRoles={ADMIN_ONLY}><FiscalPeriodsPage /></ProtectedRoute>} />
           </>
         )}
         <Route
