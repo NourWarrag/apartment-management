@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import TableScroller from '../../components/ui/TableScroller';
 import { reconciliationsApi } from '../../lib/api/accounting-phase4';
 import { accountsApi } from '../../lib/api/accounting';
 import { useAuth } from '../../hooks/useAuth';
@@ -163,36 +164,38 @@ export default function ReconciliationPage() {
           {rec.bankLines.length === 0 ? (
             <p className="text-on-surface-variant text-sm">No bank lines through {rec.endDate.slice(0, 10)}.</p>
           ) : (
-            <table className="w-full text-sm bg-surface-container-low rounded">
-              <thead className="text-on-surface-variant">
-                <tr><th className="px-2 py-1 text-left">Date</th><th className="px-2 py-1 text-left">Description</th><th className="px-2 py-1 text-right">Amount</th><th /></tr>
-              </thead>
-              <tbody>
-                {rec.bankLines.map((l) => {
-                  const matched = l.matches.length > 0;
-                  const selected = selectedBankLineId === l.id;
-                  return (
-                    <tr key={l.id} className={`border-t border-outline-variant ${selected ? 'bg-secondary-container/40' : ''}`}>
-                      <td className="px-2 py-1">{l.date.slice(0, 10)}</td>
-                      <td className="px-2 py-1">{l.description}</td>
-                      <td className="px-2 py-1 text-right font-mono">{l.amount}</td>
-                      <td className="px-2 py-1 text-right">
-                        {matched ? (
-                          !isClosed && <button onClick={() => unmatchMut.mutate(l.id)} className="text-error text-xs">Unmatch</button>
-                        ) : !isClosed ? (
-                          <div className="flex gap-1 justify-end">
-                            <button onClick={() => { setSelectedBankLineId(l.id); setSelectedJournalLineIds(new Set()); }} className="text-primary text-xs">
-                              {selected ? 'Selected' : 'Select'}
-                            </button>
-                            <button onClick={() => setShowAdjustment(l.id)} className="text-on-surface-variant text-xs">+ Adj</button>
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <TableScroller minWidth={720}>
+              <table className="w-full text-sm bg-surface-container-low rounded">
+                <thead className="text-on-surface-variant">
+                  <tr><th className="px-2 py-1 text-left">Date</th><th className="px-2 py-1 text-left">Description</th><th className="px-2 py-1 text-right">Amount</th><th /></tr>
+                </thead>
+                <tbody>
+                  {rec.bankLines.map((l) => {
+                    const matched = l.matches.length > 0;
+                    const selected = selectedBankLineId === l.id;
+                    return (
+                      <tr key={l.id} className={`border-t border-outline-variant ${selected ? 'bg-secondary-container/40' : ''}`}>
+                        <td className="px-2 py-1">{l.date.slice(0, 10)}</td>
+                        <td className="px-2 py-1">{l.description}</td>
+                        <td className="px-2 py-1 text-right font-mono">{l.amount}</td>
+                        <td className="px-2 py-1 text-right">
+                          {matched ? (
+                            !isClosed && <button onClick={() => unmatchMut.mutate(l.id)} className="text-error text-xs">Unmatch</button>
+                          ) : !isClosed ? (
+                            <div className="flex gap-1 justify-end">
+                              <button onClick={() => { setSelectedBankLineId(l.id); setSelectedJournalLineIds(new Set()); }} className="text-primary text-xs">
+                                {selected ? 'Selected' : 'Select'}
+                              </button>
+                              <button onClick={() => setShowAdjustment(l.id)} className="text-on-surface-variant text-xs">+ Adj</button>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TableScroller>
           )}
         </section>
 
@@ -202,40 +205,42 @@ export default function ReconciliationPage() {
           {rec.journalLines.length === 0 ? (
             <p className="text-on-surface-variant text-sm">No GL lines through {rec.endDate.slice(0, 10)}.</p>
           ) : (
-            <table className="w-full text-sm bg-surface-container-low rounded">
-              <thead className="text-on-surface-variant">
-                <tr><th /><th className="px-2 py-1 text-left">Date</th><th className="px-2 py-1 text-left">Entry</th><th className="px-2 py-1 text-right">Debit</th><th className="px-2 py-1 text-right">Credit</th></tr>
-              </thead>
-              <tbody>
-                {rec.journalLines.map((l) => {
-                  const matched = l.reconciliationMatches.length > 0;
-                  const selectable = !isClosed && selectedBankLineId !== null && matchableJournalLineIds.has(l.id);
-                  const isSelected = selectedJournalLineIds.has(l.id);
-                  return (
-                    <tr key={l.id} className={`border-t border-outline-variant ${matched ? 'opacity-60' : ''} ${isSelected ? 'bg-secondary-container/40' : ''}`}>
-                      <td className="px-2 py-1 w-6">
-                        {selectable && (
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              const next = new Set(selectedJournalLineIds);
-                              if (e.target.checked) next.add(l.id); else next.delete(l.id);
-                              setSelectedJournalLineIds(next);
-                            }}
-                          />
-                        )}
-                        {matched && <span title="Matched" className="text-primary text-xs">&#10003;</span>}
-                      </td>
-                      <td className="px-2 py-1">{l.journalEntry.date.slice(0, 10)}</td>
-                      <td className="px-2 py-1 font-mono text-xs">{l.journalEntry.entryNumber}</td>
-                      <td className="px-2 py-1 text-right font-mono">{Number(l.debit) > 0 ? l.debit : ''}</td>
-                      <td className="px-2 py-1 text-right font-mono">{Number(l.credit) > 0 ? l.credit : ''}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <TableScroller minWidth={720}>
+              <table className="w-full text-sm bg-surface-container-low rounded">
+                <thead className="text-on-surface-variant">
+                  <tr><th /><th className="px-2 py-1 text-left">Date</th><th className="px-2 py-1 text-left">Entry</th><th className="px-2 py-1 text-right">Debit</th><th className="px-2 py-1 text-right">Credit</th></tr>
+                </thead>
+                <tbody>
+                  {rec.journalLines.map((l) => {
+                    const matched = l.reconciliationMatches.length > 0;
+                    const selectable = !isClosed && selectedBankLineId !== null && matchableJournalLineIds.has(l.id);
+                    const isSelected = selectedJournalLineIds.has(l.id);
+                    return (
+                      <tr key={l.id} className={`border-t border-outline-variant ${matched ? 'opacity-60' : ''} ${isSelected ? 'bg-secondary-container/40' : ''}`}>
+                        <td className="px-2 py-1 w-6">
+                          {selectable && (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const next = new Set(selectedJournalLineIds);
+                                if (e.target.checked) next.add(l.id); else next.delete(l.id);
+                                setSelectedJournalLineIds(next);
+                              }}
+                            />
+                          )}
+                          {matched && <span title="Matched" className="text-primary text-xs">&#10003;</span>}
+                        </td>
+                        <td className="px-2 py-1">{l.journalEntry.date.slice(0, 10)}</td>
+                        <td className="px-2 py-1 font-mono text-xs">{l.journalEntry.entryNumber}</td>
+                        <td className="px-2 py-1 text-right font-mono">{Number(l.debit) > 0 ? l.debit : ''}</td>
+                        <td className="px-2 py-1 text-right font-mono">{Number(l.credit) > 0 ? l.credit : ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TableScroller>
           )}
           {!isClosed && selectedBankLineId !== null && selectedJournalLineIds.size > 0 && (
             <div className="mt-3 flex justify-end">
