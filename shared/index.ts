@@ -149,7 +149,9 @@ export type AccountingErrorCode =
   | 'ALREADY_POSTED'
   | 'MAPPING_MISSING'
   | 'ALREADY_REVERSED'
-  | 'CANNOT_REVERSE';
+  | 'CANNOT_REVERSE'
+  | 'PERIOD_LOCKED'
+  | 'ALREADY_CLOSED';
 
 export enum AccountingMode {
   CASH = 'CASH',
@@ -167,3 +169,8 @@ export const MAPPING_KEYS = [
   'VAT_PAYABLE',
 ] as const;
 export type MappingKey = typeof MAPPING_KEYS[number];
+
+export enum FiscalPeriodStatus {
+  OPEN = 'OPEN',
+  LOCKED = 'LOCKED',
+}
