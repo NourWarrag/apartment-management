@@ -166,7 +166,7 @@ export default function BookingFormModal({
                   type="button"
                   onClick={() => setQuickAddOpen(true)}
                   title="Add new tenant"
-                  className="shrink-0 px-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-center text-on-surface-variant"
+                  className="shrink-0 px-3 rounded-lg border border-outline-variant hover:bg-surface-container transition-colors flex items-center justify-center text-on-surface-variant"
                 >
                   <span className="material-symbols-outlined text-[20px]">person_add</span>
                 </button>
