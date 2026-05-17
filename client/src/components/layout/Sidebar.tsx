@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { to: '/accounting/balance-sheet', icon: 'account_balance_wallet', key: 'accountingBalance', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/accounting/cash-flow', icon: 'water_drop', key: 'accountingCashflow', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/accounting/periods', icon: 'lock_clock', key: 'accountingPeriods', roles: [Role.SUPER_ADMIN, Role.ADMIN], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/banking', icon: 'account_balance', key: 'accountingBanking', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/users', icon: 'group', key: 'users', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
 ];
 
