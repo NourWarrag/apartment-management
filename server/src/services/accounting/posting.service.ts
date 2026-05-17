@@ -18,7 +18,7 @@ export type EntryInput = {
   memo?: string;
   buildingId?: number | null;
   lines: LineInput[];
-  source?: 'MANUAL' | 'PAYMENT_AUTO' | 'VAT_ADJUST' | 'YEAR_END_CLOSE';
+  source?: 'MANUAL' | 'PAYMENT_AUTO' | 'VAT_ADJUST' | 'YEAR_END_CLOSE' | 'MANUAL_REVERSAL';
   sourceRefId?: number | null;
 };
 
@@ -30,6 +30,26 @@ export class PostingService {
   constructor(private readonly prisma: PrismaClient) {}
 
   private mapping = new MappingService(this.prisma);
+
+  private async ensurePeriodOpen(
+    tx: Prisma.TransactionClient,
+    date: Date,
+  ): Promise<void> {
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+
+    const period = await tx.fiscalPeriod.upsert({
+      where: { year_month: { year, month } },
+      create: { year, month, status: 'OPEN' },
+      update: {},
+    });
+
+    if (period.status === 'LOCKED') {
+      throw new AccountingError('PERIOD_LOCKED', `Period ${year}-${String(month).padStart(2, '0')} is locked`, {
+        year, month,
+      });
+    }
+  }
 
   private async getAccountingMode(tx: Prisma.TransactionClient | PrismaClient): Promise<'CASH' | 'ACCRUAL'> {
     const s = await tx.systemSettings.findUnique({ where: { id: 1 } });
@@ -136,6 +156,8 @@ export class PostingService {
       }
 
       await this.validate(db, entry.lines, entry.buildingId);
+
+      await this.ensurePeriodOpen(db, entry.date);  // Phase 3 period-lock guard
 
       const [{ nextval }] = await db.$queryRaw<{ nextval: bigint }[]>`
         SELECT nextval('journal_entry_number_seq') AS nextval
@@ -356,6 +378,239 @@ export class PostingService {
         where: { id: paymentId },
         data: { status: 'REVERSED' },
       });
+
+      return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
+  async reverseEntry(
+    originalId: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      const original = await db.journalEntry.findUnique({
+        where: { id: originalId },
+        include: { lines: true },
+      });
+      if (!original) {
+        throw new AccountingError('INVALID_LINE', `Entry ${originalId} not found`);
+      }
+      if (original.status !== 'POSTED') {
+        throw new AccountingError('CANNOT_REVERSE', 'Only POSTED entries can be reversed');
+      }
+      if (original.source === 'PAYMENT_AUTO') {
+        throw new AccountingError(
+          'CANNOT_REVERSE',
+          'Use POST /accounting/payments/:id/reverse to reverse an auto-posted payment',
+          { source: 'PAYMENT_AUTO' },
+        );
+      }
+      const existingReversal = await db.journalEntry.findFirst({
+        where: { reversesEntryId: originalId },
+      });
+      if (existingReversal) {
+        throw new AccountingError('ALREADY_REVERSED', 'Entry has already been reversed', {
+          reversalId: existingReversal.id,
+          reversalNumber: existingReversal.entryNumber,
+        });
+      }
+
+      const reversingLines: LineInput[] = original.lines.map((l) => ({
+        accountId: l.accountId,
+        buildingId: l.buildingId,
+        debit: l.credit,
+        credit: l.debit,
+        description: l.description ?? undefined,
+      }));
+
+      const entry = await this.createAndPost(
+        {
+          date: new Date(),
+          memo: `Reversal of ${original.entryNumber}`,
+          buildingId: original.buildingId,
+          source: 'MANUAL_REVERSAL',
+          sourceRefId: original.id,
+          lines: reversingLines,
+        },
+        userId,
+        db,
+      );
+
+      return db.journalEntry.update({
+        where: { id: entry.id },
+        data: { reversesEntryId: original.id },
+      });
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
+  async closeFiscalYear(
+    year: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      // 1. Idempotency
+      const existingClose = await db.fiscalPeriod.findFirst({
+        where: { year, month: 12, closingEntryId: { not: null } },
+      });
+      if (existingClose) {
+        throw new AccountingError('ALREADY_CLOSED', `Fiscal year ${year} is already closed`, {
+          closingEntryId: existingClose.closingEntryId,
+        });
+      }
+
+      // 2. Compute net balance per INCOME and EXPENSE account up to Dec 31 23:59:59 UTC
+      const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+      const accounts = await db.account.findMany({
+        where: { type: { in: ['INCOME', 'EXPENSE'] } },
+      });
+
+      const closingLines: LineInput[] = [];
+      let netIncome = new Prisma.Decimal(0);
+
+      for (const a of accounts) {
+        const agg = await db.journalLine.aggregate({
+          where: {
+            accountId: a.id,
+            journalEntry: { status: 'POSTED', date: { lte: yearEnd } },
+          },
+          _sum: { debit: true, credit: true },
+        });
+        const debit = new Prisma.Decimal(agg._sum.debit ?? 0);
+        const credit = new Prisma.Decimal(agg._sum.credit ?? 0);
+
+        if (a.type === 'INCOME') {
+          const balance = credit.minus(debit);
+          if (balance.gt(0)) {
+            closingLines.push({ accountId: a.id, debit: balance });
+            netIncome = netIncome.plus(balance);
+          } else if (balance.lt(0)) {
+            closingLines.push({ accountId: a.id, credit: balance.abs() });
+            netIncome = netIncome.minus(balance.abs());
+          }
+        } else {
+          // EXPENSE
+          const balance = debit.minus(credit);
+          if (balance.gt(0)) {
+            closingLines.push({ accountId: a.id, credit: balance });
+            netIncome = netIncome.minus(balance);
+          } else if (balance.lt(0)) {
+            closingLines.push({ accountId: a.id, debit: balance.abs() });
+            netIncome = netIncome.plus(balance.abs());
+          }
+        }
+      }
+
+      // 3. Retained Earnings balancing line
+      const retainedEarnings = await db.account.findUnique({ where: { code: '3020' } });
+      if (!retainedEarnings) {
+        throw new AccountingError('INVALID_ACCOUNT', 'Retained Earnings (code 3020) account missing');
+      }
+      if (netIncome.gt(0)) {
+        closingLines.push({ accountId: retainedEarnings.id, credit: netIncome });
+      } else if (netIncome.lt(0)) {
+        closingLines.push({ accountId: retainedEarnings.id, debit: netIncome.abs() });
+      }
+
+      if (closingLines.length < 2) {
+        throw new AccountingError('MIN_LINES', `Fiscal year ${year} has no closeable activity`);
+      }
+
+      // 4. Post the closing entry (December period auto-creates as OPEN via ensurePeriodOpen)
+      const closingEntry = await this.createAndPost(
+        {
+          date: yearEnd,
+          memo: `Year-end close for fiscal year ${year}`,
+          buildingId: null,
+          source: 'YEAR_END_CLOSE',
+          sourceRefId: year,
+          lines: closingLines,
+        },
+        userId,
+        db,
+      );
+
+      // 5. Lock all 12 months; set closingEntryId on December
+      const now = new Date();
+      for (let m = 1; m <= 12; m++) {
+        await db.fiscalPeriod.upsert({
+          where: { year_month: { year, month: m } },
+          create: {
+            year, month: m, status: 'LOCKED',
+            lockedAt: now, lockedBy: userId,
+            ...(m === 12 ? { closingEntryId: closingEntry.id } : {}),
+          },
+          update: {
+            status: 'LOCKED',
+            lockedAt: now,
+            lockedBy: userId,
+            ...(m === 12 ? { closingEntryId: closingEntry.id } : {}),
+          },
+        });
+      }
+
+      return closingEntry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
+  async postExpense(
+    input: {
+      date: Date;
+      memo?: string;
+      buildingId?: number | null;
+      expenseAccountId: number;
+      amount: string | Prisma.Decimal | number;
+      payFromAccountId: number;
+      taxCodeId?: number | null;
+    },
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      const gross = new Prisma.Decimal(input.amount);
+      const taxCode = input.taxCodeId
+        ? await db.taxCode.findUnique({ where: { id: input.taxCodeId } })
+        : null;
+      const rate = taxCode ? new Prisma.Decimal(taxCode.ratePct) : new Prisma.Decimal(0);
+      const { net, vat } = splitTaxInclusive(gross, rate);
+
+      const lines: LineInput[] = [
+        { accountId: input.expenseAccountId, debit: net, description: input.memo },
+      ];
+      if (vat.gt(0) && taxCode) {
+        const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');
+        lines.push({ accountId: vatAccountId, debit: vat });
+      }
+      lines.push({ accountId: input.payFromAccountId, credit: gross });
+
+      const entry = await this.createAndPost(
+        {
+          date: input.date,
+          memo: input.memo ?? 'Expense',
+          buildingId: input.buildingId ?? null,
+          source: 'MANUAL',
+          lines,
+        },
+        userId,
+        db,
+      );
+
+      if (taxCode) {
+        await db.journalLine.updateMany({
+          where: { journalEntryId: entry.id, accountId: input.expenseAccountId },
+          data: { taxCodeId: taxCode.id },
+        });
+      }
 
       return entry;
     };

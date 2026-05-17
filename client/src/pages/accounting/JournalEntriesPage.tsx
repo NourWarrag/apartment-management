@@ -4,11 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { journalApi } from '../../lib/api/accounting';
 import JournalEntryStatusPill from './components/JournalEntryStatusPill';
+import ExpenseFormModal from './ExpenseFormModal';
 
 export default function JournalEntriesPage() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<'' | 'DRAFT' | 'POSTED'>('');
   const [page, setPage] = useState(1);
+  const [showExpense, setShowExpense] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['accounting', 'je', { status, page }],
@@ -19,9 +21,14 @@ export default function JournalEntriesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">{t('accounting.je.title', 'Journal Entries')}</h1>
-        <Link to="/accounting/journal-entries/new" className="px-3 py-2 rounded bg-primary text-on-primary text-sm">
-          + {t('accounting.je.new', 'New Entry')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/accounting/journal-entries/new" className="px-3 py-2 rounded bg-primary text-on-primary text-sm">
+            + {t('accounting.je.new', 'New Entry')}
+          </Link>
+          <button onClick={() => setShowExpense(true)} className="ltr:ml-2 rtl:mr-2 px-3 py-2 rounded border border-primary text-primary text-sm">
+            + {t('accounting.expense.title', 'Add Expense')}
+          </button>
+        </div>
       </div>
       <div className="mb-4">
         <select value={status} onChange={(e) => { setStatus(e.target.value as any); setPage(1); }} className="border border-outline-variant rounded px-2 py-1 text-sm">
@@ -63,6 +70,7 @@ export default function JournalEntriesPage() {
           <button disabled={page * data.pageSize >= data.total} onClick={() => setPage((p) => p + 1)} className="px-2 py-1 border border-outline-variant rounded disabled:opacity-50">Next</button>
         </div>
       )}
+      {showExpense && <ExpenseFormModal onClose={() => setShowExpense(false)} />}
     </div>
   );
 }

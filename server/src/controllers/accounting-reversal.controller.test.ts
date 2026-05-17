@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import app from '../app';
@@ -12,6 +12,9 @@ const posting = new PostingService(db as any);
 let adminCookie: string;
 let paidPaymentId: number;
 let pendingPaymentId: number;
+let userId: number;
+let cashId: number;
+let revenueId: number;
 
 beforeAll(async () => {
   process.env.FEATURE_ACCOUNTING = 'true';
@@ -32,12 +35,15 @@ beforeAll(async () => {
   const admin = await db.user.create({
     data: { name: 'R', email: 'rev@test.local', password: 'x', role: 'ADMIN' },
   });
+  userId = admin.id;
   adminCookie = `token=${signToken({ id: admin.id, role: 'ADMIN', assignedBuildingId: null })}`;
 
   // Accounts
   const cash = await db.account.create({ data: { code: '1010', name: 'Cash', type: 'ASSET' } });
   const revenue = await db.account.create({ data: { code: '4000', name: 'Revenue', type: 'INCOME' } });
   const vatPayable = await db.account.create({ data: { code: '2100', name: 'VAT Payable', type: 'LIABILITY' } });
+  cashId = cash.id;
+  revenueId = revenue.id;
 
   // Tax code
   const tc = await db.taxCode.create({
@@ -148,5 +154,46 @@ describe('POST /api/v1/accounting/payments/:id/reverse', () => {
       .set('Cookie', adminCookie);
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('CANNOT_REVERSE');
+  });
+});
+
+describe('POST /api/v1/accounting/journal-entries/:id/reverse', () => {
+  let manualEntryId: number;
+
+  beforeAll(async () => {
+    // Create a manual JE (not PAYMENT_AUTO) for the reverse test
+    const entry = await posting.createAndPost(
+      {
+        date: new Date(),
+        lines: [
+          { accountId: cashId, debit: '25' },
+          { accountId: revenueId, credit: '25' },
+        ],
+        source: 'MANUAL',
+      },
+      userId,
+    );
+    manualEntryId = entry.id;
+  });
+
+  it('posts a reversing JE for a manual POSTED entry', async () => {
+    const r = await request(app)
+      .post(`/api/v1/accounting/journal-entries/${manualEntryId}/reverse`)
+      .set('Cookie', adminCookie);
+    expect(r.status).toBe(201);
+    expect(r.body.source).toBe('MANUAL_REVERSAL');
+    expect(r.body.reversesEntryId).toBe(manualEntryId);
+  });
+
+  it('rejects reversing a PAYMENT_AUTO entry — points user at /payments/:id/reverse', async () => {
+    // Re-post paidPaymentId (it was reversed in earlier describe — reset status and re-post)
+    await db.payment.update({ where: { id: paidPaymentId }, data: { status: 'PAID', postedEntryId: null } });
+    const autoEntry = await posting.postFromPayment(paidPaymentId, userId);
+    const r = await request(app)
+      .post(`/api/v1/accounting/journal-entries/${autoEntry!.id}/reverse`)
+      .set('Cookie', adminCookie);
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('CANNOT_REVERSE');
+    expect(r.body.details.source).toBe('PAYMENT_AUTO');
   });
 });

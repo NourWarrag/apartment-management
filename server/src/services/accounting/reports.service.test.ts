@@ -63,6 +63,13 @@ beforeAll(async () => {
     );
   }
 
+  // Phase 3: cash flow needs at least one mapping to identify the cash account
+  await db.accountMapping.upsert({
+    where: { key: 'CASH_METHOD' },
+    create: { key: 'CASH_METHOD', accountId: cashId },
+    update: { accountId: cashId },
+  });
+
   // 1 draft — must be excluded from reports
   await posting.createDraft(
     {
@@ -78,6 +85,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.accountMapping.deleteMany();
   await db.journalLine.deleteMany();
   await db.journalEntry.deleteMany();
   await db.account.deleteMany();
@@ -120,5 +128,78 @@ describe('ReportsService.generalLedger()', () => {
     expect(cashLines.openingBalance).toBe('300.00');
     expect(cashLines.closingBalance).toBe('380.00');
     expect(cashLines.lines.length).toBe(2);
+  });
+});
+
+describe('ReportsService.incomeStatement', () => {
+  it('aggregates posted INCOME within range and computes net income', async () => {
+    const r = await reports.incomeStatement({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+    });
+    const revenue = r.income.rows.find((row) => row.accountId === revenueId)!;
+    expect(revenue.amount).toBe('380.00');
+    expect(r.income.total).toBe('380.00');
+    expect(r.expenses.total).toBe('0.00');
+    expect(r.netIncome).toBe('380.00');
+  });
+
+  it('filters by building when buildingId is provided', async () => {
+    const r = await reports.incomeStatement({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+      buildingId: bldgA,
+    });
+    expect(r.income.total).toBe('300.00');
+  });
+
+  it('returns empty sections when no activity in range', async () => {
+    const r = await reports.incomeStatement({
+      from: new Date('2026-01-01'),
+      to: new Date('2026-01-31'),
+    });
+    expect(r.income.total).toBe('0.00');
+    expect(r.expenses.total).toBe('0.00');
+    expect(r.netIncome).toBe('0.00');
+  });
+});
+
+describe('ReportsService.balanceSheet', () => {
+  it('returns Assets, Liabilities, Equity with A = L + E + currentYearIncome (no draft pollution)', async () => {
+    const r = await reports.balanceSheet({ asOf: new Date('2026-12-31') });
+    const a = Number(r.assets.total);
+    const l = Number(r.liabilities.total);
+    const e = Number(r.equity.total);
+    const cyi = Number(r.currentYearIncome);
+    expect(Math.abs(a - (l + e + cyi))).toBeLessThan(0.005);
+    expect(r.isBalanced).toBe(true);
+  });
+
+  it('puts unclosed-year net income into currentYearIncome', async () => {
+    const r = await reports.balanceSheet({ asOf: new Date('2026-12-31') });
+    expect(Number(r.currentYearIncome)).toBeGreaterThan(0);
+  });
+
+  it('filters by building when buildingId is provided', async () => {
+    const r = await reports.balanceSheet({ asOf: new Date('2026-12-31'), buildingId: bldgB });
+    expect(r.currentYearIncome).toBe('80.00');
+  });
+});
+
+describe('ReportsService.cashFlow', () => {
+  it('reconciles: beginning + netCashFromOperations === ending', async () => {
+    const r = await reports.cashFlow({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+    });
+    expect(r.reconcilesToCash).toBe(true);
+  });
+
+  it('reports net income within the period', async () => {
+    const r = await reports.cashFlow({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+    });
+    expect(r.netIncome).toBe('380.00');
   });
 });

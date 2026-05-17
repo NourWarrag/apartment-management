@@ -831,3 +831,118 @@ describe('Auto-posting on booking lifecycle (Phase 2)', () => {
     expect(releaseEntry!.lines.length).toBe(2);
   });
 });
+
+// ─── Phase 3: Period-lock regression ─────────────────────────────────────────
+
+describe('Period-lock regression on booking deposit (Phase 3)', () => {
+  let p3LockBuildingId: number;
+  let p3LockAptId: number;
+  let p3LockBookingId: number;
+  let p3LockAdminCookie: string;
+
+  beforeAll(async () => {
+    process.env.FEATURE_ACCOUNTING = 'true';
+
+    // Ensure accounting mappings exist so the deposit posting path can resolve accounts
+    await testPrisma.journalLine.deleteMany();
+    await testPrisma.journalEntry.deleteMany();
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.account.deleteMany({ where: { code: { in: ['P3LK-1010', 'P3LK-2100', 'P3LK-4000'] } } });
+
+    const cash = await testPrisma.account.create({ data: { code: 'P3LK-1010', name: 'P3LK Cash', type: 'ASSET' } });
+    const liab = await testPrisma.account.create({ data: { code: 'P3LK-2100', name: 'P3LK Deposit Liab', type: 'LIABILITY' } });
+    const inc = await testPrisma.account.create({ data: { code: 'P3LK-4000', name: 'P3LK Income', type: 'INCOME' } });
+
+    for (const [key, accountId] of [
+      ['CASH_METHOD', cash.id],
+      ['CARD_METHOD', cash.id],
+      ['INSTALLMENT_METHOD', cash.id],
+      ['AR_DEFAULT', cash.id],
+      ['REVENUE_DEFAULT', inc.id],
+      ['DEPOSIT_LIABILITY', liab.id],
+      ['DEPOSIT_FORFEIT_INCOME', inc.id],
+      ['VAT_PAYABLE', liab.id],
+    ] as [string, number][]) {
+      await testPrisma.accountMapping.upsert({
+        where: { key },
+        create: { key, accountId },
+        update: { accountId },
+      });
+    }
+
+    await testPrisma.systemSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, accountingMode: 'CASH' },
+      update: { accountingMode: 'CASH' },
+    });
+
+    const admin = await testPrisma.user.create({
+      data: { name: 'P3LK Admin', email: `p3lk-admin-${Date.now()}@test.local`, password: 'x', role: 'ADMIN' },
+    });
+    p3LockAdminCookie = `token=${signToken({ id: admin.id, role: 'ADMIN', assignedBuildingId: null })}`;
+
+    const bldg = await testPrisma.building.create({ data: { name: 'P3LK Bldg', code: `P3LK-${Date.now()}`, address: '' } });
+    p3LockBuildingId = bldg.id;
+
+    const apt = await testPrisma.apartment.create({
+      data: { number: `P3LK-${Date.now()}`, floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: bldg.id },
+    });
+    p3LockAptId = apt.id;
+
+    const ten = await testPrisma.tenant.create({ data: { fullName: 'P3LK Tenant', phone: `+9720${Date.now().toString().slice(-5)}`, idNumber: `P3LK-${Date.now()}` } });
+
+    const bk = await testPrisma.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: ten.id,
+        checkIn: new Date('2026-06-01'),
+        checkOut: new Date('2026-09-01'),
+        totalAmount: 2000,
+      },
+    });
+    p3LockBookingId = bk.id;
+  });
+
+  afterAll(async () => {
+    // Restore OPEN so other tests aren't affected
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth() + 1;
+    await testPrisma.fiscalPeriod.updateMany({
+      where: { year, month, status: 'LOCKED' },
+      data: { status: 'OPEN', lockedAt: null, lockedBy: null },
+    });
+
+    await testPrisma.booking.deleteMany({ where: { apartmentId: p3LockAptId } });
+    await testPrisma.apartment.deleteMany({ where: { buildingId: p3LockBuildingId } });
+    await testPrisma.building.delete({ where: { id: p3LockBuildingId } });
+    await testPrisma.journalLine.deleteMany();
+    await testPrisma.journalEntry.deleteMany();
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.account.deleteMany({ where: { code: { in: ['P3LK-1010', 'P3LK-2100', 'P3LK-4000'] } } });
+  });
+
+  it('deposit collect rejects when target period is LOCKED', async () => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth() + 1;
+    await testPrisma.fiscalPeriod.upsert({
+      where: { year_month: { year, month } },
+      create: { year, month, status: 'LOCKED' },
+      update: { status: 'LOCKED' },
+    });
+
+    const r = await request(app)
+      .patch(`/api/v1/bookings/${p3LockBookingId}/deposit`)
+      .set('Cookie', p3LockAdminCookie)
+      .send({ amount: 500 });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('PERIOD_LOCKED');
+
+    // Restore for downstream tests
+    await testPrisma.fiscalPeriod.update({
+      where: { year_month: { year, month } },
+      data: { status: 'OPEN', lockedAt: null, lockedBy: null },
+    });
+  });
+});

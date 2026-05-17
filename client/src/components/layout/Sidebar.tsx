@@ -19,6 +19,10 @@ const NAV_ITEMS = [
   { to: '/accounting/trial-balance', icon: 'balance', key: 'accountingTB', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/accounting/mapping', icon: 'settings_input_component', key: 'accountingMapping', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/accounting/vat-return', icon: 'request_quote', key: 'accountingVAT', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/income-statement', icon: 'trending_up', key: 'accountingIncome', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/balance-sheet', icon: 'account_balance_wallet', key: 'accountingBalance', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/cash-flow', icon: 'water_drop', key: 'accountingCashflow', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/periods', icon: 'lock_clock', key: 'accountingPeriods', roles: [Role.SUPER_ADMIN, Role.ADMIN], feature: FeatureFlag.ACCOUNTING },
   { to: '/users', icon: 'group', key: 'users', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
 ];
 

@@ -14,7 +14,11 @@
     "accountingGL": "General Ledger",
     "accountingTB": "Trial Balance",
     "accountingMapping": "Account Mapping",
-    "accountingVAT": "VAT Return"
+    "accountingVAT": "VAT Return",
+    "accountingIncome": "Income Statement",
+    "accountingBalance": "Balance Sheet",
+    "accountingCashflow": "Cash Flow",
+    "accountingPeriods": "Periods"
   },
   "auth": {
     "login": "Login",
@@ -144,7 +148,12 @@
     "tb": { "title": "Trial Balance" },
     "mapping": { "title": "Account Mapping" },
     "vat":     { "title": "VAT Return" },
-    "taxCodes": { "title": "Tax Codes", "new": "New Tax Code" }
+    "taxCodes": { "title": "Tax Codes", "new": "New Tax Code" },
+    "income":   { "title": "Income Statement" },
+    "balance":  { "title": "Balance Sheet" },
+    "cashflow": { "title": "Cash Flow Statement" },
+    "periods":  { "title": "Fiscal Periods" },
+    "expense":  { "title": "Add Expense" }
   },
   "settings": {
     "accounting": {
@@ -157,7 +166,8 @@
       "cash": "Cash basis",
       "accrual": "Accrual basis",
       "runSetup": "Run Setup",
-      "runBackfill": "Run Backfill"
+      "runBackfill": "Run Backfill",
+      "managePeriods": "Manage fiscal periods"
     }
   }
 }

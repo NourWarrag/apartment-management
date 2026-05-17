@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 # Hotel Apartment Management System
 
-**Version:** 2.2 — Updated 2026-05-17 — Accounting module Phase 2 (auto-posting, VAT, deposits, reversal, backfill)
+**Version:** 2.3 — Updated 2026-05-17 — Accounting module Phase 3 (statements, fiscal periods, year-end close, manual reversal, expense entry)
 
 ---
 
@@ -153,6 +153,17 @@ Auto-posting from operations, VAT, financial statements, period locking, and ban
 - **VAT return report** grouping output and input VAT by tax code over a period; CSV export.
 
 Posting calls participate in the parent transaction so operational write and GL entry are atomic. Period close and reversal of manual JEs are scoped to Phase 3.
+
+### 4.12 Accounting Module (Phase 3)
+
+- **Financial statements:** Income Statement (P&L), Balance Sheet, Cash Flow Statement (indirect, operating-only). Each supports date range / as-of-date filtering and an optional building filter when `booksMode = PER_BUILDING`. CSV export per statement.
+- **Fiscal periods:** calendar-year monthly. New `FiscalPeriod` model with status `OPEN` or `LOCKED`. Periods auto-create lazily on first journal entry in the month.
+- **Period lock:** posting a journal entry whose date falls in a LOCKED period throws `PERIOD_LOCKED`. Admin can lock/unlock individual months.
+- **Year-end close:** admin action that posts a single closing journal entry zeroing INCOME and EXPENSE balances to Retained Earnings (account `3020`), then locks all 12 months of that year. Idempotent.
+- **Manual journal entry reversal:** "Reverse this entry" action on any POSTED journal entry (except `PAYMENT_AUTO` entries — those use the payment-specific reversal). Reversal posts a balancing entry dated today, links via `reversesEntryId`. Used for corrections after a period is locked.
+- **Expense entry:** dedicated "Add Expense" form (Date, Memo, Expense Account, Amount, Tax Code, Pay From, Building). Builds a journal entry with optional VAT split.
+
+Period status (CLOSED-but-not-LOCKED), bank reconciliation, configurable fiscal-year-start month, fixed-asset depreciation, and direct-method cash flow are out of v1.
 
 ---
 

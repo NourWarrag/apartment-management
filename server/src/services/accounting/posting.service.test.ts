@@ -127,6 +127,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Phase 3 cleanup (FiscalPeriod before User due to lockedBy FK, though it's SetNull)
+  await db.fiscalPeriod.deleteMany();
   // Phase 2 cleanup (must come before account/user cleanup)
   await db.payment.deleteMany();
   await db.booking.deleteMany();
@@ -623,6 +625,330 @@ describe('PostingService.reversePayment', () => {
 
   it('throws CANNOT_REVERSE on a PENDING payment', async () => {
     await expect(service().reversePayment(pendingPaymentId, userId))
+      .rejects.toMatchObject({ code: 'CANNOT_REVERSE' });
+  });
+});
+
+describe('PostingService.post() period-lock guard', () => {
+  beforeEach(async () => {
+    // Ensure no leftover FiscalPeriod rows pollute each test
+    await db.fiscalPeriod.deleteMany();
+  });
+
+  it('auto-creates a missing FiscalPeriod as OPEN on first post', async () => {
+    const before = await db.fiscalPeriod.count();
+    expect(before).toBe(0);
+
+    await service().createAndPost(
+      {
+        date: new Date('2026-07-15'),
+        lines: [
+          { accountId: cashId, debit: '10' },
+          { accountId: revenueId, credit: '10' },
+        ],
+      },
+      userId,
+    );
+
+    const period = await db.fiscalPeriod.findUnique({
+      where: { year_month: { year: 2026, month: 7 } },
+    });
+    expect(period?.status).toBe('OPEN');
+  });
+
+  it('rejects a new POSTED entry when the target period is LOCKED', async () => {
+    await db.fiscalPeriod.create({
+      data: { year: 2026, month: 8, status: 'LOCKED', lockedAt: new Date(), lockedBy: userId },
+    });
+
+    await expect(
+      service().createAndPost(
+        {
+          date: new Date('2026-08-15'),
+          lines: [
+            { accountId: cashId, debit: '10' },
+            { accountId: revenueId, credit: '10' },
+          ],
+        },
+        userId,
+      ),
+    ).rejects.toMatchObject({ code: 'PERIOD_LOCKED', details: { year: 2026, month: 8 } });
+  });
+
+  it('allows posting when the target period is OPEN', async () => {
+    await db.fiscalPeriod.create({ data: { year: 2026, month: 9, status: 'OPEN' } });
+    const entry = await service().createAndPost(
+      {
+        date: new Date('2026-09-15'),
+        lines: [
+          { accountId: cashId, debit: '10' },
+          { accountId: revenueId, credit: '10' },
+        ],
+      },
+      userId,
+    );
+    expect(entry.status).toBe('POSTED');
+  });
+});
+
+describe('PostingService.closeFiscalYear', () => {
+  let retainedEarningsId: number;
+
+  beforeAll(async () => {
+    const existing = await db.account.findUnique({ where: { code: '3020' } });
+    if (existing) {
+      retainedEarningsId = existing.id;
+    } else {
+      const re = await db.account.create({
+        data: { code: '3020', name: 'Retained Earnings', type: 'EQUITY' },
+      });
+      retainedEarningsId = re.id;
+    }
+  });
+
+  beforeEach(async () => {
+    await db.fiscalPeriod.deleteMany();
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+    // Reset payment back-pointers so postFromPayment doesn't think they're already posted
+    await db.payment.updateMany({ data: { postedEntryId: null } });
+  });
+
+  it('posts a closing JE that zeros INCOME and credits net income to Retained Earnings', async () => {
+    await service().createAndPost(
+      {
+        date: new Date('2027-06-15'),
+        lines: [
+          { accountId: cashId, debit: '300' },
+          { accountId: revenueId, credit: '300' },
+        ],
+      },
+      userId,
+    );
+
+    const closing = await service().closeFiscalYear(2027, userId);
+    expect(closing.source).toBe('YEAR_END_CLOSE');
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: closing.id } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === revenueId)?.debit.toFixed(2)).toBe('300.00');
+    expect(lines.find((l) => l.accountId === retainedEarningsId)?.credit.toFixed(2)).toBe('300.00');
+  });
+
+  it('locks all 12 months of the year and sets closingEntryId on December', async () => {
+    await service().createAndPost(
+      {
+        date: new Date('2028-03-15'),
+        lines: [
+          { accountId: cashId, debit: '50' },
+          { accountId: revenueId, credit: '50' },
+        ],
+      },
+      userId,
+    );
+    const closing = await service().closeFiscalYear(2028, userId);
+    const periods = await db.fiscalPeriod.findMany({ where: { year: 2028 }, orderBy: { month: 'asc' } });
+    expect(periods).toHaveLength(12);
+    expect(periods.every((p) => p.status === 'LOCKED')).toBe(true);
+    expect(periods.find((p) => p.month === 12)?.closingEntryId).toBe(closing.id);
+  });
+
+  it('throws ALREADY_CLOSED on second close of the same year', async () => {
+    await service().createAndPost(
+      {
+        date: new Date('2029-04-01'),
+        lines: [
+          { accountId: cashId, debit: '10' },
+          { accountId: revenueId, credit: '10' },
+        ],
+      },
+      userId,
+    );
+    await service().closeFiscalYear(2029, userId);
+    await expect(service().closeFiscalYear(2029, userId))
+      .rejects.toMatchObject({ code: 'ALREADY_CLOSED' });
+  });
+
+  it('throws MIN_LINES when there is no closeable activity', async () => {
+    await expect(service().closeFiscalYear(2030, userId))
+      .rejects.toMatchObject({ code: 'MIN_LINES' });
+  });
+
+  it('handles net loss — debits Retained Earnings, credits Expense', async () => {
+    const expenseAcc = await db.account.create({
+      data: { code: '5099', name: 'Test Expense P3', type: 'EXPENSE' },
+    });
+    await service().createAndPost(
+      {
+        date: new Date('2031-05-15'),
+        lines: [
+          { accountId: expenseAcc.id, debit: '500' },
+          { accountId: cashId, credit: '500' },
+        ],
+      },
+      userId,
+    );
+    const closing = await service().closeFiscalYear(2031, userId);
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: closing.id } });
+    expect(lines.find((l) => l.accountId === expenseAcc.id)?.credit.toFixed(2)).toBe('500.00');
+    expect(lines.find((l) => l.accountId === retainedEarningsId)?.debit.toFixed(2)).toBe('500.00');
+    await db.journalLine.deleteMany({ where: { accountId: expenseAcc.id } });
+    await db.account.delete({ where: { id: expenseAcc.id } });
+  });
+});
+
+describe('PostingService.postExpense', () => {
+  let expenseAccountId: number;
+
+  beforeAll(async () => {
+    const existing = await db.account.findUnique({ where: { code: '5099' } });
+    if (existing) {
+      expenseAccountId = existing.id;
+    } else {
+      const e = await db.account.create({ data: { code: '5099', name: 'Test Expense P3', type: 'EXPENSE' } });
+      expenseAccountId = e.id;
+    }
+  });
+
+  it('posts a 3-line JE with VAT split when a tax code is supplied', async () => {
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-10'),
+        memo: 'Utilities',
+        expenseAccountId,
+        amount: '210',
+        payFromAccountId: cashId,
+        taxCodeId: taxCodeStandardId,
+      },
+      userId,
+    );
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry.id } });
+    expect(lines).toHaveLength(3);
+    expect(lines.find((l) => l.accountId === expenseAccountId)?.debit.toFixed(2)).toBe('200.00');
+    expect(lines.find((l) => l.accountId === vatAccountId)?.debit.toFixed(2)).toBe('10.00');
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('210.00');
+  });
+
+  it('posts a 2-line JE (no VAT) when no tax code is supplied', async () => {
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-11'),
+        memo: 'Out-of-scope expense',
+        expenseAccountId,
+        amount: '50',
+        payFromAccountId: cashId,
+      },
+      userId,
+    );
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry.id } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === expenseAccountId)?.debit.toFixed(2)).toBe('50.00');
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('50.00');
+  });
+
+  it('tags the expense line with taxCodeId (for VAT return input column)', async () => {
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-12'),
+        expenseAccountId,
+        amount: '105',
+        payFromAccountId: cashId,
+        taxCodeId: taxCodeStandardId,
+      },
+      userId,
+    );
+    const expenseLine = await db.journalLine.findFirst({
+      where: { journalEntryId: entry.id, accountId: expenseAccountId },
+    });
+    expect(expenseLine?.taxCodeId).toBe(taxCodeStandardId);
+  });
+
+  it('accepts an AP account (LIABILITY) as payFromAccountId', async () => {
+    const ap = await db.account.findUnique({ where: { code: '2010' } })
+      ?? await db.account.create({ data: { code: '2010', name: 'Accounts Payable', type: 'LIABILITY' } });
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-13'),
+        expenseAccountId,
+        amount: '100',
+        payFromAccountId: ap.id,
+      },
+      userId,
+    );
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry.id } });
+    expect(lines.find((l) => l.accountId === ap.id)?.credit.toFixed(2)).toBe('100.00');
+  });
+});
+
+describe('PostingService.reverseEntry', () => {
+  beforeEach(async () => {
+    await db.fiscalPeriod.deleteMany();
+  });
+
+  it('posts a balancing JE with swapped debits and credits, links via reversesEntryId', async () => {
+    const original = await service().createAndPost(
+      {
+        date: new Date('2026-07-15'),
+        lines: [
+          { accountId: cashId, debit: '100' },
+          { accountId: revenueId, credit: '100' },
+        ],
+      },
+      userId,
+    );
+
+    const reversal = await service().reverseEntry(original.id, userId);
+
+    expect(reversal.source).toBe('MANUAL_REVERSAL');
+    expect(reversal.reversesEntryId).toBe(original.id);
+    expect(reversal.memo).toBe(`Reversal of ${original.entryNumber}`);
+
+    const lines = await db.journalLine.findMany({
+      where: { journalEntryId: reversal.id },
+      orderBy: { lineOrder: 'asc' },
+    });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('100.00');
+    expect(lines.find((l) => l.accountId === revenueId)?.debit.toFixed(2)).toBe('100.00');
+  });
+
+  it('posts the reversal to today regardless of original date', async () => {
+    const original = await service().createAndPost(
+      {
+        date: new Date('2026-03-01'),
+        lines: [
+          { accountId: cashId, debit: '50' },
+          { accountId: revenueId, credit: '50' },
+        ],
+      },
+      userId,
+    );
+    const reversal = await service().reverseEntry(original.id, userId);
+    const today = new Date();
+    expect(reversal.date.getUTCFullYear()).toBe(today.getUTCFullYear());
+    expect(reversal.date.getUTCMonth()).toBe(today.getUTCMonth());
+  });
+
+  it('throws ALREADY_REVERSED on second attempt', async () => {
+    const original = await service().createAndPost(
+      {
+        date: new Date('2026-07-15'),
+        lines: [
+          { accountId: cashId, debit: '50' },
+          { accountId: revenueId, credit: '50' },
+        ],
+      },
+      userId,
+    );
+    await service().reverseEntry(original.id, userId);
+    await expect(service().reverseEntry(original.id, userId))
+      .rejects.toMatchObject({ code: 'ALREADY_REVERSED' });
+  });
+
+  it('throws CANNOT_REVERSE when original is PAYMENT_AUTO (use the payment-specific endpoint instead)', async () => {
+    // Reset paidPaymentId fixture so it's PAID with no postedEntryId, then re-post to get a fresh PAYMENT_AUTO JE
+    await db.payment.update({ where: { id: paidPaymentId }, data: { status: 'PAID', postedEntryId: null } });
+    const autoPosted = await service().postFromPayment(paidPaymentId, userId);
+    await expect(service().reverseEntry(autoPosted!.id, userId))
       .rejects.toMatchObject({ code: 'CANNOT_REVERSE' });
   });
 });

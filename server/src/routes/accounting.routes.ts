@@ -11,6 +11,11 @@ import * as reversal from '../controllers/accounting-reversal.controller';
 import * as setup from '../controllers/accounting-setup.controller';
 import * as backfill from '../controllers/accounting-backfill.controller';
 import * as vatReturn from '../controllers/accounting-vat-return.controller';
+import * as statements from '../controllers/accounting-statements.controller';
+import * as periods from '../controllers/accounting-periods.controller';
+import * as yearClose from '../controllers/accounting-year-close.controller';
+import * as expenses from '../controllers/accounting-expenses.controller';
+import { reverseEntry as reverseEntryHandler } from '../controllers/accounting-reversal.controller';
 
 const router = Router();
 
@@ -63,5 +68,27 @@ router.get('/reports/vat-return.csv', vatReturn.vatReturnCsv);
 const adminOnly = requireRole(Role.ADMIN, Role.SUPER_ADMIN);
 router.post('/setup', adminOnly, setup.setup);
 router.post('/backfill', adminOnly, backfill.run);
+
+// Phase 3: Statements
+router.get('/reports/income-statement', statements.incomeStatement);
+router.get('/reports/income-statement.csv', statements.incomeStatementCsv);
+router.get('/reports/balance-sheet', statements.balanceSheet);
+router.get('/reports/balance-sheet.csv', statements.balanceSheetCsv);
+router.get('/reports/cash-flow', statements.cashFlow);
+router.get('/reports/cash-flow.csv', statements.cashFlowCsv);
+
+// Phase 3: Fiscal periods
+router.get('/fiscal-periods', periods.list);
+router.post('/fiscal-periods/:year/:month/lock', adminOnly, periods.lock);
+router.post('/fiscal-periods/:year/:month/unlock', adminOnly, periods.unlock);
+
+// Phase 3: Year-end close
+router.post('/fiscal-years/:year/close', adminOnly, yearClose.close);
+
+// Phase 3: Manual JE reversal (works on any POSTED JE except PAYMENT_AUTO)
+router.post('/journal-entries/:id/reverse', reverseEntryHandler);
+
+// Phase 3: Expense entry
+router.post('/expenses', expenses.create);
 
 export default router;

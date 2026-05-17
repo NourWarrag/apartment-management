@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Role, FeatureFlag } from '@hotel/shared';
 import { useAuth } from '../../hooks/useAuth';
@@ -277,6 +278,11 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+        <div className="mt-3">
+          <Link to="/accounting/periods" className="text-sm text-primary underline">
+            {t('settings.accounting.managePeriods', 'Manage fiscal periods')} →
+          </Link>
+        </div>
 
         {showBackfill && <BackfillModal onClose={() => setShowBackfill(false)} />}
       </div>
