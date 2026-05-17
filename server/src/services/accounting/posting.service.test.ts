@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { PostingService } from './posting.service';
 import { AccountingError } from './posting.errors';
 
@@ -421,5 +421,93 @@ describe('PostingService.postFromPayment (ACCRUAL mode)', () => {
     await db.payment.delete({ where: { id: p.id } });
     await db.booking.delete({ where: { id: b.id } });
     await db.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'CASH' } });
+  });
+});
+
+describe('PostingService.postFromBookingCreated (ACCRUAL mode)', () => {
+  beforeAll(async () => {
+    await db.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'ACCRUAL' } });
+  });
+  afterAll(async () => {
+    await db.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'CASH' } });
+  });
+
+  it('posts AR + Revenue + VAT for a new booking with standard tax', async () => {
+    const apt = (await db.apartment.findFirst())!;
+    const tenant = (await db.tenant.findFirst())!;
+    const b = await db.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-06-01'),
+        checkOut: new Date('2026-09-01'),
+        totalAmount: 10500,
+        taxCodeId: taxCodeStandardId,
+      },
+    });
+    const entry = await service().postFromBookingCreated(b.id, userId);
+    expect(entry).not.toBeNull();
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id } });
+    expect(lines).toHaveLength(3);
+    const arLine = lines.find((l) => l.debit.gt(0));
+    expect(arLine?.debit.toFixed(2)).toBe('10500.00');
+    const creditSum = lines
+      .filter((l) => l.credit.gt(0))
+      .reduce((s, l) => s.plus(l.credit), new Prisma.Decimal(0));
+    expect(creditSum.toFixed(2)).toBe('10500.00');
+    // cleanup
+    await db.booking.update({ where: { id: b.id }, data: { revenuePostedEntryId: null } });
+    await db.journalLine.deleteMany({ where: { journalEntryId: entry!.id } });
+    await db.journalEntry.delete({ where: { id: entry!.id } });
+    await db.booking.delete({ where: { id: b.id } });
+  });
+
+  it('is a no-op in CASH mode', async () => {
+    await db.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'CASH' } });
+    const apt = (await db.apartment.findFirst())!;
+    const tenant = (await db.tenant.findFirst())!;
+    const b = await db.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-08-01'),
+        checkOut: new Date('2026-11-01'),
+        totalAmount: 1000,
+        taxCodeId: taxCodeStandardId,
+      },
+    });
+    const result = await service().postFromBookingCreated(b.id, userId);
+    expect(result).toBeNull();
+    expect((await db.booking.findUnique({ where: { id: b.id } }))?.revenuePostedEntryId).toBeNull();
+    await db.booking.delete({ where: { id: b.id } });
+    await db.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'ACCRUAL' } });
+  });
+
+  it('is idempotent — does not create a second JE on repeat call', async () => {
+    const apt = (await db.apartment.findFirst())!;
+    const tenant = (await db.tenant.findFirst())!;
+    const b = await db.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-10-01'),
+        checkOut: new Date('2026-12-01'),
+        totalAmount: 500,
+        taxCodeId: taxCodeStandardId,
+      },
+    });
+    const first = await service().postFromBookingCreated(b.id, userId);
+    const before = await db.journalEntry.count();
+    const second = await service().postFromBookingCreated(b.id, userId);
+    const after = await db.journalEntry.count();
+    expect(after).toBe(before);
+    expect(second?.id).toBe(first?.id);
+    // cleanup
+    await db.booking.update({ where: { id: b.id }, data: { revenuePostedEntryId: null } });
+    if (first) {
+      await db.journalLine.deleteMany({ where: { journalEntryId: first.id } });
+      await db.journalEntry.delete({ where: { id: first.id } });
+    }
+    await db.booking.delete({ where: { id: b.id } });
   });
 });

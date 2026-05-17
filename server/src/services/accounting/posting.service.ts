@@ -166,6 +166,66 @@ export class PostingService {
     return this.prisma.$transaction(runner);
   }
 
+  async postFromBookingCreated(
+    bookingId: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry | null> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry | null> => {
+      const mode = await this.getAccountingMode(db);
+      if (mode !== 'ACCRUAL') return null;
+
+      const booking = await db.booking.findUnique({ where: { id: bookingId } });
+      if (!booking) {
+        throw new AccountingError('INVALID_LINE', `Booking ${bookingId} not found`);
+      }
+      if (booking.revenuePostedEntryId) {
+        return db.journalEntry.findUnique({ where: { id: booking.revenuePostedEntryId } });
+      }
+
+      const arId = await this.mapping.resolveAccount(db, 'AR_DEFAULT');
+      const revenueAccountId = await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT');
+      const gross = new Prisma.Decimal(booking.totalAmount);
+      const taxCode = await this.getEffectiveTaxCode(db, booking.taxCodeId);
+      const rate = taxCode ? new Prisma.Decimal(taxCode.ratePct) : new Prisma.Decimal(0);
+      const { net, vat } = splitTaxInclusive(gross, rate);
+
+      const lines: LineInput[] = [
+        { accountId: arId, debit: gross },
+        { accountId: revenueAccountId, credit: net },
+      ];
+      if (vat.gt(0) && taxCode) {
+        const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');
+        lines.push({ accountId: vatAccountId, credit: vat });
+      }
+
+      const entry = await this.createAndPost(
+        {
+          date: booking.createdAt,
+          memo: `Booking #${booking.id} revenue (accrual)`,
+          buildingId: null,
+          source: 'PAYMENT_AUTO',
+          sourceRefId: booking.id,
+          lines,
+        },
+        userId,
+        db,
+      );
+
+      if (taxCode) {
+        await db.journalLine.updateMany({
+          where: { journalEntryId: entry.id, accountId: { not: arId } },
+          data: { taxCodeId: taxCode.id },
+        });
+      }
+      await db.booking.update({ where: { id: booking.id }, data: { revenuePostedEntryId: entry.id } });
+      return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
   async postFromPayment(
     paymentId: number,
     userId: number,
