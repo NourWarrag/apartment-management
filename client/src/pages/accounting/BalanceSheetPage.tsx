@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import TableScroller from '../../components/ui/TableScroller';
 import { statementsApi, type BalanceSheetSection } from '../../lib/api/accounting-phase3';
 import api from '../../lib/axios';
 
@@ -27,21 +28,23 @@ export default function BalanceSheetPage() {
   const csvUrl = `/api/v1/accounting/reports/balance-sheet.csv?asOf=${asOf}${buildingId ? `&buildingId=${buildingId}` : ''}`;
 
   const SectionTable = ({ section }: { section: BalanceSheetSection }) => (
-    <table className="w-full text-sm bg-surface-container-low rounded">
-      <thead className="text-on-surface-variant">
-        <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-right">Balance</th></tr>
-      </thead>
-      <tbody>
-        {section.rows.map((r) => (
-          <tr key={r.accountId} className="border-t border-outline-variant">
-            <td className="px-2 py-1 font-mono">{r.code}</td>
-            <td className="px-2 py-1">{r.name}</td>
-            <td className="px-2 py-1 text-right">{r.balance}</td>
-          </tr>
-        ))}
-      </tbody>
-      <tfoot><tr className="font-bold border-t border-on-surface"><td colSpan={2} className="px-2 py-1 text-right">Total</td><td className="px-2 py-1 text-right">{section.total}</td></tr></tfoot>
-    </table>
+    <TableScroller minWidth={720}>
+      <table className="w-full text-sm bg-surface-container-low rounded">
+        <thead className="text-on-surface-variant">
+          <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-right">Balance</th></tr>
+        </thead>
+        <tbody>
+          {section.rows.map((r) => (
+            <tr key={r.accountId} className="border-t border-outline-variant">
+              <td className="px-2 py-1 font-mono">{r.code}</td>
+              <td className="px-2 py-1">{r.name}</td>
+              <td className="px-2 py-1 text-right">{r.balance}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot><tr className="font-bold border-t border-on-surface"><td colSpan={2} className="px-2 py-1 text-right">Total</td><td className="px-2 py-1 text-right">{section.total}</td></tr></tfoot>
+      </table>
+    </TableScroller>
   );
 
   return (
