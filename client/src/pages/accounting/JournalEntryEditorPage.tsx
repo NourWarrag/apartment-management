@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../lib/axios';
 import { accountsApi, journalApi } from '../../lib/api/accounting';
+import { reversalApi } from '../../lib/api/accounting-phase3';
 import JournalLinesTable, { type LineDraft } from './components/JournalLinesTable';
 
 export default function JournalEntryEditorPage() {
@@ -31,6 +32,8 @@ export default function JournalEntryEditorPage() {
     { accountId: null, buildingId: null, debit: '', credit: '', description: '' },
   ]);
   const [err, setErr] = useState<string | null>(null);
+  const [showReverseConfirm, setShowReverseConfirm] = useState(false);
+  const [reverseErr, setReverseErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (existing) {
@@ -102,6 +105,12 @@ export default function JournalEntryEditorPage() {
     },
   });
 
+  const reverseMut = useMutation({
+    mutationFn: () => reversalApi.reverseEntry(editingId!),
+    onSuccess: (newEntry: any) => nav(`/accounting/journal-entries/${newEntry.id}`),
+    onError: (e: any) => setReverseErr(e?.response?.data?.message ?? 'Failed to reverse'),
+  });
+
   function handlePostClick() {
     if (!window.confirm(t('accounting.je.confirmPost', 'Posting is permanent. To correct a posted entry later, you\'ll create a reversing entry. Continue?'))) return;
     post.mutate();
@@ -154,6 +163,33 @@ export default function JournalEntryEditorPage() {
           <button onClick={handlePostClick} disabled={!canPost} className="px-3 py-1 rounded bg-primary text-on-primary text-sm disabled:opacity-50">
             Save & Post
           </button>
+        </div>
+      )}
+      {readOnly && (
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={() => nav('/accounting/journal-entries')} className="px-3 py-1 rounded border border-outline-variant text-sm">Back</button>
+          {existing && existing.source !== 'PAYMENT_AUTO' && (
+            <button onClick={() => setShowReverseConfirm(true)} className="px-3 py-1 rounded bg-error text-on-primary text-sm">
+              Reverse this entry
+            </button>
+          )}
+        </div>
+      )}
+      {showReverseConfirm && (
+        <div className="fixed inset-0 bg-black/30 z-30 flex items-center justify-center">
+          <div className="bg-surface rounded-lg shadow-xl w-[480px] p-6">
+            <h2 className="text-lg font-bold mb-4">Reverse Journal Entry</h2>
+            <p className="text-sm text-on-surface-variant mb-4">
+              This will post a balancing entry dated today. The original remains in the ledger for audit. Continue?
+            </p>
+            {reverseErr && <div className="text-error text-sm mb-2">{reverseErr}</div>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowReverseConfirm(false)} className="px-3 py-1 rounded border border-outline-variant text-sm">Cancel</button>
+              <button onClick={() => reverseMut.mutate()} disabled={reverseMut.isPending} className="px-3 py-1 rounded bg-error text-on-primary text-sm disabled:opacity-50">
+                {reverseMut.isPending ? 'Reversing…' : 'Reverse'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
