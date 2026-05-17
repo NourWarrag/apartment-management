@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { accountsApi, reportsApi } from '../../lib/api/accounting';
+import TableScroller from '../../components/ui/TableScroller';
 import api from '../../lib/axios';
 
 export default function GeneralLedgerPage() {
@@ -75,40 +76,42 @@ export default function GeneralLedgerPage() {
       {gl.map((acc) => (
         <div key={acc.accountId} className="mb-8">
           <h2 className="font-bold mb-2">{acc.accountCode} – {acc.accountName}</h2>
-          <table className="w-full text-sm bg-surface-container-low rounded">
-            <thead className="text-on-surface-variant">
-              <tr>
-                <th className="px-2 py-1 text-left">Date</th>
-                <th className="px-2 py-1 text-left">Entry #</th>
-                <th className="px-2 py-1 text-left">Memo</th>
-                <th className="px-2 py-1 text-right">Debit</th>
-                <th className="px-2 py-1 text-right">Credit</th>
-                <th className="px-2 py-1 text-right">Running</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-surface-container-high">
-                <td colSpan={5} className="px-2 py-1 text-right">Opening balance</td>
-                <td className="px-2 py-1 text-right font-medium">{acc.openingBalance}</td>
-              </tr>
-              {acc.lines.map((l, i) => (
-                <tr key={i} className="border-t border-outline-variant">
-                  <td className="px-2 py-1">{l.date.slice(0, 10)}</td>
-                  <td className="px-2 py-1 font-mono">
-                    <Link to={`/accounting/journal-entries/${l.entryId}`} className="text-primary">{l.entryNumber}</Link>
-                  </td>
-                  <td className="px-2 py-1">{l.memo ?? '—'}</td>
-                  <td className="px-2 py-1 text-right">{l.debit}</td>
-                  <td className="px-2 py-1 text-right">{l.credit}</td>
-                  <td className="px-2 py-1 text-right">{l.runningBalance}</td>
+          <TableScroller minWidth={1000}>
+            <table className="w-full text-sm bg-surface-container-low rounded">
+              <thead className="text-on-surface-variant">
+                <tr>
+                  <th className="px-2 py-1 text-left">Date</th>
+                  <th className="px-2 py-1 text-left">Entry #</th>
+                  <th className="px-2 py-1 text-left">Memo</th>
+                  <th className="px-2 py-1 text-right">Debit</th>
+                  <th className="px-2 py-1 text-right">Credit</th>
+                  <th className="px-2 py-1 text-right">Running</th>
                 </tr>
-              ))}
-              <tr className="bg-surface-container-high">
-                <td colSpan={5} className="px-2 py-1 text-right font-bold">Closing balance</td>
-                <td className="px-2 py-1 text-right font-bold">{acc.closingBalance}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <tr className="bg-surface-container-high">
+                  <td colSpan={5} className="px-2 py-1 text-right">Opening balance</td>
+                  <td className="px-2 py-1 text-right font-medium">{acc.openingBalance}</td>
+                </tr>
+                {acc.lines.map((l, i) => (
+                  <tr key={i} className="border-t border-outline-variant">
+                    <td className="px-2 py-1">{l.date.slice(0, 10)}</td>
+                    <td className="px-2 py-1 font-mono">
+                      <Link to={`/accounting/journal-entries/${l.entryId}`} className="text-primary">{l.entryNumber}</Link>
+                    </td>
+                    <td className="px-2 py-1">{l.memo ?? '—'}</td>
+                    <td className="px-2 py-1 text-right">{l.debit}</td>
+                    <td className="px-2 py-1 text-right">{l.credit}</td>
+                    <td className="px-2 py-1 text-right">{l.runningBalance}</td>
+                  </tr>
+                ))}
+                <tr className="bg-surface-container-high">
+                  <td colSpan={5} className="px-2 py-1 text-right font-bold">Closing balance</td>
+                  <td className="px-2 py-1 text-right font-bold">{acc.closingBalance}</td>
+                </tr>
+              </tbody>
+            </table>
+          </TableScroller>
         </div>
       ))}
     </div>
