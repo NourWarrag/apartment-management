@@ -18,7 +18,7 @@ export type EntryInput = {
   memo?: string;
   buildingId?: number | null;
   lines: LineInput[];
-  source?: 'MANUAL' | 'PAYMENT_AUTO' | 'VAT_ADJUST' | 'YEAR_END_CLOSE';
+  source?: 'MANUAL' | 'PAYMENT_AUTO' | 'VAT_ADJUST' | 'YEAR_END_CLOSE' | 'MANUAL_REVERSAL';
   sourceRefId?: number | null;
 };
 
@@ -380,6 +380,70 @@ export class PostingService {
       });
 
       return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
+  async reverseEntry(
+    originalId: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      const original = await db.journalEntry.findUnique({
+        where: { id: originalId },
+        include: { lines: true },
+      });
+      if (!original) {
+        throw new AccountingError('INVALID_LINE', `Entry ${originalId} not found`);
+      }
+      if (original.status !== 'POSTED') {
+        throw new AccountingError('CANNOT_REVERSE', 'Only POSTED entries can be reversed');
+      }
+      if (original.source === 'PAYMENT_AUTO') {
+        throw new AccountingError(
+          'CANNOT_REVERSE',
+          'Use POST /accounting/payments/:id/reverse to reverse an auto-posted payment',
+          { source: 'PAYMENT_AUTO' },
+        );
+      }
+      const existingReversal = await db.journalEntry.findFirst({
+        where: { reversesEntryId: originalId },
+      });
+      if (existingReversal) {
+        throw new AccountingError('ALREADY_REVERSED', 'Entry has already been reversed', {
+          reversalId: existingReversal.id,
+          reversalNumber: existingReversal.entryNumber,
+        });
+      }
+
+      const reversingLines: LineInput[] = original.lines.map((l) => ({
+        accountId: l.accountId,
+        buildingId: l.buildingId,
+        debit: l.credit,
+        credit: l.debit,
+        description: l.description ?? undefined,
+      }));
+
+      const entry = await this.createAndPost(
+        {
+          date: new Date(),
+          memo: `Reversal of ${original.entryNumber}`,
+          buildingId: original.buildingId,
+          source: 'MANUAL_REVERSAL',
+          sourceRefId: original.id,
+          lines: reversingLines,
+        },
+        userId,
+        db,
+      );
+
+      return db.journalEntry.update({
+        where: { id: entry.id },
+        data: { reversesEntryId: original.id },
+      });
     };
 
     if (tx) return runner(tx);

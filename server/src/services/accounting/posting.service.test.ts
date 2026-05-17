@@ -690,3 +690,77 @@ describe('PostingService.post() period-lock guard', () => {
     expect(entry.status).toBe('POSTED');
   });
 });
+
+describe('PostingService.reverseEntry', () => {
+  beforeEach(async () => {
+    await db.fiscalPeriod.deleteMany();
+  });
+
+  it('posts a balancing JE with swapped debits and credits, links via reversesEntryId', async () => {
+    const original = await service().createAndPost(
+      {
+        date: new Date('2026-07-15'),
+        lines: [
+          { accountId: cashId, debit: '100' },
+          { accountId: revenueId, credit: '100' },
+        ],
+      },
+      userId,
+    );
+
+    const reversal = await service().reverseEntry(original.id, userId);
+
+    expect(reversal.source).toBe('MANUAL_REVERSAL');
+    expect(reversal.reversesEntryId).toBe(original.id);
+    expect(reversal.memo).toBe(`Reversal of ${original.entryNumber}`);
+
+    const lines = await db.journalLine.findMany({
+      where: { journalEntryId: reversal.id },
+      orderBy: { lineOrder: 'asc' },
+    });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('100.00');
+    expect(lines.find((l) => l.accountId === revenueId)?.debit.toFixed(2)).toBe('100.00');
+  });
+
+  it('posts the reversal to today regardless of original date', async () => {
+    const original = await service().createAndPost(
+      {
+        date: new Date('2026-03-01'),
+        lines: [
+          { accountId: cashId, debit: '50' },
+          { accountId: revenueId, credit: '50' },
+        ],
+      },
+      userId,
+    );
+    const reversal = await service().reverseEntry(original.id, userId);
+    const today = new Date();
+    expect(reversal.date.getUTCFullYear()).toBe(today.getUTCFullYear());
+    expect(reversal.date.getUTCMonth()).toBe(today.getUTCMonth());
+  });
+
+  it('throws ALREADY_REVERSED on second attempt', async () => {
+    const original = await service().createAndPost(
+      {
+        date: new Date('2026-07-15'),
+        lines: [
+          { accountId: cashId, debit: '50' },
+          { accountId: revenueId, credit: '50' },
+        ],
+      },
+      userId,
+    );
+    await service().reverseEntry(original.id, userId);
+    await expect(service().reverseEntry(original.id, userId))
+      .rejects.toMatchObject({ code: 'ALREADY_REVERSED' });
+  });
+
+  it('throws CANNOT_REVERSE when original is PAYMENT_AUTO (use the payment-specific endpoint instead)', async () => {
+    // Reset paidPaymentId fixture so it's PAID with no postedEntryId, then re-post to get a fresh PAYMENT_AUTO JE
+    await db.payment.update({ where: { id: paidPaymentId }, data: { status: 'PAID', postedEntryId: null } });
+    const autoPosted = await service().postFromPayment(paidPaymentId, userId);
+    await expect(service().reverseEntry(autoPosted!.id, userId))
+      .rejects.toMatchObject({ code: 'CANNOT_REVERSE' });
+  });
+});
