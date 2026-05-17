@@ -155,3 +155,25 @@ describe('ReportsService.incomeStatement', () => {
     expect(r.netIncome).toBe('0.00');
   });
 });
+
+describe('ReportsService.balanceSheet', () => {
+  it('returns Assets, Liabilities, Equity with A = L + E + currentYearIncome (no draft pollution)', async () => {
+    const r = await reports.balanceSheet({ asOf: new Date('2026-12-31') });
+    const a = Number(r.assets.total);
+    const l = Number(r.liabilities.total);
+    const e = Number(r.equity.total);
+    const cyi = Number(r.currentYearIncome);
+    expect(Math.abs(a - (l + e + cyi))).toBeLessThan(0.005);
+    expect(r.isBalanced).toBe(true);
+  });
+
+  it('puts unclosed-year net income into currentYearIncome', async () => {
+    const r = await reports.balanceSheet({ asOf: new Date('2026-12-31') });
+    expect(Number(r.currentYearIncome)).toBeGreaterThan(0);
+  });
+
+  it('filters by building when buildingId is provided', async () => {
+    const r = await reports.balanceSheet({ asOf: new Date('2026-12-31'), buildingId: bldgB });
+    expect(r.currentYearIncome).toBe('80.00');
+  });
+});
