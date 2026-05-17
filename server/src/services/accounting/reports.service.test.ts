@@ -63,6 +63,13 @@ beforeAll(async () => {
     );
   }
 
+  // Phase 3: cash flow needs at least one mapping to identify the cash account
+  await db.accountMapping.upsert({
+    where: { key: 'CASH_METHOD' },
+    create: { key: 'CASH_METHOD', accountId: cashId },
+    update: { accountId: cashId },
+  });
+
   // 1 draft — must be excluded from reports
   await posting.createDraft(
     {
@@ -78,6 +85,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.accountMapping.deleteMany();
   await db.journalLine.deleteMany();
   await db.journalEntry.deleteMany();
   await db.account.deleteMany();
@@ -175,5 +183,23 @@ describe('ReportsService.balanceSheet', () => {
   it('filters by building when buildingId is provided', async () => {
     const r = await reports.balanceSheet({ asOf: new Date('2026-12-31'), buildingId: bldgB });
     expect(r.currentYearIncome).toBe('80.00');
+  });
+});
+
+describe('ReportsService.cashFlow', () => {
+  it('reconciles: beginning + netCashFromOperations === ending', async () => {
+    const r = await reports.cashFlow({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+    });
+    expect(r.reconcilesToCash).toBe(true);
+  });
+
+  it('reports net income within the period', async () => {
+    const r = await reports.cashFlow({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+    });
+    expect(r.netIncome).toBe('380.00');
   });
 });
