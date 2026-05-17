@@ -585,3 +585,44 @@ describe('PostingService.postFromDepositTransition', () => {
     expect(lines.find((l) => l.accountId === forfeitIncomeId)?.credit.toFixed(2)).toBe('600.00');
   });
 });
+
+describe('PostingService.reversePayment', () => {
+  it('posts a balancing JE with debits and credits swapped, marks Payment REVERSED', async () => {
+    // Ensure paidPaymentId is in a freshly POSTED state with postedEntryId set
+    await db.payment.update({ where: { id: paidPaymentId }, data: { status: 'PAID', postedEntryId: null } });
+    const original = await service().postFromPayment(paidPaymentId, userId);
+    expect(original).not.toBeNull();
+    const originalLines = await db.journalLine.findMany({
+      where: { journalEntryId: original!.id },
+      orderBy: { lineOrder: 'asc' },
+    });
+    expect(originalLines).toHaveLength(3);
+
+    const reversal = await service().reversePayment(paidPaymentId, userId);
+    expect(reversal).not.toBeNull();
+    const reversingLines = await db.journalLine.findMany({
+      where: { journalEntryId: reversal!.id },
+      orderBy: { lineOrder: 'asc' },
+    });
+    expect(reversingLines).toHaveLength(3);
+
+    // Cash now credited (was debited), revenue+VAT now debited
+    expect(reversingLines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('1050.00');
+    expect(reversingLines.find((l) => l.accountId === revenueId)?.debit.toFixed(2)).toBe('1000.00');
+    expect(reversingLines.find((l) => l.accountId === vatAccountId)?.debit.toFixed(2)).toBe('50.00');
+
+    const p = await db.payment.findUnique({ where: { id: paidPaymentId } });
+    expect(p?.status).toBe('REVERSED');
+  });
+
+  it('throws ALREADY_REVERSED on a second attempt', async () => {
+    // The previous test left paidPaymentId in REVERSED state
+    await expect(service().reversePayment(paidPaymentId, userId))
+      .rejects.toMatchObject({ code: 'ALREADY_REVERSED' });
+  });
+
+  it('throws CANNOT_REVERSE on a PENDING payment', async () => {
+    await expect(service().reversePayment(pendingPaymentId, userId))
+      .rejects.toMatchObject({ code: 'CANNOT_REVERSE' });
+  });
+});

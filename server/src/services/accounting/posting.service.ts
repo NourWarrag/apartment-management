@@ -295,6 +295,68 @@ export class PostingService {
     return this.prisma.$transaction(runner);
   }
 
+  async reversePayment(
+    paymentId: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry | null> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      const payment = await db.payment.findUnique({ where: { id: paymentId } });
+      if (!payment) {
+        throw new AccountingError('INVALID_LINE', `Payment ${paymentId} not found`);
+      }
+      if (payment.status === 'REVERSED') {
+        throw new AccountingError('ALREADY_REVERSED', 'Payment is already reversed');
+      }
+      if (payment.status !== 'PAID' || !payment.postedEntryId) {
+        throw new AccountingError(
+          'CANNOT_REVERSE',
+          'Only PAID payments with a posted entry can be reversed',
+          { status: payment.status, hasPostedEntry: !!payment.postedEntryId },
+        );
+      }
+
+      const original = await db.journalEntry.findUnique({
+        where: { id: payment.postedEntryId },
+        include: { lines: true },
+      });
+      if (!original) {
+        throw new AccountingError('INVALID_LINE', 'Original entry missing');
+      }
+
+      const reversingLines: LineInput[] = original.lines.map((l) => ({
+        accountId: l.accountId,
+        buildingId: l.buildingId,
+        debit: l.credit,
+        credit: l.debit,
+        description: l.description ?? undefined,
+      }));
+
+      const entry = await this.createAndPost(
+        {
+          date: new Date(),
+          memo: `Reversal of ${original.entryNumber}`,
+          buildingId: original.buildingId,
+          source: 'PAYMENT_AUTO',
+          sourceRefId: payment.id,
+          lines: reversingLines,
+        },
+        userId,
+        db,
+      );
+
+      await db.payment.update({
+        where: { id: paymentId },
+        data: { status: 'REVERSED' },
+      });
+
+      return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
   async postFromPayment(
     paymentId: number,
     userId: number,
