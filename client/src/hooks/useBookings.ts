@@ -99,6 +99,7 @@ export function useCreateBooking() {
   return useMutation({
     mutationFn: (data: CreateBookingDto) => api.post('/bookings', data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['apartments'] });
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
     },
