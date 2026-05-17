@@ -50,7 +50,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/30 z-30 flex items-center justify-center">
-      <form onSubmit={submit} className="bg-surface rounded-lg shadow-xl w-[480px] p-6">
+      <form onSubmit={submit} className="bg-surface rounded-lg shadow-xl w-full max-w-[90vw] lg:max-w-[480px] p-6">
         <h2 className="text-lg font-bold mb-4">{t('accounting.expense.title', 'Add Expense')}</h2>
         {err && <div className="text-error text-sm mb-2">{err}</div>}
         <label className="block text-sm mb-2">Date <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-outline-variant rounded px-2 py-1 mt-1" required /></label>
