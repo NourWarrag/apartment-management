@@ -127,6 +127,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Phase 3 cleanup (FiscalPeriod before User due to lockedBy FK, though it's SetNull)
+  await db.fiscalPeriod.deleteMany();
   // Phase 2 cleanup (must come before account/user cleanup)
   await db.payment.deleteMany();
   await db.booking.deleteMany();
@@ -624,5 +626,67 @@ describe('PostingService.reversePayment', () => {
   it('throws CANNOT_REVERSE on a PENDING payment', async () => {
     await expect(service().reversePayment(pendingPaymentId, userId))
       .rejects.toMatchObject({ code: 'CANNOT_REVERSE' });
+  });
+});
+
+describe('PostingService.post() period-lock guard', () => {
+  beforeEach(async () => {
+    // Ensure no leftover FiscalPeriod rows pollute each test
+    await db.fiscalPeriod.deleteMany();
+  });
+
+  it('auto-creates a missing FiscalPeriod as OPEN on first post', async () => {
+    const before = await db.fiscalPeriod.count();
+    expect(before).toBe(0);
+
+    await service().createAndPost(
+      {
+        date: new Date('2026-07-15'),
+        lines: [
+          { accountId: cashId, debit: '10' },
+          { accountId: revenueId, credit: '10' },
+        ],
+      },
+      userId,
+    );
+
+    const period = await db.fiscalPeriod.findUnique({
+      where: { year_month: { year: 2026, month: 7 } },
+    });
+    expect(period?.status).toBe('OPEN');
+  });
+
+  it('rejects a new POSTED entry when the target period is LOCKED', async () => {
+    await db.fiscalPeriod.create({
+      data: { year: 2026, month: 8, status: 'LOCKED', lockedAt: new Date(), lockedBy: userId },
+    });
+
+    await expect(
+      service().createAndPost(
+        {
+          date: new Date('2026-08-15'),
+          lines: [
+            { accountId: cashId, debit: '10' },
+            { accountId: revenueId, credit: '10' },
+          ],
+        },
+        userId,
+      ),
+    ).rejects.toMatchObject({ code: 'PERIOD_LOCKED', details: { year: 2026, month: 8 } });
+  });
+
+  it('allows posting when the target period is OPEN', async () => {
+    await db.fiscalPeriod.create({ data: { year: 2026, month: 9, status: 'OPEN' } });
+    const entry = await service().createAndPost(
+      {
+        date: new Date('2026-09-15'),
+        lines: [
+          { accountId: cashId, debit: '10' },
+          { accountId: revenueId, credit: '10' },
+        ],
+      },
+      userId,
+    );
+    expect(entry.status).toBe('POSTED');
   });
 });

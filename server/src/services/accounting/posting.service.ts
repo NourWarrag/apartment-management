@@ -31,6 +31,26 @@ export class PostingService {
 
   private mapping = new MappingService(this.prisma);
 
+  private async ensurePeriodOpen(
+    tx: Prisma.TransactionClient,
+    date: Date,
+  ): Promise<void> {
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+
+    const period = await tx.fiscalPeriod.upsert({
+      where: { year_month: { year, month } },
+      create: { year, month, status: 'OPEN' },
+      update: {},
+    });
+
+    if (period.status === 'LOCKED') {
+      throw new AccountingError('PERIOD_LOCKED', `Period ${year}-${String(month).padStart(2, '0')} is locked`, {
+        year, month,
+      });
+    }
+  }
+
   private async getAccountingMode(tx: Prisma.TransactionClient | PrismaClient): Promise<'CASH' | 'ACCRUAL'> {
     const s = await tx.systemSettings.findUnique({ where: { id: 1 } });
     return (s?.accountingMode ?? 'CASH') as 'CASH' | 'ACCRUAL';
@@ -136,6 +156,8 @@ export class PostingService {
       }
 
       await this.validate(db, entry.lines, entry.buildingId);
+
+      await this.ensurePeriodOpen(db, entry.date);  // Phase 3 period-lock guard
 
       const [{ nextval }] = await db.$queryRaw<{ nextval: bigint }[]>`
         SELECT nextval('journal_entry_number_seq') AS nextval
