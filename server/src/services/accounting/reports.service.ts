@@ -32,6 +32,20 @@ export type GLAccount = {
   lines: GLLine[];
 };
 
+export type IncomeStatementSection = {
+  type: 'INCOME' | 'EXPENSE';
+  rows: { accountId: number; code: string; name: string; amount: string }[];
+  total: string;
+};
+
+export type IncomeStatementResult = {
+  from: string;
+  to: string;
+  income: IncomeStatementSection;
+  expenses: IncomeStatementSection;
+  netIncome: string;
+};
+
 export class ReportsService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -73,6 +87,66 @@ export class ReportsService {
         netBalance: toFixed2(t.d.minus(t.c)),
       };
     });
+  }
+
+  async incomeStatement(opts: {
+    from: Date;
+    to: Date;
+    buildingId?: number;
+  }): Promise<IncomeStatementResult> {
+    const accounts = await this.prisma.account.findMany({
+      where: { type: { in: ['INCOME', 'EXPENSE'] } },
+      orderBy: [{ type: 'asc' }, { code: 'asc' }],
+    });
+
+    const lines = await this.prisma.journalLine.findMany({
+      where: {
+        accountId: { in: accounts.map((a) => a.id) },
+        journalEntry: { status: 'POSTED', date: { gte: opts.from, lte: opts.to } },
+        ...(opts.buildingId
+          ? {
+              OR: [
+                { buildingId: opts.buildingId },
+                { buildingId: null, journalEntry: { buildingId: opts.buildingId } },
+              ],
+            }
+          : {}),
+      },
+      select: { accountId: true, debit: true, credit: true },
+    });
+
+    const byAccount = new Map<number, { d: Prisma.Decimal; c: Prisma.Decimal }>();
+    for (const l of lines) {
+      const t = byAccount.get(l.accountId) ?? { d: ZERO, c: ZERO };
+      byAccount.set(l.accountId, { d: t.d.plus(l.debit), c: t.c.plus(l.credit) });
+    }
+
+    const incomeRows: IncomeStatementSection['rows'] = [];
+    const expenseRows: IncomeStatementSection['rows'] = [];
+    let incomeTotal = new Prisma.Decimal(0);
+    let expenseTotal = new Prisma.Decimal(0);
+
+    for (const a of accounts) {
+      const t = byAccount.get(a.id) ?? { d: ZERO, c: ZERO };
+      const amount = a.type === 'INCOME' ? t.c.minus(t.d) : t.d.minus(t.c);
+      if (amount.eq(0)) continue;
+      const row = { accountId: a.id, code: a.code, name: a.name, amount: amount.toFixed(2) };
+      if (a.type === 'INCOME') {
+        incomeRows.push(row);
+        incomeTotal = incomeTotal.plus(amount);
+      } else {
+        expenseRows.push(row);
+        expenseTotal = expenseTotal.plus(amount);
+      }
+    }
+
+    return {
+      from: opts.from.toISOString(),
+      to: opts.to.toISOString(),
+      income: { type: 'INCOME', rows: incomeRows, total: incomeTotal.toFixed(2) },
+      expenses: { type: 'EXPENSE', rows: expenseRows, total: expenseTotal.toFixed(2) },
+      netIncome: incomeTotal.minus(expenseTotal).toFixed(2),
+    };
   }
 
   async generalLedger(opts: {

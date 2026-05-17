@@ -122,3 +122,36 @@ describe('ReportsService.generalLedger()', () => {
     expect(cashLines.lines.length).toBe(2);
   });
 });
+
+describe('ReportsService.incomeStatement', () => {
+  it('aggregates posted INCOME within range and computes net income', async () => {
+    const r = await reports.incomeStatement({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+    });
+    const revenue = r.income.rows.find((row) => row.accountId === revenueId)!;
+    expect(revenue.amount).toBe('380.00');
+    expect(r.income.total).toBe('380.00');
+    expect(r.expenses.total).toBe('0.00');
+    expect(r.netIncome).toBe('380.00');
+  });
+
+  it('filters by building when buildingId is provided', async () => {
+    const r = await reports.incomeStatement({
+      from: new Date('2026-04-01'),
+      to: new Date('2026-05-31'),
+      buildingId: bldgA,
+    });
+    expect(r.income.total).toBe('300.00');
+  });
+
+  it('returns empty sections when no activity in range', async () => {
+    const r = await reports.incomeStatement({
+      from: new Date('2026-01-01'),
+      to: new Date('2026-01-31'),
+    });
+    expect(r.income.total).toBe('0.00');
+    expect(r.expenses.total).toBe('0.00');
+    expect(r.netIncome).toBe('0.00');
+  });
+});
