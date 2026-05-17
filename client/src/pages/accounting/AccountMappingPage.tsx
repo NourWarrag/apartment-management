@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { mappingApi } from '../../lib/api/accounting-phase2';
 import { accountsApi } from '../../lib/api/accounting';
 import type { MappingKey } from '@hotel/shared';
+import TableScroller from '../../components/ui/TableScroller';
 import AccountPicker from './components/AccountPicker';
 import TaxCodesPanel from './TaxCodesPanel';
 
@@ -41,24 +42,26 @@ export default function AccountMappingPage() {
           ⚠ Mapping incomplete — auto-posting is disabled until you map: {unmapped.join(', ')}
         </div>
       )}
-      <table className="w-full text-sm bg-surface-container-low rounded">
-        <thead className="text-on-surface-variant">
-          <tr><th className="px-2 py-1 text-left">Mapping</th><th className="px-2 py-1 text-left">Currently maps to</th><th className="px-2 py-1 text-right">Action</th></tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key} className="border-t border-outline-variant">
-              <td className="px-2 py-1">{KEY_LABELS[r.key] ?? r.key}</td>
-              <td className="px-2 py-1">
-                {r.account ? <span><span className="font-mono">{r.account.code}</span> – {r.account.name}</span> : <span className="text-error">— unmapped —</span>}
-              </td>
-              <td className="px-2 py-1 text-right">
-                <button onClick={() => setEditing(r.key)} className="text-primary text-sm">Change</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TableScroller minWidth={720}>
+        <table className="w-full text-sm bg-surface-container-low rounded">
+          <thead className="text-on-surface-variant">
+            <tr><th className="px-2 py-1 text-left">Mapping</th><th className="px-2 py-1 text-left">Currently maps to</th><th className="px-2 py-1 text-right">Action</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t border-outline-variant">
+                <td className="px-2 py-1">{KEY_LABELS[r.key] ?? r.key}</td>
+                <td className="px-2 py-1">
+                  {r.account ? <span><span className="font-mono">{r.account.code}</span> – {r.account.name}</span> : <span className="text-error">— unmapped —</span>}
+                </td>
+                <td className="px-2 py-1 text-right">
+                  <button onClick={() => setEditing(r.key)} className="text-primary text-sm">Change</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroller>
 
       {editing && (
         <div className="fixed inset-0 bg-black/30 z-30 flex items-center justify-center">
