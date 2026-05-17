@@ -3,14 +3,17 @@ import { ReactNode } from 'react';
 interface TableProps {
   children: ReactNode;
   footer?: ReactNode;
+  minWidth?: number;
   className?: string;
 }
 
-export function Table({ children, footer, className = '' }: TableProps) {
+export function Table({ children, footer, minWidth = 720, className = '' }: TableProps) {
   return (
-    <div className={`bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm ${className}`}>
-      <table className="w-full text-left border-collapse">{children}</table>
-      {footer}
+    <div className={`bg-white border border-outline-variant rounded-xl shadow-sm overflow-x-auto ${className}`}>
+      <div style={{ minWidth: `${minWidth}px` }}>
+        <table className="w-full text-left border-collapse">{children}</table>
+        {footer}
+      </div>
     </div>
   );
 }
