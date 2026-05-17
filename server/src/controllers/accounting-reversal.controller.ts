@@ -23,3 +23,20 @@ export async function reverse(req: AuthRequest, res: Response, next: NextFunctio
     }
   } catch (err) { next(err); }
 }
+
+export async function reverseEntry(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const entryId = Number(req.params.id);
+    if (isNaN(entryId) || entryId <= 0) { res.status(400).json({ message: 'Invalid id' }); return; }
+    try {
+      const reversal = await posting.reverseEntry(entryId, req.user!.id);
+      res.status(201).json(reversal);
+    } catch (err) {
+      if (err instanceof AccountingError) {
+        res.status(400).json({ code: err.code, message: err.message, details: err.details });
+        return;
+      }
+      throw err;
+    }
+  } catch (err) { next(err); }
+}
