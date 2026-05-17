@@ -42,7 +42,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 print:hidden">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-outline-variant overflow-hidden">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-[90vw] lg:max-w-sm border border-outline-variant overflow-hidden">
         {/* Receipt content — this section prints */}
         <div id="receipt-content" ref={contentRef} className="p-6">
           <div className="text-center mb-6">
