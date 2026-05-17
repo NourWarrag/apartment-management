@@ -16,6 +16,10 @@ import * as periods from '../controllers/accounting-periods.controller';
 import * as yearClose from '../controllers/accounting-year-close.controller';
 import * as expenses from '../controllers/accounting-expenses.controller';
 import { reverseEntry as reverseEntryHandler } from '../controllers/accounting-reversal.controller';
+import * as bankAccounts from '../controllers/accounting-bank-accounts.controller';
+import * as bankStatements from '../controllers/accounting-bank-statements.controller';
+import * as reconciliations from '../controllers/accounting-reconciliations.controller';
+import { uploadFile } from '../middleware/upload.middleware';
 
 const router = Router();
 
@@ -90,5 +94,30 @@ router.post('/journal-entries/:id/reverse', reverseEntryHandler);
 
 // Phase 3: Expense entry
 router.post('/expenses', expenses.create);
+
+// Phase 4: Bank accounts
+router.get('/bank-accounts', bankAccounts.list);
+router.post('/bank-accounts', bankAccounts.create);
+router.patch('/bank-accounts/:id', bankAccounts.update);
+router.patch('/bank-accounts/:id/csv-mapping', bankAccounts.updateCsvMapping);
+router.post('/bank-accounts/:id/deactivate', bankAccounts.deactivate);
+
+// Phase 4: Bank statements
+router.post('/bank-accounts/:id/statements/preview', uploadFile, bankStatements.preview);
+router.post('/bank-accounts/:id/statements', uploadFile, bankStatements.importStatement);
+router.get('/bank-accounts/:id/statements', bankStatements.listStatements);
+router.delete('/bank-statements/:id', bankStatements.deleteStatement);
+
+// Phase 4: Reconciliations
+router.post('/reconciliations', reconciliations.create);
+router.get('/reconciliations', reconciliations.list);
+router.get('/reconciliations/:id', reconciliations.get);
+router.post('/reconciliations/:id/auto-match', reconciliations.autoMatch);
+router.post('/reconciliations/:id/match', reconciliations.manualMatch);
+router.delete('/reconciliations/:id/match/:bankLineId', reconciliations.unmatch);
+router.post('/reconciliations/:id/adjustment', reconciliations.adjustment);
+router.post('/reconciliations/:id/close', reconciliations.close);
+router.post('/reconciliations/:id/reopen', adminOnly, reconciliations.reopen);
+router.get('/reconciliations/:id/report.csv', reconciliations.reportCsv);
 
 export default router;
