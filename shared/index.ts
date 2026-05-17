@@ -46,6 +46,7 @@ export enum PaymentStatus {
   PAID = 'PAID',
   PENDING = 'PENDING',
   FAILED = 'FAILED',
+  REVERSED = 'REVERSED',
 }
 
 export enum DepositStatus {
@@ -145,4 +146,24 @@ export type AccountingErrorCode =
   | 'MIN_LINES'
   | 'INVALID_ACCOUNT'
   | 'INVALID_BUILDING'
-  | 'ALREADY_POSTED';
+  | 'ALREADY_POSTED'
+  | 'MAPPING_MISSING'
+  | 'ALREADY_REVERSED'
+  | 'CANNOT_REVERSE';
+
+export enum AccountingMode {
+  CASH = 'CASH',
+  ACCRUAL = 'ACCRUAL',
+}
+
+export const MAPPING_KEYS = [
+  'CASH_METHOD',
+  'CARD_METHOD',
+  'INSTALLMENT_METHOD',
+  'AR_DEFAULT',
+  'REVENUE_DEFAULT',
+  'DEPOSIT_LIABILITY',
+  'DEPOSIT_FORFEIT_INCOME',
+  'VAT_PAYABLE',
+] as const;
+export type MappingKey = typeof MAPPING_KEYS[number];

@@ -3,6 +3,10 @@ import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { PaymentMethod, PaymentStatus } from '@hotel/shared';
 import { Prisma } from '@prisma/client';
+import { PostingService } from '../services/accounting/posting.service';
+import { isAccountingError } from '../services/accounting/posting.errors';
+
+const posting = new PostingService(prisma as any);
 
 const VALID_METHODS = Object.values(PaymentMethod);
 const PAGE_SIZE = 20;
@@ -75,10 +79,7 @@ export async function list(req: AuthRequest, res: Response, next: NextFunction):
 export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { bookingId, method, amount, referenceNumber } = req.body as {
-      bookingId?: number;
-      method?: string;
-      amount?: number;
-      referenceNumber?: string;
+      bookingId?: number; method?: string; amount?: number; referenceNumber?: string;
     };
 
     if (!bookingId || !method || amount === undefined || amount === null) {
@@ -103,19 +104,37 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
     const now = new Date();
     const isPaidOnCreate = method === PaymentMethod.CASH || method === PaymentMethod.CARD;
 
-    const payment = await prisma.payment.create({
-      data: {
-        bookingId: Number(bookingId),
-        method: method as PaymentMethod,
-        amount,
-        referenceNumber: referenceNumber?.trim() || null,
-        status: isPaidOnCreate ? PaymentStatus.PAID : PaymentStatus.PENDING,
-        paidAt: isPaidOnCreate ? now : null,
-      },
-      include: bookingInclude,
-    });
+    try {
+      const payment = await prisma.$transaction(async (tx) => {
+        const created = await tx.payment.create({
+          data: {
+            bookingId: Number(bookingId),
+            method: method as PaymentMethod,
+            amount,
+            referenceNumber: referenceNumber?.trim() || null,
+            status: isPaidOnCreate ? PaymentStatus.PAID : PaymentStatus.PENDING,
+            paidAt: isPaidOnCreate ? now : null,
+          },
+          include: bookingInclude,
+        });
 
-    res.status(201).json(payment);
+        if (isPaidOnCreate) {
+          const hasMapping = (await tx.accountMapping.count({ where: { key: 'REVENUE_DEFAULT' } })) > 0;
+          if (hasMapping) {
+            await posting.postFromPayment(created.id, req.user!.id, tx as unknown as Prisma.TransactionClient);
+          }
+        }
+        return created;
+      });
+
+      res.status(201).json(payment);
+    } catch (err) {
+      if (isAccountingError(err)) {
+        res.status(400).json({ code: err.code, message: err.message, details: err.details });
+        return;
+      }
+      throw err;
+    }
   } catch (err) { next(err); }
 }
 
@@ -128,22 +147,31 @@ export async function markPaid(req: AuthRequest, res: Response, next: NextFuncti
     }
 
     const payment = await prisma.payment.findUnique({ where: { id } });
-    if (!payment) {
-      res.status(404).json({ message: 'Payment not found' });
-      return;
-    }
-    if (payment.status === PaymentStatus.PAID) {
-      res.status(409).json({ message: 'Payment is already marked as paid' });
-      return;
-    }
+    if (!payment) { res.status(404).json({ message: 'Payment not found' }); return; }
+    if (payment.status === PaymentStatus.PAID) { res.status(409).json({ message: 'Payment is already marked as paid' }); return; }
+    if (payment.status === PaymentStatus.REVERSED) { res.status(409).json({ message: 'Cannot mark a reversed payment as paid' }); return; }
 
-    const updated = await prisma.payment.update({
-      where: { id },
-      data: { status: PaymentStatus.PAID, paidAt: new Date() },
-      include: bookingInclude,
-    });
-
-    res.json(updated);
+    try {
+      const updated = await prisma.$transaction(async (tx) => {
+        const u = await tx.payment.update({
+          where: { id },
+          data: { status: PaymentStatus.PAID, paidAt: new Date() },
+          include: bookingInclude,
+        });
+        const hasMapping = (await tx.accountMapping.count({ where: { key: 'REVENUE_DEFAULT' } })) > 0;
+        if (hasMapping) {
+          await posting.postFromPayment(u.id, req.user!.id, tx as unknown as Prisma.TransactionClient);
+        }
+        return u;
+      });
+      res.json(updated);
+    } catch (err) {
+      if (isAccountingError(err)) {
+        res.status(400).json({ code: err.code, message: err.message, details: err.details });
+        return;
+      }
+      throw err;
+    }
   } catch (err) { next(err); }
 }
 

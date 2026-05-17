@@ -4,7 +4,7 @@ import { usePayments, useMarkPaid, usePaymentStats } from '../../hooks/usePaymen
 import type { PaymentListItem } from '../../hooks/usePayments';
 import InstallmentTracker from './InstallmentTracker';
 import StatWidget from '../dashboard/StatWidget';
-import { Role } from '@hotel/shared';
+import { Role, FeatureFlag } from '@hotel/shared';
 import PaymentFormModal from './PaymentFormModal';
 import ReceiptModal from './ReceiptModal';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
@@ -12,6 +12,9 @@ import TableContainer from '../../components/ui/TableContainer';
 import TablePagination from '../../components/ui/TablePagination';
 import Badge from '../../components/ui/Badge';
 import IconButton from '../../components/ui/IconButton';
+import ReversePaymentDialog from '../accounting/ReversePaymentDialog';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PAGE_SIZE = 20;
 
@@ -19,6 +22,7 @@ const STATUS_COLORS: Record<PaymentListItem['status'], string> = {
   PAID: 'bg-green-100 text-green-800',
   PENDING: 'bg-amber-100 text-amber-800',
   FAILED: 'bg-red-100 text-red-800',
+  REVERSED: 'bg-gray-100 text-gray-600',
 };
 
 function formatAed(amount: string): string {
@@ -32,6 +36,9 @@ function formatDate(iso: string): string {
 export default function PaymentsPage() {
   const { data: user } = useAuth();
   const canWrite = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
+  const { data: flags } = useFeatureFlags();
+  const [reversingId, setReversingId] = useState<number | null>(null);
+  const qc = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
@@ -241,6 +248,11 @@ export default function PaymentsPage() {
                         disabled={markingPaidId === p.id}
                       />
                     )}
+                    {flags?.[FeatureFlag.ACCOUNTING] && p.status === 'PAID' && p.postedEntryId && (
+                      <button onClick={() => setReversingId(p.id)} className="text-error text-xs ltr:ml-2 rtl:mr-2">
+                        Reverse
+                      </button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -256,6 +268,13 @@ export default function PaymentsPage() {
       )}
       {receiptTarget && (
         <ReceiptModal payment={receiptTarget} onClose={() => setReceiptTarget(null)} />
+      )}
+      {reversingId && (
+        <ReversePaymentDialog
+          paymentId={reversingId}
+          onClose={() => setReversingId(null)}
+          onSuccess={() => qc.invalidateQueries({ queryKey: ['payments'] })}
+        />
       )}
     </div>
   );

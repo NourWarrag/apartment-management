@@ -624,3 +624,210 @@ describe('GET /api/v1/bookings (list)', () => {
     });
   });
 });
+
+// ─── Phase 2: Auto-posting on booking lifecycle ──────────────────────────────
+
+describe('Auto-posting on booking lifecycle (Phase 2)', () => {
+  let p2AdminCookie: string;
+  let p2BuildingId: number;
+  let p2TenantId: number;
+  let p2CashId: number;
+  let p2RevenueId: number;
+  let p2VatPayableId: number;
+  let p2TaxCodeId: number;
+
+  beforeAll(async () => {
+    process.env.FEATURE_ACCOUNTING = 'true';
+
+    // Clean Phase 2 leftovers from previous runs
+    await testPrisma.journalLine.deleteMany();
+    await testPrisma.journalEntry.deleteMany();
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.taxCode.deleteMany({ where: { code: 'BK_VAT5' } });
+    await testPrisma.account.deleteMany({ where: { code: { in: ['BK-1010', 'BK-4000', 'BK-2100'] } } });
+    await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" IN (SELECT id FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number LIKE 'P2-BK-%'))`;
+    await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number LIKE 'P2-BK-%')`;
+    await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number LIKE 'P2-BK-%'`;
+    await testPrisma.$executeRaw`DELETE FROM "Building" WHERE code = 'P2-BK-B'`;
+    await testPrisma.$executeRaw`DELETE FROM "Tenant" WHERE "idNumber" = 'P2-BK-001'`;
+    await testPrisma.user.deleteMany({ where: { email: 'p2bk@test.local' } });
+
+    const admin = await testPrisma.user.create({
+      data: { name: 'P2 BK Admin', email: 'p2bk@test.local', password: 'x', role: 'ADMIN' },
+    });
+    p2AdminCookie = `token=${signToken({ id: admin.id, role: 'ADMIN', assignedBuildingId: null })}`;
+
+    // Accounts
+    const cash = await testPrisma.account.create({ data: { code: 'BK-1010', name: 'BK Cash', type: 'ASSET' } });
+    const revenue = await testPrisma.account.create({ data: { code: 'BK-4000', name: 'BK Revenue', type: 'INCOME' } });
+    const vatPayable = await testPrisma.account.create({ data: { code: 'BK-2100', name: 'BK VAT Payable', type: 'LIABILITY' } });
+    p2CashId = cash.id; p2RevenueId = revenue.id; p2VatPayableId = vatPayable.id;
+
+    const tc = await testPrisma.taxCode.create({
+      data: { code: 'BK_VAT5', name: 'BK VAT 5%', ratePct: 5, accountId: vatPayable.id, isDefault: true },
+    });
+    p2TaxCodeId = tc.id;
+
+    // All 8 mappings
+    for (const [key, accountId] of [
+      ['CASH_METHOD', cash.id],
+      ['CARD_METHOD', cash.id],
+      ['INSTALLMENT_METHOD', cash.id],
+      ['AR_DEFAULT', cash.id],
+      ['REVENUE_DEFAULT', revenue.id],
+      ['DEPOSIT_LIABILITY', vatPayable.id],
+      ['DEPOSIT_FORFEIT_INCOME', revenue.id],
+      ['VAT_PAYABLE', vatPayable.id],
+    ] as [string, number][]) {
+      await testPrisma.accountMapping.upsert({
+        where: { key },
+        create: { key, accountId },
+        update: { accountId },
+      });
+    }
+
+    // System settings default to CASH; individual tests switch as needed
+    await testPrisma.systemSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, accountingMode: 'CASH' },
+      update: { accountingMode: 'CASH' },
+    });
+
+    const bldg = await testPrisma.building.create({
+      data: { name: 'P2 BK Bldg', code: 'P2-BK-B', address: '' },
+    });
+    p2BuildingId = bldg.id;
+
+    const tenant = await testPrisma.tenant.create({
+      data: { fullName: 'P2 BK Tenant', phone: '+97160', idNumber: 'P2-BK-001' },
+    });
+    p2TenantId = tenant.id;
+  });
+
+  afterAll(async () => {
+    await testPrisma.$executeRaw`DELETE FROM "Payment" WHERE "bookingId" IN (SELECT id FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number LIKE 'P2-BK-%'))`;
+    await testPrisma.$executeRaw`DELETE FROM "Booking" WHERE "apartmentId" IN (SELECT id FROM "Apartment" WHERE number LIKE 'P2-BK-%')`;
+    await testPrisma.$executeRaw`DELETE FROM "Apartment" WHERE number LIKE 'P2-BK-%'`;
+    await testPrisma.journalLine.deleteMany();
+    await testPrisma.journalEntry.deleteMany();
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.taxCode.deleteMany({ where: { id: p2TaxCodeId } });
+    await testPrisma.account.deleteMany({
+      where: { id: { in: [p2CashId, p2RevenueId, p2VatPayableId] } },
+    });
+    await testPrisma.$executeRaw`DELETE FROM "Tenant" WHERE "idNumber" = 'P2-BK-001'`;
+    await testPrisma.$executeRaw`DELETE FROM "Building" WHERE code = 'P2-BK-B'`;
+    await testPrisma.user.deleteMany({ where: { email: 'p2bk@test.local' } });
+  });
+
+  it('POST /bookings in ACCRUAL mode auto-posts AR + Revenue + VAT (3-line JE on booking)', async () => {
+    await testPrisma.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'ACCRUAL' } });
+
+    const apt = await testPrisma.apartment.create({
+      data: { number: 'P2-BK-ACR', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: p2BuildingId },
+    });
+
+    try {
+      const res = await request(app)
+        .post('/api/v1/bookings')
+        .set('Cookie', p2AdminCookie)
+        .send({
+          apartmentId: apt.id,
+          tenantId: p2TenantId,
+          checkIn: '2026-08-01',
+          checkOut: '2026-09-01',
+          totalAmount: 1050,
+          taxCodeId: p2TaxCodeId,
+          payment: { method: 'CASH', amount: 1050 },
+        });
+
+      expect(res.status).toBe(201);
+
+      // In ACCRUAL mode, bookings.create calls postFromBookingCreated which posts
+      // the revenue recognition entry (3 lines: debit AR, credit Revenue, credit VAT).
+      const booking = await testPrisma.booking.findUnique({ where: { id: res.body.id } });
+      expect(booking?.revenuePostedEntryId).not.toBeNull();
+
+      const entry = await testPrisma.journalEntry.findUnique({
+        where: { id: booking!.revenuePostedEntryId! },
+        include: { lines: true },
+      });
+      expect(entry).not.toBeNull();
+      expect(entry!.lines.length).toBe(3);
+    } finally {
+      await testPrisma.systemSettings.update({ where: { id: 1 }, data: { accountingMode: 'CASH' } });
+    }
+  });
+
+  it('PATCH /bookings/:id/deposit auto-posts deposit liability (2-line JE)', async () => {
+    const apt = await testPrisma.apartment.create({
+      data: { number: 'P2-BK-DEP', floor: 1, type: 'STUDIO', status: 'AVAILABLE', buildingId: p2BuildingId },
+    });
+    const booking = await testPrisma.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: p2TenantId,
+        checkIn: new Date('2026-08-01'),
+        checkOut: new Date('2026-09-01'),
+        totalAmount: 5000,
+      },
+    });
+
+    const res = await request(app)
+      .patch(`/api/v1/bookings/${booking.id}/deposit`)
+      .set('Cookie', p2AdminCookie)
+      .send({ amount: 1000 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.depositStatus).toBe('HELD');
+
+    const updated = await testPrisma.booking.findUnique({ where: { id: booking.id } });
+    expect(updated?.depositPostedEntryId).not.toBeNull();
+
+    const entry = await testPrisma.journalEntry.findUnique({
+      where: { id: updated!.depositPostedEntryId! },
+      include: { lines: true },
+    });
+    expect(entry).not.toBeNull();
+    expect(entry!.lines.length).toBe(2);
+  });
+
+  it('PATCH /bookings/:id/checkout (full refund) posts deposit release JE (2-line entry)', async () => {
+    const apt = await testPrisma.apartment.create({
+      data: { number: 'P2-BK-CHK', floor: 1, type: 'STUDIO', status: 'OCCUPIED', buildingId: p2BuildingId },
+    });
+    const booking = await testPrisma.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: p2TenantId,
+        checkIn: new Date('2026-01-01'),
+        checkOut: new Date('2026-02-01'),
+        totalAmount: 5000,
+        depositAmount: 1000,
+        depositStatus: 'HELD',
+        depositCollectedAt: new Date(),
+      },
+    });
+
+    const entryCountBefore = await testPrisma.journalEntry.count();
+
+    const res = await request(app)
+      .patch(`/api/v1/bookings/${booking.id}/checkout`)
+      .set('Cookie', p2AdminCookie)
+      .send({ depositRefundAmount: 1000 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.depositStatus).toBe('RELEASED');
+
+    const entryCountAfter = await testPrisma.journalEntry.count();
+    expect(entryCountAfter).toBe(entryCountBefore + 1);
+
+    const releaseEntry = await testPrisma.journalEntry.findFirst({
+      where: { sourceRefId: booking.id, source: 'PAYMENT_AUTO' },
+      include: { lines: true },
+      orderBy: { id: 'desc' },
+    });
+    expect(releaseEntry).not.toBeNull();
+    expect(releaseEntry!.lines.length).toBe(2);
+  });
+});

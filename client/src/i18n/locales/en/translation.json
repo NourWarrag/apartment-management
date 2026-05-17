@@ -12,7 +12,9 @@
     "accountingAccounts": "Chart of Accounts",
     "accountingJournal": "Journal Entries",
     "accountingGL": "General Ledger",
-    "accountingTB": "Trial Balance"
+    "accountingTB": "Trial Balance",
+    "accountingMapping": "Account Mapping",
+    "accountingVAT": "VAT Return"
   },
   "auth": {
     "login": "Login",
@@ -139,14 +141,23 @@
       "confirmPost": "Posting is permanent. To correct a posted entry later, you'll create a reversing entry. Continue?"
     },
     "gl": { "title": "General Ledger" },
-    "tb": { "title": "Trial Balance" }
+    "tb": { "title": "Trial Balance" },
+    "mapping": { "title": "Account Mapping" },
+    "vat":     { "title": "VAT Return" },
+    "taxCodes": { "title": "Tax Codes", "new": "New Tax Code" }
   },
   "settings": {
     "accounting": {
       "title": "Accounting",
       "booksModeHelp": "Switching modes never changes the underlying data — only how reports group and which filters appear.",
       "consolidated": "Consolidated (single set of books)",
-      "perBuilding": "Per-building (separate books with consolidation view)"
+      "perBuilding": "Per-building (separate books with consolidation view)",
+      "modeTitle": "Accounting mode",
+      "modeHelp": "Cash basis posts revenue when payment is received. Accrual posts revenue when the booking is created and clears AR when payment is received. Switching modes does not affect historical entries.",
+      "cash": "Cash basis",
+      "accrual": "Accrual basis",
+      "runSetup": "Run Setup",
+      "runBackfill": "Run Backfill"
     }
   }
 }

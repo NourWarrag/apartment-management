@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import { useCreateBooking } from '../../hooks/useBookings';
 import { useApartments } from '../../hooks/useApartments';
 import { useTenants } from '../../hooks/useTenants';
-import { ApartmentStatus } from '@hotel/shared';
+import { ApartmentStatus, FeatureFlag } from '@hotel/shared';
+import { taxCodesApi } from '../../lib/api/accounting-phase2';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 const schema = z.object({
   apartmentId: z.coerce.number().min(1, 'Apartment is required'),
@@ -38,6 +41,14 @@ export default function BookingFormModal({
   prefilledTenantId,
 }: BookingFormModalProps) {
   const [apiError, setApiError] = useState<string | null>(null);
+  const [taxCodeId, setTaxCodeId] = useState<number | null>(null);
+  const { data: flags } = useFeatureFlags();
+  const accountingOn = !!flags?.[FeatureFlag.ACCOUNTING];
+  const { data: taxCodes = [] } = useQuery({
+    queryKey: ['accounting', 'tax-codes'],
+    queryFn: taxCodesApi.list,
+    enabled: accountingOn,
+  });
   const createBooking = useCreateBooking();
   const { data: apartments = [] } = useApartments({ status: ApartmentStatus.AVAILABLE });
   const { data: tenants = [] } = useTenants();
@@ -70,6 +81,7 @@ export default function BookingFormModal({
         checkIn: values.checkIn,
         checkOut: values.checkOut,
         totalAmount: values.totalAmount,
+        ...(accountingOn && taxCodeId ? { taxCodeId } : {}),
         payment: {
           method: values.paymentMethod,
           amount: values.paymentAmount,
@@ -181,6 +193,25 @@ export default function BookingFormModal({
               <p className="text-red-600 text-xs mt-1">{errors.totalAmount.message}</p>
             )}
           </div>
+
+          {/* Tax Code */}
+          {accountingOn && taxCodes.length > 0 && (
+            <div>
+              <label className={labelCls}>
+                Tax code <span className="font-normal text-on-surface-variant">(defaults to system default)</span>
+              </label>
+              <select
+                value={taxCodeId ?? ''}
+                onChange={(e) => setTaxCodeId(e.target.value ? Number(e.target.value) : null)}
+                className={inputCls}
+              >
+                <option value="">— system default —</option>
+                {taxCodes.filter((tc) => tc.isActive).map((tc) => (
+                  <option key={tc.id} value={tc.id}>{tc.code} ({tc.ratePct}%)</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Payment */}
           <div className="border-t border-outline-variant pt-4">

@@ -30,6 +30,7 @@ const STATUS_LABEL: Record<PaymentListItem['status'], string> = {
   PAID: 'Paid',
   PENDING: 'Pending',
   FAILED: 'Failed',
+  REVERSED: 'Reversed',
 };
 
 export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {

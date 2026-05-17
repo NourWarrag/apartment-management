@@ -4,8 +4,12 @@ import { Role, FeatureFlag } from '@hotel/shared';
 import { useAuth } from '../../hooks/useAuth';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useSettings, useUpdateSettings, SystemSettings } from '../../hooks/useSettings';
+import { useMutation } from '@tanstack/react-query';
+import { accountingAdminApi } from '../../lib/api/accounting-phase2';
+import BackfillModal from '../accounting/BackfillModal';
 
 type BooksMode = 'CONSOLIDATED' | 'PER_BUILDING';
+type AccountingMode = 'CASH' | 'ACCRUAL';
 
 type EditableField = keyof Omit<SystemSettings, 'id'>;
 
@@ -131,13 +135,30 @@ export default function SettingsPage() {
   const updateSettings = useUpdateSettings();
 
   const [booksMode, setBooksMode] = useState<BooksMode>('CONSOLIDATED');
+  const [accountingMode, setAccountingMode] = useState<AccountingMode>('CASH');
+  const [showBackfill, setShowBackfill] = useState(false);
+  const [setupResult, setSetupResult] = useState<{ createdAccounts: number; createdTaxCodes: number; createdMappings: number; unmappedKeys: string[] } | null>(null);
 
   useEffect(() => {
     if (settings) {
       const raw = (settings as SystemSettings & { booksMode?: BooksMode }).booksMode;
       setBooksMode(raw ?? 'CONSOLIDATED');
+      const rawMode = (settings as SystemSettings & { accountingMode?: AccountingMode }).accountingMode;
+      setAccountingMode(rawMode ?? 'CASH');
     }
   }, [settings]);
+
+  const setupMut = useMutation({
+    mutationFn: () => accountingAdminApi.setup(),
+    onSuccess: (r) => setSetupResult(r),
+  });
+
+  async function handleAccountingModeChange(value: AccountingMode) {
+    setAccountingMode(value);
+    if (canEdit) {
+      await updateSettings.mutateAsync({ accountingMode: value } as any);
+    }
+  }
 
   const canEdit = currentUser?.role === Role.ADMIN || currentUser?.role === Role.SUPER_ADMIN;
 
@@ -220,6 +241,44 @@ export default function SettingsPage() {
             {t('settings.accounting.perBuilding', 'Per-building (separate books with consolidation view)')}
           </label>
         </fieldset>
+
+        <div className="mt-6 border-t border-outline-variant pt-4">
+          <h3 className="text-sm font-bold mb-2">{t('settings.accounting.modeTitle', 'Accounting mode')}</h3>
+          <p className="text-sm text-on-surface-variant mb-3">
+            {t('settings.accounting.modeHelp', "Cash basis posts revenue when payment is received. Accrual posts revenue when the booking is created and clears AR when payment is received. Switching modes does not affect historical entries.")}
+          </p>
+          <label className="block text-sm mb-1">
+            <input type="radio" name="accountingMode" value="CASH" checked={accountingMode === 'CASH'} onChange={() => handleAccountingModeChange('CASH')} disabled={!canEdit} className="ltr:mr-2 rtl:ml-2" />
+            {t('settings.accounting.cash', 'Cash basis')}
+          </label>
+          <label className="block text-sm">
+            <input type="radio" name="accountingMode" value="ACCRUAL" checked={accountingMode === 'ACCRUAL'} onChange={() => handleAccountingModeChange('ACCRUAL')} disabled={!canEdit} className="ltr:mr-2 rtl:ml-2" />
+            {t('settings.accounting.accrual', 'Accrual basis')}
+          </label>
+        </div>
+
+        {canEdit && (
+          <div className="mt-6 border-t border-outline-variant pt-4 space-y-3">
+            <div>
+              <button onClick={() => setupMut.mutate()} disabled={setupMut.isPending} className="px-3 py-2 rounded bg-primary text-on-primary text-sm disabled:opacity-50">
+                {setupMut.isPending ? 'Running…' : t('settings.accounting.runSetup', 'Run Setup')}
+              </button>
+              {setupResult && (
+                <div className="mt-2 text-sm">
+                  Created {setupResult.createdAccounts} accounts, {setupResult.createdTaxCodes} tax codes, {setupResult.createdMappings} mappings.
+                  {setupResult.unmappedKeys.length > 0 && <span className="text-error"> Unmapped: {setupResult.unmappedKeys.join(', ')}</span>}
+                </div>
+              )}
+            </div>
+            <div>
+              <button onClick={() => setShowBackfill(true)} className="px-3 py-2 rounded border border-primary text-primary text-sm">
+                {t('settings.accounting.runBackfill', 'Run Backfill')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showBackfill && <BackfillModal onClose={() => setShowBackfill(false)} />}
       </div>
       )}
 

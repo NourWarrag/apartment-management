@@ -17,6 +17,8 @@ const NAV_ITEMS = [
   { to: '/accounting/journal-entries', icon: 'receipt_long', key: 'accountingJournal', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/accounting/general-ledger', icon: 'menu_book', key: 'accountingGL', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/accounting/trial-balance', icon: 'balance', key: 'accountingTB', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/mapping', icon: 'settings_input_component', key: 'accountingMapping', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
+  { to: '/accounting/vat-return', icon: 'request_quote', key: 'accountingVAT', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE], feature: FeatureFlag.ACCOUNTING },
   { to: '/users', icon: 'group', key: 'users', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
 ];
 

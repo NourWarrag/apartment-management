@@ -479,3 +479,170 @@ describe('GET /api/v1/payments/installment-plans', () => {
     }
   });
 });
+
+// ─── Phase 2: Auto-posting ───────────────────────────────────────────────────
+
+describe('Auto-posting on PAID (Phase 2)', () => {
+  // Phase 2 fixture IDs
+  let p2CashId: number;
+  let p2RevenueId: number;
+  let p2VatPayableId: number;
+  let p2TaxCodeId: number;
+
+  beforeAll(async () => {
+    process.env.FEATURE_ACCOUNTING = 'true';
+
+    // Clean up any leftover state from previous runs before creating fixtures
+    await testPrisma.journalLine.deleteMany();
+    await testPrisma.journalEntry.deleteMany();
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.taxCode.deleteMany({ where: { code: 'P2_VAT5' } });
+    await testPrisma.account.deleteMany({ where: { code: { in: ['P2-1010', 'P2-4000', 'P2-2100'] } } });
+
+    // Phase 2 accounts (codes offset so they don't clash with other test files
+    // running concurrently against the same DB)
+    const cash = await testPrisma.account.create({
+      data: { code: 'P2-1010', name: 'P2 Cash', type: 'ASSET' },
+    });
+    const revenue = await testPrisma.account.create({
+      data: { code: 'P2-4000', name: 'P2 Revenue', type: 'INCOME' },
+    });
+    const vatPayable = await testPrisma.account.create({
+      data: { code: 'P2-2100', name: 'P2 VAT Payable', type: 'LIABILITY' },
+    });
+    p2CashId = cash.id;
+    p2RevenueId = revenue.id;
+    p2VatPayableId = vatPayable.id;
+
+    const tc = await testPrisma.taxCode.create({
+      data: { code: 'P2_VAT5', name: 'P2 VAT 5%', ratePct: 5, accountId: vatPayable.id, isDefault: true },
+    });
+    p2TaxCodeId = tc.id;
+
+    // All 8 mappings (upsert so they override any prior state)
+    for (const [key, accountId] of [
+      ['CASH_METHOD', cash.id],
+      ['CARD_METHOD', cash.id],
+      ['INSTALLMENT_METHOD', cash.id],
+      ['AR_DEFAULT', cash.id],
+      ['REVENUE_DEFAULT', revenue.id],
+      ['DEPOSIT_LIABILITY', vatPayable.id],
+      ['DEPOSIT_FORFEIT_INCOME', revenue.id],
+      ['VAT_PAYABLE', vatPayable.id],
+    ] as const) {
+      await testPrisma.accountMapping.upsert({
+        where: { key },
+        create: { key, accountId },
+        update: { accountId },
+      });
+    }
+
+    // System settings — CASH mode
+    await testPrisma.systemSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, accountingMode: 'CASH' },
+      update: { accountingMode: 'CASH' },
+    });
+
+    // Attach taxCodeId to the existing test booking used by POST /payments tests
+    await testPrisma.booking.update({
+      where: { id: bookingId },
+      data: { taxCodeId: p2TaxCodeId },
+    });
+  });
+
+  afterAll(async () => {
+    // Reset booking FK reference before deleting the tax code
+    await testPrisma.booking.update({ where: { id: bookingId }, data: { taxCodeId: null } });
+    // Remove Phase 2 fixtures in dependency order
+    await testPrisma.journalLine.deleteMany();
+    await testPrisma.journalEntry.deleteMany();
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.taxCode.deleteMany({ where: { id: p2TaxCodeId } });
+    await testPrisma.account.deleteMany({
+      where: { id: { in: [p2CashId, p2RevenueId, p2VatPayableId] } },
+    });
+  });
+
+  it('POST /payments with CASH auto-posts a JE; response has postedEntryId and JE has 3 lines', async () => {
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Cookie', adminCookie)
+      .send({ bookingId, method: 'CASH', amount: 1050 });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('PAID');
+
+      // Fetch the payment from DB to read postedEntryId
+      const payment = await testPrisma.payment.findUnique({ where: { id: res.body.id } });
+      expect(payment?.postedEntryId).not.toBeNull();
+
+      const entry = await testPrisma.journalEntry.findUnique({
+        where: { id: payment!.postedEntryId! },
+        include: { lines: true },
+      });
+      expect(entry).not.toBeNull();
+      expect(entry!.lines.length).toBe(3);
+    } finally {
+      if (res.body.id) {
+        await testPrisma.journalLine.deleteMany({
+          where: { journalEntry: { sourceRefId: res.body.id } },
+        });
+        await testPrisma.journalEntry.deleteMany({ where: { sourceRefId: res.body.id } });
+        await testPrisma.payment.delete({ where: { id: res.body.id } }).catch(() => {});
+      }
+    }
+  });
+
+  it('PATCH /payments/:id (markPaid on PENDING) auto-posts; postedEntryId is set', async () => {
+    const fresh = await testPrisma.payment.create({
+      data: { bookingId, method: 'INSTALLMENT', amount: 525, status: 'PENDING' },
+    });
+
+    try {
+      const res = await request(app)
+        .patch(`/api/v1/payments/${fresh.id}`)
+        .set('Cookie', adminCookie);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('PAID');
+
+      const payment = await testPrisma.payment.findUnique({ where: { id: fresh.id } });
+      expect(payment?.postedEntryId).not.toBeNull();
+    } finally {
+      await testPrisma.journalLine.deleteMany({
+        where: { journalEntry: { sourceRefId: fresh.id } },
+      });
+      await testPrisma.journalEntry.deleteMany({ where: { sourceRefId: fresh.id } });
+      await testPrisma.payment.delete({ where: { id: fresh.id } }).catch(() => {});
+    }
+  });
+
+  it('Payment.create rolls back when posting throws MAPPING_MISSING — 400, payment count unchanged', async () => {
+    // The controller checks for REVENUE_DEFAULT before posting. To trigger MAPPING_MISSING
+    // inside the transaction, we keep REVENUE_DEFAULT but remove CASH_METHOD, which
+    // postFromPayment resolves first in CASH mode.
+    await testPrisma.accountMapping.deleteMany({ where: { key: 'CASH_METHOD' } });
+
+    const countBefore = await testPrisma.payment.count({ where: { bookingId } });
+
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Cookie', adminCookie)
+      .send({ bookingId, method: 'CASH', amount: 500 });
+
+    // Restore the mapping immediately so other tests are not affected
+    await testPrisma.accountMapping.upsert({
+      where: { key: 'CASH_METHOD' },
+      create: { key: 'CASH_METHOD', accountId: p2CashId },
+      update: { accountId: p2CashId },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('MAPPING_MISSING');
+
+    const countAfter = await testPrisma.payment.count({ where: { bookingId } });
+    expect(countAfter).toBe(countBefore);
+  });
+});
