@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import TableScroller from '../../components/ui/TableScroller';
 import { taxCodesApi, type TaxCode } from '../../lib/api/accounting-phase2';
 import { accountsApi } from '../../lib/api/accounting';
 
@@ -28,33 +29,35 @@ export default function TaxCodesPanel() {
           + {t('accounting.taxCodes.new', 'New')}
         </button>
       </div>
-      <table className="w-full text-sm bg-surface-container-low rounded">
-        <thead className="text-on-surface-variant">
-          <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th>
-              <th className="px-2 py-1 text-right">Rate %</th><th className="px-2 py-1 text-left">Account</th>
-              <th className="px-2 py-1 text-center">Default</th><th className="px-2 py-1 text-center">Active</th></tr>
-        </thead>
-        <tbody>
-          {taxCodes.map((tc) => {
-            const acc = accounts.find((a) => a.id === tc.accountId);
-            return (
-              <tr key={tc.id} className="border-t border-outline-variant">
-                <td className="px-2 py-1 font-mono">{tc.code}</td>
-                <td className="px-2 py-1">{tc.name}</td>
-                <td className="px-2 py-1 text-right">{tc.ratePct}</td>
-                <td className="px-2 py-1">{acc ? `${acc.code} – ${acc.name}` : '?'}</td>
-                <td className="px-2 py-1 text-center">
-                  <input type="radio" name="default-tc" checked={tc.isDefault}
-                    onChange={() => updateMut.mutate({ id: tc.id, d: { isDefault: true } })} />
-                </td>
-                <td className="px-2 py-1 text-center">
-                  {tc.isActive ? <span className="text-primary">Yes</span> : <span className="text-on-surface-variant">No</span>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <TableScroller minWidth={720}>
+        <table className="w-full text-sm bg-surface-container-low rounded">
+          <thead className="text-on-surface-variant">
+            <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th>
+                <th className="px-2 py-1 text-right">Rate %</th><th className="px-2 py-1 text-left">Account</th>
+                <th className="px-2 py-1 text-center">Default</th><th className="px-2 py-1 text-center">Active</th></tr>
+          </thead>
+          <tbody>
+            {taxCodes.map((tc) => {
+              const acc = accounts.find((a) => a.id === tc.accountId);
+              return (
+                <tr key={tc.id} className="border-t border-outline-variant">
+                  <td className="px-2 py-1 font-mono">{tc.code}</td>
+                  <td className="px-2 py-1">{tc.name}</td>
+                  <td className="px-2 py-1 text-right">{tc.ratePct}</td>
+                  <td className="px-2 py-1">{acc ? `${acc.code} – ${acc.name}` : '?'}</td>
+                  <td className="px-2 py-1 text-center">
+                    <input type="radio" name="default-tc" checked={tc.isDefault}
+                      onChange={() => updateMut.mutate({ id: tc.id, d: { isDefault: true } })} />
+                  </td>
+                  <td className="px-2 py-1 text-center">
+                    {tc.isActive ? <span className="text-primary">Yes</span> : <span className="text-on-surface-variant">No</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TableScroller>
       {showNew && <NewTaxCodeModal accounts={accounts} onSubmit={(d) => createMut.mutateAsync(d).then(() => setShowNew(false))} onClose={() => setShowNew(false)} />}
     </section>
   );
