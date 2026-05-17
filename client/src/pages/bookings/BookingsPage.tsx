@@ -6,6 +6,9 @@ import { Table, TableHead, TableBody, TableRow, TableCell } from '../../componen
 import TableContainer from '../../components/ui/TableContainer';
 import TablePagination from '../../components/ui/TablePagination';
 import Badge from '../../components/ui/Badge';
+import { Role } from '@hotel/shared';
+import { useAuth } from '../../hooks/useAuth';
+import BookingFormModal from './BookingFormModal';
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +56,13 @@ export default function BookingsPage() {
   const [page, setPage] = useState(1);
 
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const { data: user } = useAuth();
+  const canCreateBooking =
+    user?.role === Role.SUPER_ADMIN ||
+    user?.role === Role.ADMIN ||
+    user?.role === Role.BUILDING_ADMIN ||
+    user?.role === Role.RECEPTIONIST;
 
   // Buildings list for the dropdown
   const { data: buildings } = useBuildings();
@@ -105,9 +115,20 @@ export default function BookingsPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-on-surface">Bookings</h1>
-        <p className="text-sm text-on-surface-variant mt-1">All bookings across your properties</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-on-surface">Bookings</h1>
+          <p className="text-sm text-on-surface-variant mt-1">All bookings across your properties</p>
+        </div>
+        {canCreateBooking && (
+          <button
+            onClick={() => setNewBookingOpen(true)}
+            className="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 shrink-0"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            New Booking
+          </button>
+        )}
       </div>
 
       {/* Stats cards */}
@@ -251,6 +272,12 @@ export default function BookingsPage() {
           onClose={() => setSelectedBookingId(null)}
         />
       )}
+
+      {/* New booking modal */}
+      <BookingFormModal
+        open={newBookingOpen}
+        onClose={() => setNewBookingOpen(false)}
+      />
     </div>
   );
 }
