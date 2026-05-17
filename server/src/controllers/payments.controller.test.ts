@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import app from '../app';
@@ -644,5 +644,85 @@ describe('Auto-posting on PAID (Phase 2)', () => {
 
     const countAfter = await testPrisma.payment.count({ where: { bookingId } });
     expect(countAfter).toBe(countBefore);
+  });
+});
+
+// ─── Phase 3: Period-lock regression ─────────────────────────────────────────
+
+describe('Period-lock regression (Phase 3)', () => {
+  let p3LockCashId: number;
+  let p3LockRevenueId: number;
+
+  beforeAll(async () => {
+    process.env.FEATURE_ACCOUNTING = 'true';
+    // Ensure the accounts + mappings exist so postFromPayment is triggered and period-lock fires.
+    // Phase 2 afterAll already deleted all mappings/accounts, so we create fresh ones here.
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.account.deleteMany({ where: { code: { in: ['P3LK-PAY-1010', 'P3LK-PAY-4000'] } } });
+
+    const cash = await testPrisma.account.create({ data: { code: 'P3LK-PAY-1010', name: 'P3LK Pay Cash', type: 'ASSET' } });
+    const rev = await testPrisma.account.create({ data: { code: 'P3LK-PAY-4000', name: 'P3LK Pay Revenue', type: 'INCOME' } });
+    p3LockCashId = cash.id;
+    p3LockRevenueId = rev.id;
+
+    for (const [key, accountId] of [
+      ['CASH_METHOD', cash.id],
+      ['CARD_METHOD', cash.id],
+      ['INSTALLMENT_METHOD', cash.id],
+      ['AR_DEFAULT', cash.id],
+      ['REVENUE_DEFAULT', rev.id],
+      ['DEPOSIT_LIABILITY', cash.id],
+      ['DEPOSIT_FORFEIT_INCOME', rev.id],
+      ['VAT_PAYABLE', cash.id],
+    ] as [string, number][]) {
+      await testPrisma.accountMapping.upsert({
+        where: { key },
+        create: { key, accountId },
+        update: { accountId },
+      });
+    }
+
+    await testPrisma.systemSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, accountingMode: 'CASH' },
+      update: { accountingMode: 'CASH' },
+    });
+  });
+
+  afterAll(async () => {
+    // Restore OPEN so other tests aren't affected
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth() + 1;
+    await testPrisma.fiscalPeriod.updateMany({
+      where: { year, month, status: 'LOCKED' },
+      data: { status: 'OPEN', lockedAt: null, lockedBy: null },
+    });
+    await testPrisma.accountMapping.deleteMany();
+    await testPrisma.account.deleteMany({ where: { id: { in: [p3LockCashId, p3LockRevenueId] } } });
+  });
+
+  it('payment auto-post rejects when target period is LOCKED', async () => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth() + 1;
+    await testPrisma.fiscalPeriod.upsert({
+      where: { year_month: { year, month } },
+      create: { year, month, status: 'LOCKED' },
+      update: { status: 'LOCKED' },
+    });
+
+    const r = await request(app)
+      .post('/api/v1/payments')
+      .set('Cookie', adminCookie)
+      .send({ bookingId, method: 'CASH', amount: 100 });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('PERIOD_LOCKED');
+
+    // Restore for downstream tests
+    await testPrisma.fiscalPeriod.update({
+      where: { year_month: { year, month } },
+      data: { status: 'OPEN', lockedAt: null, lockedBy: null },
+    });
   });
 });
