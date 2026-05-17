@@ -156,6 +156,16 @@ describe('MatchingService.applyAutoMatches', () => {
     expect(count).toBe(1);
     expect(await db.reconciliationMatch.count()).toBe(before + 1);
   });
+
+  it('rejects auto-match on a CLOSED reconciliation', async () => {
+    const rec = await db.reconciliation.create({
+      data: { bankAccountId, endDate: new Date('2026-09-30'), statementBalance: '0' },
+    });
+    await svc().close(rec.id, userId);
+    await expect(svc().applyAutoMatches(rec.id, userId))
+      .rejects.toMatchObject({ code: 'RECONCILIATION_CLOSED' });
+    await db.reconciliation.delete({ where: { id: rec.id } });
+  });
 });
 
 describe('MatchingService.manualMatch — N-to-1', () => {

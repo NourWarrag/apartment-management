@@ -61,6 +61,10 @@ export class MatchingService {
   }
 
   async applyAutoMatches(reconciliationId: number, userId: number, dateWindowDays = 2): Promise<number> {
+    const rec = await this.prisma.reconciliation.findUnique({ where: { id: reconciliationId } });
+    if (!rec) throw new AccountingError('INVALID_LINE', `Reconciliation ${reconciliationId} not found`);
+    if (rec.status === 'CLOSED') throw new AccountingError('RECONCILIATION_CLOSED', 'Reconciliation is closed');
+
     const candidates = await this.findAutoMatches(reconciliationId, dateWindowDays);
     if (candidates.length === 0) return 0;
     await this.prisma.$transaction(async (tx) => {
