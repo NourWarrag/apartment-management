@@ -35,7 +35,7 @@ export default function AccountFormModal({ initial, accounts, hasActivity, onSub
 
   return (
     <div className="fixed inset-0 bg-black/30 z-30 flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="bg-surface rounded-lg shadow-xl w-[420px] p-6">
+      <form onSubmit={handleSubmit} className="bg-surface rounded-lg shadow-xl w-full max-w-[90vw] lg:max-w-[420px] p-6">
         <h2 className="text-lg font-bold text-on-surface mb-4">{initial ? 'Edit Account' : 'New Account'}</h2>
         {err && <div className="text-error text-sm mb-2">{err}</div>}
         <label className="block text-sm mb-2">

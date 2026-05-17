@@ -57,7 +57,7 @@ export default function NewTicketModal({ open, onClose, defaultType = 'MAINTENAN
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md border border-outline-variant overflow-hidden">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-[90vw] lg:max-w-md border border-outline-variant overflow-hidden">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-on-surface">New Ticket</h2>

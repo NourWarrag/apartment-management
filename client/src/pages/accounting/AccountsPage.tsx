@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { accountsApi, type Account } from '../../lib/api/accounting';
 import type { AccountType } from '@hotel/shared';
+import TableScroller from '../../components/ui/TableScroller';
 import AccountFormModal from './AccountFormModal';
 
 const TYPE_ORDER: AccountType[] = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'] as any;
@@ -63,40 +64,42 @@ export default function AccountsPage() {
         byType[type] ? (
           <div key={type} className="mb-6">
             <h2 className="font-bold text-on-surface mb-2">{type}</h2>
-            <table className="w-full text-sm bg-surface-container-low rounded">
-              <thead className="text-on-surface-variant">
-                <tr>
-                  <th className="px-2 py-1 text-left">Code</th>
-                  <th className="px-2 py-1 text-left">Name</th>
-                  <th className="px-2 py-1 text-left">Parent</th>
-                  <th className="px-2 py-1 text-left">Active</th>
-                  <th className="px-2 py-1 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byType[type].sort((a, b) => a.code.localeCompare(b.code)).map((a) => {
-                  const parent = a.parentId ? accounts.find((p) => p.id === a.parentId) : null;
-                  return (
-                    <tr key={a.id} className="border-t border-outline-variant">
-                      <td className="px-2 py-1 font-mono">{a.code}</td>
-                      <td className="px-2 py-1">{a.name}</td>
-                      <td className="px-2 py-1">{parent ? `${parent.code} – ${parent.name}` : '—'}</td>
-                      <td className="px-2 py-1">
-                        <button
-                          onClick={() => toggleMut.mutate({ id: a.id, active: !a.isActive })}
-                          className={`px-2 py-0.5 rounded text-xs ${a.isActive ? 'bg-secondary-container text-primary' : 'bg-surface-container-high text-on-surface-variant'}`}
-                        >
-                          {a.isActive ? 'Active' : 'Inactive'}
-                        </button>
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        <button onClick={() => setEditing(a)} className="text-primary">Edit</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <TableScroller minWidth={720}>
+              <table className="w-full text-sm bg-surface-container-low rounded">
+                <thead className="text-on-surface-variant">
+                  <tr>
+                    <th className="px-2 py-1 text-left">Code</th>
+                    <th className="px-2 py-1 text-left">Name</th>
+                    <th className="px-2 py-1 text-left">Parent</th>
+                    <th className="px-2 py-1 text-left">Active</th>
+                    <th className="px-2 py-1 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byType[type].sort((a, b) => a.code.localeCompare(b.code)).map((a) => {
+                    const parent = a.parentId ? accounts.find((p) => p.id === a.parentId) : null;
+                    return (
+                      <tr key={a.id} className="border-t border-outline-variant">
+                        <td className="px-2 py-1 font-mono">{a.code}</td>
+                        <td className="px-2 py-1">{a.name}</td>
+                        <td className="px-2 py-1">{parent ? `${parent.code} – ${parent.name}` : '—'}</td>
+                        <td className="px-2 py-1">
+                          <button
+                            onClick={() => toggleMut.mutate({ id: a.id, active: !a.isActive })}
+                            className={`px-2 py-0.5 rounded text-xs ${a.isActive ? 'bg-secondary-container text-primary' : 'bg-surface-container-high text-on-surface-variant'}`}
+                          >
+                            {a.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                        <td className="px-2 py-1 text-right">
+                          <button onClick={() => setEditing(a)} className="text-primary">Edit</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TableScroller>
           </div>
         ) : null,
       )}

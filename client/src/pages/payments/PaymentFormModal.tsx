@@ -98,7 +98,7 @@ export default function PaymentFormModal({ open, onClose, bookingId: prefilledBo
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-md p-6 border border-outline-variant">
+      <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-[90vw] lg:max-w-md p-6 border border-outline-variant">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-primary">Record Payment</h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant transition-colors">

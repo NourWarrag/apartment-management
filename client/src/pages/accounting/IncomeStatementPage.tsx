@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import TableScroller from '../../components/ui/TableScroller';
 import { statementsApi } from '../../lib/api/accounting-phase3';
 import api from '../../lib/axios';
 
@@ -55,40 +56,44 @@ export default function IncomeStatementPage() {
         <>
           <section className="mb-6">
             <h2 className="font-bold mb-2">Income</h2>
-            <table className="w-full text-sm bg-surface-container-low rounded">
-              <thead className="text-on-surface-variant">
-                <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-right">Amount</th></tr>
-              </thead>
-              <tbody>
-                {data.income.rows.map((r) => (
-                  <tr key={r.accountId} className="border-t border-outline-variant">
-                    <td className="px-2 py-1 font-mono">{r.code}</td>
-                    <td className="px-2 py-1">{r.name}</td>
-                    <td className="px-2 py-1 text-right">{r.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr className="font-bold border-t border-on-surface"><td colSpan={2} className="px-2 py-1 text-right">Total Income</td><td className="px-2 py-1 text-right">{data.income.total}</td></tr></tfoot>
-            </table>
+            <TableScroller minWidth={720}>
+              <table className="w-full text-sm bg-surface-container-low rounded">
+                <thead className="text-on-surface-variant">
+                  <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-right">Amount</th></tr>
+                </thead>
+                <tbody>
+                  {data.income.rows.map((r) => (
+                    <tr key={r.accountId} className="border-t border-outline-variant">
+                      <td className="px-2 py-1 font-mono">{r.code}</td>
+                      <td className="px-2 py-1">{r.name}</td>
+                      <td className="px-2 py-1 text-right">{r.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr className="font-bold border-t border-on-surface"><td colSpan={2} className="px-2 py-1 text-right">Total Income</td><td className="px-2 py-1 text-right">{data.income.total}</td></tr></tfoot>
+              </table>
+            </TableScroller>
           </section>
 
           <section className="mb-6">
             <h2 className="font-bold mb-2">Expenses</h2>
-            <table className="w-full text-sm bg-surface-container-low rounded">
-              <thead className="text-on-surface-variant">
-                <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-right">Amount</th></tr>
-              </thead>
-              <tbody>
-                {data.expenses.rows.map((r) => (
-                  <tr key={r.accountId} className="border-t border-outline-variant">
-                    <td className="px-2 py-1 font-mono">{r.code}</td>
-                    <td className="px-2 py-1">{r.name}</td>
-                    <td className="px-2 py-1 text-right">{r.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr className="font-bold border-t border-on-surface"><td colSpan={2} className="px-2 py-1 text-right">Total Expenses</td><td className="px-2 py-1 text-right">{data.expenses.total}</td></tr></tfoot>
-            </table>
+            <TableScroller minWidth={720}>
+              <table className="w-full text-sm bg-surface-container-low rounded">
+                <thead className="text-on-surface-variant">
+                  <tr><th className="px-2 py-1 text-left">Code</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-right">Amount</th></tr>
+                </thead>
+                <tbody>
+                  {data.expenses.rows.map((r) => (
+                    <tr key={r.accountId} className="border-t border-outline-variant">
+                      <td className="px-2 py-1 font-mono">{r.code}</td>
+                      <td className="px-2 py-1">{r.name}</td>
+                      <td className="px-2 py-1 text-right">{r.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr className="font-bold border-t border-on-surface"><td colSpan={2} className="px-2 py-1 text-right">Total Expenses</td><td className="px-2 py-1 text-right">{data.expenses.total}</td></tr></tfoot>
+              </table>
+            </TableScroller>
           </section>
 
           <div className={`text-right text-lg font-bold border-t-2 border-on-surface pt-3 ${Number(data.netIncome) >= 0 ? 'text-primary' : 'text-error'}`}>

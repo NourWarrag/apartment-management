@@ -1,4 +1,5 @@
 import type { TicketItem } from '../../hooks/useTickets';
+import TableScroller from '../../components/ui/TableScroller';
 import { TableHead, TableBody, TableRow, TableCell } from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
 
@@ -35,8 +36,9 @@ interface TicketsListViewProps {
 
 export default function TicketsListView({ tickets, onRowClick }: TicketsListViewProps) {
   return (
-    <div className="bg-white border border-outline-variant rounded-xl overflow-auto shadow-sm flex-1">
-      <table className="w-full text-left border-collapse">
+    <TableScroller minWidth={900}>
+      <div className="bg-white border border-outline-variant rounded-xl overflow-auto shadow-sm flex-1">
+        <table className="w-full text-left border-collapse">
         <TableHead headers={['Ticket #', 'Apartment', 'Description', 'Priority', 'Status', 'Assigned To', 'Created']} />
         <TableBody>
           {tickets.map(t => (
@@ -81,6 +83,7 @@ export default function TicketsListView({ tickets, onRowClick }: TicketsListView
           )}
         </TableBody>
       </table>
-    </div>
+      </div>
+    </TableScroller>
   );
 }

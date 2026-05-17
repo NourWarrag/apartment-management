@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { reportsApi } from '../../lib/api/accounting';
+import TableScroller from '../../components/ui/TableScroller';
 import api from '../../lib/axios';
 
 const TYPE_ORDER = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'] as const;
@@ -60,45 +61,47 @@ export default function TrialBalancePage() {
         )}
         <a href={csvUrl} className="ml-auto px-3 py-1 border border-primary text-primary rounded">Export CSV</a>
       </div>
-      <table className="w-full text-sm bg-surface-container-low rounded">
-        <thead className="text-on-surface-variant">
-          <tr>
-            <th className="px-2 py-1 text-left">Code</th>
-            <th className="px-2 py-1 text-left">Name</th>
-            <th className="px-2 py-1 text-right">Debit</th>
-            <th className="px-2 py-1 text-right">Credit</th>
-            <th className="px-2 py-1 text-right">Net</th>
-          </tr>
-        </thead>
-        <tbody>
-          {TYPE_ORDER.map((type) =>
-            grouped[type]?.length ? (
-              <>
-                <tr key={`${type}-header`} className="bg-surface-container-high font-bold">
-                  <td colSpan={5} className="px-2 py-1">{type}</td>
-                </tr>
-                {grouped[type].map((r: any) => (
-                  <tr key={r.accountId} className="border-t border-outline-variant">
-                    <td className="px-2 py-1 font-mono">{r.accountCode}</td>
-                    <td className="px-2 py-1">{r.accountName}</td>
-                    <td className="px-2 py-1 text-right">{r.totalDebit}</td>
-                    <td className="px-2 py-1 text-right">{r.totalCredit}</td>
-                    <td className="px-2 py-1 text-right">{r.netBalance}</td>
+      <TableScroller minWidth={800}>
+        <table className="w-full text-sm bg-surface-container-low rounded">
+          <thead className="text-on-surface-variant">
+            <tr>
+              <th className="px-2 py-1 text-left">Code</th>
+              <th className="px-2 py-1 text-left">Name</th>
+              <th className="px-2 py-1 text-right">Debit</th>
+              <th className="px-2 py-1 text-right">Credit</th>
+              <th className="px-2 py-1 text-right">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TYPE_ORDER.map((type) =>
+              grouped[type]?.length ? (
+                <>
+                  <tr key={`${type}-header`} className="bg-surface-container-high font-bold">
+                    <td colSpan={5} className="px-2 py-1">{type}</td>
                   </tr>
-                ))}
-              </>
-            ) : null,
-          )}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-on-surface font-bold">
-            <td colSpan={2} className="px-2 py-2 text-right">Grand totals</td>
-            <td className="px-2 py-2 text-right">{totals.d.toFixed(2)}</td>
-            <td className="px-2 py-2 text-right">{totals.c.toFixed(2)}</td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+                  {grouped[type].map((r: any) => (
+                    <tr key={r.accountId} className="border-t border-outline-variant">
+                      <td className="px-2 py-1 font-mono">{r.accountCode}</td>
+                      <td className="px-2 py-1">{r.accountName}</td>
+                      <td className="px-2 py-1 text-right">{r.totalDebit}</td>
+                      <td className="px-2 py-1 text-right">{r.totalCredit}</td>
+                      <td className="px-2 py-1 text-right">{r.netBalance}</td>
+                    </tr>
+                  ))}
+                </>
+              ) : null,
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-on-surface font-bold">
+              <td colSpan={2} className="px-2 py-2 text-right">Grand totals</td>
+              <td className="px-2 py-2 text-right">{totals.d.toFixed(2)}</td>
+              <td className="px-2 py-2 text-right">{totals.c.toFixed(2)}</td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </TableScroller>
     </div>
   );
 }

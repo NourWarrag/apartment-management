@@ -123,7 +123,7 @@ export default function JournalEntryEditorPage() {
       </h1>
       {err && <div className="text-error mb-2">{err}</div>}
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
         <label className="text-sm">
           Date
           <input type="date" disabled={readOnly} value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-outline-variant rounded px-2 py-1 mt-1" />

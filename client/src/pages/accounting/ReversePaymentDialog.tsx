@@ -16,7 +16,7 @@ export default function ReversePaymentDialog({ paymentId, onClose, onSuccess }: 
 
   return (
     <div className="fixed inset-0 bg-black/30 z-30 flex items-center justify-center">
-      <div className="bg-surface rounded-lg shadow-xl w-[480px] p-6">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-[90vw] lg:max-w-[480px] p-6">
         <h2 className="text-lg font-bold mb-4">Reverse Payment</h2>
         <p className="text-sm text-on-surface-variant mb-4">
           This will post a balancing journal entry and mark the payment as REVERSED. The original entry remains in the ledger for audit. Continue?

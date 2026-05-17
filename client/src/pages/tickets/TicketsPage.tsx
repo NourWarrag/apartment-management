@@ -123,7 +123,7 @@ export default function TicketsPage() {
       )}
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-4 gap-4 flex-shrink-0">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 flex-shrink-0">
         <div className="bg-surface-container rounded-2xl border border-outline-variant p-4">
           <p className="text-xs font-bold text-on-surface-variant mb-1">Open Tickets</p>
           <p className="text-2xl font-bold text-error">{statsData?.open ?? '—'}</p>

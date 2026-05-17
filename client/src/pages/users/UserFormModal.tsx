@@ -95,7 +95,7 @@ export default function UserFormModal({ user, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-[90vw] lg:max-w-md p-6">
         <h2 className="text-lg font-bold text-on-surface mb-4">
           {isEdit ? 'Edit User' : 'Add User'}
         </h2>

@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
+import TableScroller from './ui/TableScroller';
 import { useBooking } from '../hooks/useBookings';
 
 interface BookingInvoiceModalProps {
@@ -104,36 +105,38 @@ export default function BookingInvoiceModal({ bookingId, onClose }: BookingInvoi
               {/* Payment Breakdown Table */}
               <div className="mb-6">
                 <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Payment Breakdown</p>
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-outline-variant">
-                      <th className="text-left py-2 pr-3 font-bold text-on-surface-variant text-xs">Date</th>
-                      <th className="text-left py-2 pr-3 font-bold text-on-surface-variant text-xs">Method</th>
-                      <th className="text-left py-2 pr-3 font-bold text-on-surface-variant text-xs">Reference</th>
-                      <th className="text-right py-2 pr-3 font-bold text-on-surface-variant text-xs">Amount (AED)</th>
-                      <th className="text-right py-2 font-bold text-on-surface-variant text-xs">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {booking.payments.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-4 text-center text-on-surface-variant text-sm">
-                          No payments recorded yet.
-                        </td>
+                <TableScroller minWidth={720}>
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-outline-variant">
+                        <th className="text-left py-2 pr-3 font-bold text-on-surface-variant text-xs">Date</th>
+                        <th className="text-left py-2 pr-3 font-bold text-on-surface-variant text-xs">Method</th>
+                        <th className="text-left py-2 pr-3 font-bold text-on-surface-variant text-xs">Reference</th>
+                        <th className="text-right py-2 pr-3 font-bold text-on-surface-variant text-xs">Amount (AED)</th>
+                        <th className="text-right py-2 font-bold text-on-surface-variant text-xs">Status</th>
                       </tr>
-                    ) : (
-                      booking.payments.map((payment) => (
-                        <tr key={payment.id} className="border-b border-outline-variant/50">
-                          <td className="py-2 pr-3 text-on-surface">{formatDate(payment.paidAt)}</td>
-                          <td className="py-2 pr-3 text-on-surface">{payment.method}</td>
-                          <td className="py-2 pr-3 font-mono text-on-surface-variant">{payment.referenceNumber ?? '—'}</td>
-                          <td className="py-2 pr-3 text-right text-on-surface">{formatAed(payment.amount)}</td>
-                          <td className="py-2 text-right text-on-surface">{payment.status}</td>
+                    </thead>
+                    <tbody>
+                      {booking.payments.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-4 text-center text-on-surface-variant text-sm">
+                            No payments recorded yet.
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        booking.payments.map((payment) => (
+                          <tr key={payment.id} className="border-b border-outline-variant/50">
+                            <td className="py-2 pr-3 text-on-surface">{formatDate(payment.paidAt)}</td>
+                            <td className="py-2 pr-3 text-on-surface">{payment.method}</td>
+                            <td className="py-2 pr-3 font-mono text-on-surface-variant">{payment.referenceNumber ?? '—'}</td>
+                            <td className="py-2 pr-3 text-right text-on-surface">{formatAed(payment.amount)}</td>
+                            <td className="py-2 text-right text-on-surface">{payment.status}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </TableScroller>
 
                 {/* Footer totals */}
                 {booking.payments.length > 0 && (() => {
