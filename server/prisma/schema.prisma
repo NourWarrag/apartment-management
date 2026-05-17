@@ -34,29 +34,36 @@ model User {
   auditLogs       AuditLog[]
 
   // Back-relations for audit columns on other models
-  createdApartments      Apartment[]         @relation("ApartmentCreatedBy")
-  updatedApartments      Apartment[]         @relation("ApartmentUpdatedBy")
-  deletedApartments      Apartment[]         @relation("ApartmentDeletedBy")
-  createdTenants         Tenant[]            @relation("TenantCreatedBy")
-  updatedTenants         Tenant[]            @relation("TenantUpdatedBy")
-  deletedTenants         Tenant[]            @relation("TenantDeletedBy")
-  createdBookings        Booking[]           @relation("BookingCreatedBy")
-  updatedBookings        Booking[]           @relation("BookingUpdatedBy")
-  createdPayments        Payment[]           @relation("PaymentCreatedBy")
-  updatedPayments        Payment[]           @relation("PaymentUpdatedBy")
-  createdTickets         MaintenanceTicket[] @relation("TicketCreatedBy")
-  updatedTickets         MaintenanceTicket[] @relation("TicketUpdatedBy")
-  createdBuildings       Building[]          @relation("BuildingCreatedBy")
-  updatedBuildings       Building[]          @relation("BuildingUpdatedBy")
-  createdAccounts        Account[]           @relation("AccountCreatedBy")
-  updatedAccounts        Account[]           @relation("AccountUpdatedBy")
-  postedJournalEntries   JournalEntry[]      @relation("JEPostedBy")
-  createdJournalEntries  JournalEntry[]      @relation("JECreatedBy")
-  updatedJournalEntries  JournalEntry[]      @relation("JEUpdatedBy")
-  accountMappingsUpdated AccountMapping[]    @relation("AccountMappingUpdatedBy")
-  createdTaxCodes        TaxCode[]           @relation("TaxCodeCreatedBy")
-  updatedTaxCodes        TaxCode[]           @relation("TaxCodeUpdatedBy")
-  lockedFiscalPeriods    FiscalPeriod[]      @relation("FiscalPeriodLockedBy")
+  createdApartments            Apartment[]           @relation("ApartmentCreatedBy")
+  updatedApartments            Apartment[]           @relation("ApartmentUpdatedBy")
+  deletedApartments            Apartment[]           @relation("ApartmentDeletedBy")
+  createdTenants               Tenant[]              @relation("TenantCreatedBy")
+  updatedTenants               Tenant[]              @relation("TenantUpdatedBy")
+  deletedTenants               Tenant[]              @relation("TenantDeletedBy")
+  createdBookings              Booking[]             @relation("BookingCreatedBy")
+  updatedBookings              Booking[]             @relation("BookingUpdatedBy")
+  createdPayments              Payment[]             @relation("PaymentCreatedBy")
+  updatedPayments              Payment[]             @relation("PaymentUpdatedBy")
+  createdTickets               MaintenanceTicket[]   @relation("TicketCreatedBy")
+  updatedTickets               MaintenanceTicket[]   @relation("TicketUpdatedBy")
+  createdBuildings             Building[]            @relation("BuildingCreatedBy")
+  updatedBuildings             Building[]            @relation("BuildingUpdatedBy")
+  createdAccounts              Account[]             @relation("AccountCreatedBy")
+  updatedAccounts              Account[]             @relation("AccountUpdatedBy")
+  postedJournalEntries         JournalEntry[]        @relation("JEPostedBy")
+  createdJournalEntries        JournalEntry[]        @relation("JECreatedBy")
+  updatedJournalEntries        JournalEntry[]        @relation("JEUpdatedBy")
+  accountMappingsUpdated       AccountMapping[]      @relation("AccountMappingUpdatedBy")
+  createdTaxCodes              TaxCode[]             @relation("TaxCodeCreatedBy")
+  updatedTaxCodes              TaxCode[]             @relation("TaxCodeUpdatedBy")
+  lockedFiscalPeriods          FiscalPeriod[]        @relation("FiscalPeriodLockedBy")
+  createdBankAccounts          BankAccount[]         @relation("BankAccountCreatedBy")
+  updatedBankAccounts          BankAccount[]         @relation("BankAccountUpdatedBy")
+  importedBankStatements       BankStatement[]       @relation("BankStatementImportedBy")
+  closedReconciliations        Reconciliation[]      @relation("ReconciliationClosedBy")
+  createdReconciliations       Reconciliation[]      @relation("ReconciliationCreatedBy")
+  updatedReconciliations       Reconciliation[]      @relation("ReconciliationUpdatedBy")
+  createdReconciliationMatches ReconciliationMatch[] @relation("ReconciliationMatchCreatedBy")
 
   assignedBuildingId  Int?
   assignedBuilding    Building?    @relation("UserAssignedBuilding", fields: [assignedBuildingId], references: [id], onDelete: SetNull)
@@ -357,6 +364,11 @@ enum FiscalPeriodStatus {
   LOCKED
 }
 
+enum ReconciliationStatus {
+  OPEN
+  CLOSED
+}
+
 model Attachment {
   id          Int              @id @default(autoincrement())
   entityType  AttachmentEntity
@@ -386,11 +398,12 @@ model Account {
   createdBy Int?
   updatedBy Int?
 
-  parent   Account?         @relation("AccountParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children Account[]        @relation("AccountParent")
-  lines    JournalLine[]
-  mappings AccountMapping[]
-  taxCodes TaxCode[]        @relation("TaxCodeAccount")
+  parent       Account?         @relation("AccountParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Account[]        @relation("AccountParent")
+  lines        JournalLine[]
+  mappings     AccountMapping[]
+  taxCodes     TaxCode[]        @relation("TaxCodeAccount")
+  bankAccounts BankAccount[]
 
   creator User? @relation("AccountCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updater User? @relation("AccountUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
@@ -444,10 +457,11 @@ model JournalLine {
   lineOrder      Int
   taxCodeId      Int?
 
-  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  building     Building?    @relation("JLBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
-  taxCode      TaxCode?     @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  journalEntry          JournalEntry          @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account               Account               @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  building              Building?             @relation("JLBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
+  taxCode               TaxCode?              @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  reconciliationMatches ReconciliationMatch[]
 
   @@index([accountId])
   @@index([journalEntryId])
@@ -500,6 +514,104 @@ model TaxCode {
   bookings Booking[]
   creator  User?         @relation("TaxCodeCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updater  User?         @relation("TaxCodeUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+}
+
+model BankAccount {
+  id        Int     @id @default(autoincrement())
+  name      String
+  accountId Int     @unique
+  isActive  Boolean @default(true)
+
+  csvDateColumn        Int?
+  csvAmountColumn      Int?
+  csvDescriptionColumn Int?
+  csvReferenceColumn   Int?
+  csvHasHeader         Boolean @default(true)
+  csvDateFormat        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+  updatedBy Int?
+
+  account           Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  statements        BankStatement[]
+  reconciliations   Reconciliation[]
+  creator           User?               @relation("BankAccountCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater           User?               @relation("BankAccountUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  BankStatementLine BankStatementLine[]
+}
+
+model BankStatement {
+  id            Int      @id @default(autoincrement())
+  bankAccountId Int
+  filename      String
+  importedAt    DateTime @default(now())
+  importedBy    Int?
+  lineCount     Int
+
+  bankAccount BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  importer    User?               @relation("BankStatementImportedBy", fields: [importedBy], references: [id], onDelete: SetNull)
+  lines       BankStatementLine[]
+
+  @@index([bankAccountId, importedAt])
+}
+
+model BankStatementLine {
+  id              Int      @id @default(autoincrement())
+  bankStatementId Int
+  bankAccountId   Int
+  date            DateTime
+  amount          Decimal  @db.Decimal(14, 2)
+  description     String
+  reference       String?
+
+  bankStatement BankStatement         @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
+  bankAccount   BankAccount           @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  matches       ReconciliationMatch[]
+
+  @@index([bankAccountId, date])
+}
+
+model Reconciliation {
+  id               Int                  @id @default(autoincrement())
+  bankAccountId    Int
+  endDate          DateTime
+  statementBalance Decimal              @db.Decimal(14, 2)
+  status           ReconciliationStatus @default(OPEN)
+  closedAt         DateTime?
+  closedBy         Int?
+  reportSnapshot   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+  updatedBy Int?
+
+  bankAccount BankAccount           @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  matches     ReconciliationMatch[]
+  closer      User?                 @relation("ReconciliationClosedBy", fields: [closedBy], references: [id], onDelete: SetNull)
+  creator     User?                 @relation("ReconciliationCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater     User?                 @relation("ReconciliationUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([bankAccountId, status, endDate])
+}
+
+model ReconciliationMatch {
+  id                  Int      @id @default(autoincrement())
+  reconciliationId    Int
+  bankStatementLineId Int
+  journalLineId       Int
+  createdAt           DateTime @default(now())
+  createdBy           Int?
+
+  reconciliation    Reconciliation    @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  bankStatementLine BankStatementLine @relation(fields: [bankStatementLineId], references: [id], onDelete: Cascade)
+  journalLine       JournalLine       @relation(fields: [journalLineId], references: [id], onDelete: Cascade)
+  creator           User?             @relation("ReconciliationMatchCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([reconciliationId, journalLineId])
+  @@index([bankStatementLineId])
 }
 
 model SystemSettings {
