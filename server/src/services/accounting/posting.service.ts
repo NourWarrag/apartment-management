@@ -239,6 +239,13 @@ export class PostingService {
         throw new AccountingError('INVALID_LINE', `Booking ${bookingId} not found`);
       }
 
+      // Idempotency guard for the NONE→HELD transition only.
+      // Subsequent transitions (RELEASED/FORFEITED) intentionally overwrite the
+      // depositPostedEntryId, so they don't short-circuit on a set pointer.
+      if (fromStatus === 'NONE' && toStatus === 'HELD' && booking.depositPostedEntryId) {
+        return db.journalEntry.findUnique({ where: { id: booking.depositPostedEntryId } });
+      }
+
       const cashAccountId = await this.mapping.resolveAccount(db, 'CASH_METHOD');
       const liabilityId = await this.mapping.resolveAccount(db, 'DEPOSIT_LIABILITY');
       const forfeitId = await this.mapping.resolveAccount(db, 'DEPOSIT_FORFEIT_INCOME');
