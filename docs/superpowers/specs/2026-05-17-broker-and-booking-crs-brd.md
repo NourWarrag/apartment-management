@@ -155,23 +155,24 @@ Four new `AccountMapping` keys:
 
 **Problem:** The business uses external referral agents who earn commission on bookings they bring. No system today tracks brokers, commission owed, or payouts.
 
-**Goal:** First-class broker entity with default commission rate + per-booking override, batch payouts, and full integration into the existing accounting module (respecting cash vs accrual mode).
+**Goal:** First-class broker entity modelled as **Broker (company) → Agent (person)**. Brokers carry a default commission rate; agents can optionally override it. Bookings reference both the broker company and the specific agent. Batch payouts are paid to the company (with per-agent attribution in settlement lines) and integrated into the existing accounting module (respecting cash vs accrual mode).
 
 ### Schema
 
-Three new models, three new columns on `Booking`, two new enums.
+Four new models, four new columns on `Booking`, three new enums.
 
 ```prisma
 model Broker {
   id                     Int             @id @default(autoincrement())
-  name                   String
+  name                   String                                       // company name
   phone                  String
   email                  String?
-  idNumber               String?
+  taxRegistrationNumber  String?                                      // TRN if registered for VAT
+  address                String?
   notes                  String?
   status                 BrokerStatus    @default(ACTIVE)
   commissionType         CommissionType  @default(PERCENT)
-  defaultCommissionValue Decimal         @db.Decimal(10, 2)   // PERCENT: 5.00 = 5%. FLAT: 500.00 = AED 500.
+  defaultCommissionValue Decimal         @db.Decimal(10, 2)           // PERCENT: 5.00 = 5%. FLAT: 500.00 = AED 500.
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -180,15 +181,42 @@ model Broker {
   updatedBy   Int?
   deletedBy   Int?
 
+  agents     BrokerAgent[]
   bookings   Booking[]
   payouts    BrokerPayout[]
-  tenants    Tenant[]            // tenants who have this as their default broker
   // standard audit relations to User
+}
+
+model BrokerAgent {
+  id                     Int                 @id @default(autoincrement())
+  brokerId               Int
+  fullName               String
+  phone                  String
+  email                  String?
+  idNumber               String?
+  notes                  String?
+  status                 BrokerAgentStatus   @default(ACTIVE)
+  // Optional override of the broker's default rate. NULL = use broker's default.
+  commissionType         CommissionType?
+  commissionValueOverride Decimal?           @db.Decimal(10, 2)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  createdBy   Int?
+  updatedBy   Int?
+  deletedBy   Int?
+
+  broker     Broker     @relation(fields: [brokerId], references: [id], onDelete: Restrict)
+  bookings   Booking[]
+  tenants    Tenant[]   // tenants who have this agent set as default
+
+  @@index([brokerId, status])
 }
 
 model BrokerPayout {
   id              Int           @id @default(autoincrement())
-  brokerId        Int
+  brokerId        Int                                              // payout is to the COMPANY
   periodStart     DateTime
   periodEnd       DateTime
   totalAmount     Decimal       @db.Decimal(10, 2)
@@ -196,7 +224,7 @@ model BrokerPayout {
   referenceNumber String?
   paidAt          DateTime
   notes           String?
-  postedEntryId   Int?          // GL entry for the settlement
+  postedEntryId   Int?
 
   broker          Broker         @relation(fields: [brokerId], references: [id], onDelete: Restrict)
   postedEntry     JournalEntry?  @relation("BrokerPayoutPostedEntry", fields: [postedEntryId], references: [id], onDelete: SetNull)
@@ -212,46 +240,65 @@ model BrokerPayoutSettlement {
   id          Int          @id @default(autoincrement())
   payoutId    Int
   bookingId   Int          @unique           // a booking's commission can only be settled once
+  agentId     Int?                           // attribution snapshot; nullable for resilience if agent later deleted
   amount      Decimal      @db.Decimal(10, 2)
 
-  payout      BrokerPayout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
-  booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  payout      BrokerPayout  @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  agent       BrokerAgent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
   @@index([payoutId])
+  @@index([agentId])
 }
 
 // Booking additions
 model Booking {
   // ... existing fields ...
-  brokerId                  Int?
+  brokerId                  Int?              // company (denormalised)
+  agentId                   Int?              // specific person who referred this booking
   commissionType            CommissionType?
   commissionAmount          Decimal?       @db.Decimal(10, 2)
   commissionAccrualEntryId  Int?
 
   broker                    Broker?        @relation(fields: [brokerId], references: [id], onDelete: SetNull)
+  agent                     BrokerAgent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
   commissionAccrualEntry    JournalEntry?  @relation("BookingCommissionAccrual", fields: [commissionAccrualEntryId], references: [id], onDelete: SetNull)
   brokerSettlement          BrokerPayoutSettlement?
 }
 
-enum BrokerStatus   { ACTIVE INACTIVE }
-enum CommissionType { PERCENT FLAT }
+enum BrokerStatus       { ACTIVE INACTIVE }
+enum BrokerAgentStatus  { ACTIVE INACTIVE }
+enum CommissionType     { PERCENT FLAT }
 ```
+
+### Booking invariants (server-enforced)
+
+- If `agentId IS NOT NULL` then `brokerId` MUST equal `agent.brokerId`. Enforced on every create/update; mismatched payload returns 422.
+- `agentId` may be NULL while `brokerId` is set (rare — e.g. company-level referral with no named contact), but `brokerId` MUST be set whenever `agentId` is set.
+- Both NULL means no broker on this booking.
 
 ### Commission lifecycle
 
 | State        | Condition                                                                       |
 |--------------|---------------------------------------------------------------------------------|
-| `NONE`       | `brokerId IS NULL`                                                              |
+| `NONE`       | `brokerId IS NULL` AND `agentId IS NULL` (no referral on this booking)          |
 | `OWED`       | `commissionAmount` set, accrual posted (ACCRUAL mode) OR cash-mode pre-payout, no settlement row |
 | `PAID`       | A `BrokerPayoutSettlement` row exists for this booking                          |
 | `CANCELLED`  | (Future) booking voided, commission accrual reversed                            |
 
 ### Commission auto-computation
 
-When a booking is created with a broker, the server pre-fills `commissionType` and `commissionAmount` from the broker's defaults:
+When a booking is created with an agent, the server resolves the effective rate in this order:
 
-- `PERCENT`: `commissionAmount = round(totalAmount × defaultCommissionValue / 100, 2)`
-- `FLAT`: `commissionAmount = defaultCommissionValue`
+1. If `agent.commissionType` AND `agent.commissionValueOverride` are both set → use the agent's override.
+2. Otherwise → use the broker company's `commissionType` + `defaultCommissionValue`.
+
+Then it pre-fills `commissionType` and `commissionAmount` on the booking:
+
+- `PERCENT`: `commissionAmount = round(totalAmount × effectiveValue / 100, 2)`
+- `FLAT`: `commissionAmount = effectiveValue`
+
+If the booking has `brokerId` set but no `agentId`, the broker's default is used directly.
 
 Staff may override `commissionAmount` on the booking form. Override does **not** change `commissionType` semantics — it's a final-amount edit.
 
@@ -284,49 +331,74 @@ Admin can remap from the existing settings/mapping UI.
 
 ### Soft-delete rules
 
-A `Broker` cannot be soft-deleted while:
+A `Broker` (company) cannot be soft-deleted while:
 
-- Any active (`deletedAt IS NULL`) booking references this broker AND has commission `OWED`, OR
-- Any payout exists with status not reversed.
+- Any active agent under this company is still `ACTIVE`, OR
+- Any active booking references this broker AND has commission `OWED`, OR
+- Any non-reversed payout exists.
+
+Recommended path: deactivate all agents → settle/reverse all owed commission → then soft-delete the company.
+
+A `BrokerAgent` cannot be soft-deleted while any active booking references it with commission `OWED`. Otherwise, soft-deleting an agent sets `Booking.agentId = NULL` via `onDelete: SetNull` (historical bookings keep `brokerId` so the company link survives — this is the reason for the denormalised `brokerId` on Booking). Settlement attribution (`BrokerPayoutSettlement.agentId`) also becomes NULL but the company-level payout total is preserved.
 
 A `Booking` cannot be soft-deleted while its `commissionAccrualEntryId` is set and no settlement exists (commission is `OWED`). The 409 error message instructs the user to first reverse the accrual via the existing reversal flow, or settle via payout.
 
 ### Backend — routes
 
 ```
+# Brokers (companies)
 GET    /brokers                              list + filters (search, status, sortBy)
 POST   /brokers                              create
-GET    /brokers/:id                          detail + bookings summary + commission owed
+GET    /brokers/:id                          detail + agent count + bookings summary + commission owed
 PATCH  /brokers/:id                          update
 DELETE /brokers/:id                          soft delete (blocked per rules above)
 
+# Agents (nested under broker)
+GET    /brokers/:brokerId/agents             list agents for a broker
+POST   /brokers/:brokerId/agents             create agent under this broker
+GET    /agents/:id                           agent detail + their bookings + commission attributed
+PATCH  /agents/:id                           update (incl. status, rate override)
+DELETE /agents/:id                           soft delete (blocked per rules above)
+
+# Search / picker support (cross-company)
+GET    /agents?search=...                    flat agent search across companies, grouped in response by broker
+                                              (for the booking-form selector)
+
+# Payouts (per broker company)
 GET    /broker-payouts                       list, filter by broker / period
 POST   /broker-payouts                       create — body: { brokerId, bookingIds[], method, ref, paidAt, notes }
-                                              server: computes totalAmount from each booking's commissionAmount,
+                                              server: validates every booking.brokerId === brokerId,
+                                              computes totalAmount from each booking's commissionAmount,
+                                              snapshots each booking's agentId onto the settlement row,
                                               creates BrokerPayout + BrokerPayoutSettlement rows in a transaction,
                                               posts settlement JE
-GET    /broker-payouts/:id                   detail
-POST   /broker-payouts/:id/reverse           (admin) reverse a payout — voids GL entry,
+GET    /broker-payouts/:id                   detail incl. per-agent attribution subtotals
+POST   /broker-payouts/:id/reverse           (admin) reverse — voids GL entry,
                                               deletes settlement rows, reverts bookings to OWED
 ```
 
 ### Frontend
 
-- New top-level page: `BrokersPage.tsx` — list with search/filter, summary stats (Active brokers, Total Owed, Paid YTD).
-- `BrokerDetailPage.tsx` — broker info, list of their bookings (with commission status), list of payouts, `Create Payout` action.
-- `BrokerFormModal.tsx` — create/edit broker.
-- `BrokerPayoutModal.tsx` — select unsettled bookings for this broker, computes total, captures method/ref/paidAt/notes.
-- Sidebar nav entry: **Brokers** (between Tenants and Bookings).
+- New top-level page: `BrokersPage.tsx` — list of broker **companies** with search/filter, summary stats (Active brokers, Total agents, Total Owed, Paid YTD).
+- `BrokerDetailPage.tsx` — broker company info, tabs for:
+  - **Agents** — list of agents under this company with status + rate override; `+ Add Agent` action.
+  - **Bookings** — all bookings referencing this broker, with commission status and which agent earned it.
+  - **Payouts** — list of past payouts to this company, with `Create Payout` action.
+- `BrokerFormModal.tsx` — create/edit broker company.
+- `BrokerAgentFormModal.tsx` — create/edit agent (always opened in the context of a specific broker; the broker FK is pre-set and not user-editable).
+- `BrokerPayoutModal.tsx` — select unsettled bookings for this broker company (across all its agents); computes total, captures method/ref/paidAt/notes; displays per-agent attribution subtotal as the user selects bookings.
+- `<BrokerAgentSelector />` reusable component — used in `BookingFormModal` and on tenant/apartment pages. Hierarchical: search across all active agents, grouped by broker company in the dropdown. On selection, both `brokerId` and `agentId` are populated. Also supports `+ New broker` (opens `BrokerFormModal`) and `+ New agent under <company>` (opens `BrokerAgentFormModal` pre-filled with the selected company).
+- Sidebar nav entry: **Brokers** (between Tenants and Bookings). No separate "Agents" nav — agents are always navigated to via their parent broker.
 
 ### RBAC
 
-- `ADMIN`, `SUPER_ADMIN`, `FINANCE`: full broker + payout management.
-- `BUILDING_ADMIN`, `RECEPTIONIST`: read-only on brokers, can select a broker when creating a booking. Cannot create payouts.
+- `ADMIN`, `SUPER_ADMIN`, `FINANCE`: full broker + agent + payout management.
+- `BUILDING_ADMIN`, `RECEPTIONIST`: read-only on brokers and agents, can select a broker/agent when creating a booking. Cannot create payouts.
 
 ### Test coverage
 
-- Server: broker CRUD; soft-delete blocks while unsettled; commission auto-computes correctly for PERCENT and FLAT; accrual JE posted with right accounts in ACCRUAL mode and *not* posted in CASH mode; payout JE balances; payout reversal restores OWED; settlement uniqueness enforced.
-- Client: broker list rendering; payout modal selection math; broker selector in booking form auto-fills commission from default rate but allows override.
+- Server: broker + agent CRUD; agent must belong to the broker via FK; soft-delete blocks (company while agents active, agent while OWED commission, booking while OWED); commission auto-computation resolves agent override before broker default for both PERCENT and FLAT; booking invariant rejects `agent.brokerId !== booking.brokerId`; accrual JE posted with right accounts in ACCRUAL mode and *not* posted in CASH mode; payout JE balances; payout reversal restores OWED; settlement uniqueness enforced; settlement `agentId` snapshot survives later agent deletion (becomes NULL but payout total intact).
+- Client: broker list rendering; broker-detail tabs (agents/bookings/payouts) load correctly; agent form modal pre-fills broker FK from URL context; payout modal selection math + per-agent attribution display; `<BrokerAgentSelector />` populates both broker and agent on selection and honours hierarchy in the dropdown.
 
 ---
 
@@ -336,32 +408,36 @@ POST   /broker-payouts/:id/reverse           (admin) reverse a payout — voids 
 
 ### Tenant page
 
-Add an optional `defaultBrokerId Int?` FK on the `Tenant` model.
+Add an optional `defaultAgentId Int?` FK on the `Tenant` model (specific agent, not just a company — picking a company without a person tells you very little, and the company is derivable from the agent).
 
 - Nullable. Most tenants will have no default.
-- When a booking is started for a tenant with a `defaultBrokerId`, `BookingFormModal` pre-fills the broker field (still overrideable).
-- UI: new "Default broker" row in the tenant info panel showing current broker (or "None"), with a `Change` button opening the reusable `<BrokerSelector />`.
-- Tenants list page: add a "Broker" column (sortable, optional).
+- When a booking is started for a tenant with a `defaultAgentId`, `BookingFormModal` pre-fills both the broker company and the agent in `<BrokerAgentSelector />` (still overrideable).
+- `onDelete: SetNull`: if the agent is soft-deleted later, the tenant default silently becomes null — no orphan refs.
+- UI: new "Default agent" row in the tenant info panel showing the agent + their company (or "None"), with a `Change` button opening the reusable `<BrokerAgentSelector />`.
+- Tenants list page: add a "Default broker" column (sortable, optional) — shows the company name for compactness.
 
 ### Apartment page
 
-No FK on `Apartment`. Broker is fundamentally a per-booking referral relationship, not an apartment attribute.
+No FK on `Apartment`. Broker is a per-booking referral relationship, not an apartment attribute.
 
-The apartment page gets the same `<BrokerSelector />` widget in its actions area for **convenience only**: selecting a broker navigates to that broker's detail page; `+ New broker` opens the broker form. Nothing is persisted on the apartment.
+The apartment page gets the same `<BrokerAgentSelector />` widget in its actions area for **convenience only**: selecting an agent navigates to that agent's detail page; selecting just a company (no agent) navigates to the company; `+ New broker` opens the broker form. Nothing is persisted on the apartment.
 
 > **Design divergence flagged:** if the business needs a broker that *represents the apartment owner* (different concept from a booking referrer), that would require a separate `ownerAgentId` on `Apartment` and is out of scope for this BRD.
 
-### Shared component — `<BrokerSelector />`
+### Shared component — `<BrokerAgentSelector />`
 
-Two modes:
+The same component is used in `BookingFormModal`, on the Tenant page, and on the Apartment page. Modes:
 
-- **Pick existing** — searchable dropdown over active brokers.
-- **+ New broker** — opens `BrokerFormModal` inline; on save the new broker becomes the selected value (same flow as CR-1 quick-add tenant).
+- **Pick existing** — searchable dropdown listing active agents grouped under their broker company.
+- **+ New agent under existing broker** — opens `BrokerAgentFormModal` pre-filled with the chosen company.
+- **+ New broker** — opens `BrokerFormModal`; on save the new broker becomes selected (no agent yet) and the user can immediately add an agent under it.
+
+On any selection that includes an agent, both `brokerId` and `agentId` are written to the consuming form's state. The component never lets the consumer end up with a mismatched (broker, agent) pair.
 
 ### Test coverage
 
-- Server: setting / clearing `defaultBrokerId` on a tenant; deleted broker references gracefully return `null` via `onDelete: SetNull`.
-- Client: tenant page picker round-trip; booking modal pre-fills broker from tenant default; clearing override still saves the booking.
+- Server: setting / clearing `defaultAgentId` on a tenant; deleted agent references gracefully become null via `onDelete: SetNull`; booking-form pre-fill resolves both `brokerId` and `agentId` from the tenant default.
+- Client: tenant page picker round-trip; booking modal pre-fills broker + agent from tenant default; selector never produces a mismatched (broker, agent) pair; clearing override still saves the booking.
 
 ---
 
@@ -419,8 +495,10 @@ Beneath the disabled button, an `ADMIN` / `SUPER_ADMIN` user sees a `Force check
 Items deliberately **not** in scope for this BRD; flagged here so they don't leak into implementation specs:
 
 - **Owner agent on apartment** (different from booking referrer) — separate future scope.
-- **Multi-broker per booking with split commission** — explicitly chosen against (one broker per booking).
-- **Tiered commission rates** (e.g. higher % above N bookings) — not in v1; can be modelled later via per-broker rate updates.
+- **Multi-broker per booking with split commission** — explicitly chosen against (one broker, one agent per booking).
+- **Multi-company agent** — an agent belongs to exactly one broker company. Moving an agent between companies is a delete + recreate.
+- **Tiered commission rates** (e.g. higher % above N bookings) — not in v1; modelled later via rate updates.
+- **Per-agent payouts** — payouts are to the company; per-agent visibility is via `BrokerPayoutSettlement.agentId` attribution, not separate payout records.
 - **Commission reversal on booking cancellation/void flow** — accrual reversal mechanism exists per accounting phase 2; explicit "cancel booking" UX is a separate CR.
 - **Calendar/availability view on bookings page** — considered for CR-5, rejected as too large.
 
