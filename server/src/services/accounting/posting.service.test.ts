@@ -691,6 +691,111 @@ describe('PostingService.post() period-lock guard', () => {
   });
 });
 
+describe('PostingService.closeFiscalYear', () => {
+  let retainedEarningsId: number;
+
+  beforeAll(async () => {
+    const existing = await db.account.findUnique({ where: { code: '3020' } });
+    if (existing) {
+      retainedEarningsId = existing.id;
+    } else {
+      const re = await db.account.create({
+        data: { code: '3020', name: 'Retained Earnings', type: 'EQUITY' },
+      });
+      retainedEarningsId = re.id;
+    }
+  });
+
+  beforeEach(async () => {
+    await db.fiscalPeriod.deleteMany();
+    await db.journalLine.deleteMany();
+    await db.journalEntry.deleteMany();
+    // Reset payment back-pointers so postFromPayment doesn't think they're already posted
+    await db.payment.updateMany({ data: { postedEntryId: null } });
+  });
+
+  it('posts a closing JE that zeros INCOME and credits net income to Retained Earnings', async () => {
+    await service().createAndPost(
+      {
+        date: new Date('2027-06-15'),
+        lines: [
+          { accountId: cashId, debit: '300' },
+          { accountId: revenueId, credit: '300' },
+        ],
+      },
+      userId,
+    );
+
+    const closing = await service().closeFiscalYear(2027, userId);
+    expect(closing.source).toBe('YEAR_END_CLOSE');
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: closing.id } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === revenueId)?.debit.toFixed(2)).toBe('300.00');
+    expect(lines.find((l) => l.accountId === retainedEarningsId)?.credit.toFixed(2)).toBe('300.00');
+  });
+
+  it('locks all 12 months of the year and sets closingEntryId on December', async () => {
+    await service().createAndPost(
+      {
+        date: new Date('2028-03-15'),
+        lines: [
+          { accountId: cashId, debit: '50' },
+          { accountId: revenueId, credit: '50' },
+        ],
+      },
+      userId,
+    );
+    const closing = await service().closeFiscalYear(2028, userId);
+    const periods = await db.fiscalPeriod.findMany({ where: { year: 2028 }, orderBy: { month: 'asc' } });
+    expect(periods).toHaveLength(12);
+    expect(periods.every((p) => p.status === 'LOCKED')).toBe(true);
+    expect(periods.find((p) => p.month === 12)?.closingEntryId).toBe(closing.id);
+  });
+
+  it('throws ALREADY_CLOSED on second close of the same year', async () => {
+    await service().createAndPost(
+      {
+        date: new Date('2029-04-01'),
+        lines: [
+          { accountId: cashId, debit: '10' },
+          { accountId: revenueId, credit: '10' },
+        ],
+      },
+      userId,
+    );
+    await service().closeFiscalYear(2029, userId);
+    await expect(service().closeFiscalYear(2029, userId))
+      .rejects.toMatchObject({ code: 'ALREADY_CLOSED' });
+  });
+
+  it('throws MIN_LINES when there is no closeable activity', async () => {
+    await expect(service().closeFiscalYear(2030, userId))
+      .rejects.toMatchObject({ code: 'MIN_LINES' });
+  });
+
+  it('handles net loss — debits Retained Earnings, credits Expense', async () => {
+    const expenseAcc = await db.account.create({
+      data: { code: '5099', name: 'Test Expense P3', type: 'EXPENSE' },
+    });
+    await service().createAndPost(
+      {
+        date: new Date('2031-05-15'),
+        lines: [
+          { accountId: expenseAcc.id, debit: '500' },
+          { accountId: cashId, credit: '500' },
+        ],
+      },
+      userId,
+    );
+    const closing = await service().closeFiscalYear(2031, userId);
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: closing.id } });
+    expect(lines.find((l) => l.accountId === expenseAcc.id)?.credit.toFixed(2)).toBe('500.00');
+    expect(lines.find((l) => l.accountId === retainedEarningsId)?.debit.toFixed(2)).toBe('500.00');
+    await db.journalLine.deleteMany({ where: { accountId: expenseAcc.id } });
+    await db.account.delete({ where: { id: expenseAcc.id } });
+  });
+});
+
 describe('PostingService.reverseEntry', () => {
   beforeEach(async () => {
     await db.fiscalPeriod.deleteMany();

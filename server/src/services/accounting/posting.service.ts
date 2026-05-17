@@ -450,6 +450,119 @@ export class PostingService {
     return this.prisma.$transaction(runner);
   }
 
+  async closeFiscalYear(
+    year: number,
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      // 1. Idempotency
+      const existingClose = await db.fiscalPeriod.findFirst({
+        where: { year, month: 12, closingEntryId: { not: null } },
+      });
+      if (existingClose) {
+        throw new AccountingError('ALREADY_CLOSED', `Fiscal year ${year} is already closed`, {
+          closingEntryId: existingClose.closingEntryId,
+        });
+      }
+
+      // 2. Compute net balance per INCOME and EXPENSE account up to Dec 31 23:59:59 UTC
+      const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+      const accounts = await db.account.findMany({
+        where: { type: { in: ['INCOME', 'EXPENSE'] } },
+      });
+
+      const closingLines: LineInput[] = [];
+      let netIncome = new Prisma.Decimal(0);
+
+      for (const a of accounts) {
+        const agg = await db.journalLine.aggregate({
+          where: {
+            accountId: a.id,
+            journalEntry: { status: 'POSTED', date: { lte: yearEnd } },
+          },
+          _sum: { debit: true, credit: true },
+        });
+        const debit = new Prisma.Decimal(agg._sum.debit ?? 0);
+        const credit = new Prisma.Decimal(agg._sum.credit ?? 0);
+
+        if (a.type === 'INCOME') {
+          const balance = credit.minus(debit);
+          if (balance.gt(0)) {
+            closingLines.push({ accountId: a.id, debit: balance });
+            netIncome = netIncome.plus(balance);
+          } else if (balance.lt(0)) {
+            closingLines.push({ accountId: a.id, credit: balance.abs() });
+            netIncome = netIncome.minus(balance.abs());
+          }
+        } else {
+          // EXPENSE
+          const balance = debit.minus(credit);
+          if (balance.gt(0)) {
+            closingLines.push({ accountId: a.id, credit: balance });
+            netIncome = netIncome.minus(balance);
+          } else if (balance.lt(0)) {
+            closingLines.push({ accountId: a.id, debit: balance.abs() });
+            netIncome = netIncome.plus(balance.abs());
+          }
+        }
+      }
+
+      // 3. Retained Earnings balancing line
+      const retainedEarnings = await db.account.findUnique({ where: { code: '3020' } });
+      if (!retainedEarnings) {
+        throw new AccountingError('INVALID_ACCOUNT', 'Retained Earnings (code 3020) account missing');
+      }
+      if (netIncome.gt(0)) {
+        closingLines.push({ accountId: retainedEarnings.id, credit: netIncome });
+      } else if (netIncome.lt(0)) {
+        closingLines.push({ accountId: retainedEarnings.id, debit: netIncome.abs() });
+      }
+
+      if (closingLines.length < 2) {
+        throw new AccountingError('MIN_LINES', `Fiscal year ${year} has no closeable activity`);
+      }
+
+      // 4. Post the closing entry (December period auto-creates as OPEN via ensurePeriodOpen)
+      const closingEntry = await this.createAndPost(
+        {
+          date: yearEnd,
+          memo: `Year-end close for fiscal year ${year}`,
+          buildingId: null,
+          source: 'YEAR_END_CLOSE',
+          sourceRefId: year,
+          lines: closingLines,
+        },
+        userId,
+        db,
+      );
+
+      // 5. Lock all 12 months; set closingEntryId on December
+      const now = new Date();
+      for (let m = 1; m <= 12; m++) {
+        await db.fiscalPeriod.upsert({
+          where: { year_month: { year, month: m } },
+          create: {
+            year, month: m, status: 'LOCKED',
+            lockedAt: now, lockedBy: userId,
+            ...(m === 12 ? { closingEntryId: closingEntry.id } : {}),
+          },
+          update: {
+            status: 'LOCKED',
+            lockedAt: now,
+            lockedBy: userId,
+            ...(m === 12 ? { closingEntryId: closingEntry.id } : {}),
+          },
+        });
+      }
+
+      return closingEntry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
   async postFromPayment(
     paymentId: number,
     userId: number,
