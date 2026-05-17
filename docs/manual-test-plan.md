@@ -884,3 +884,27 @@ When new features ship, add test cases under the appropriate area before the fea
 | 20.15 | Backfill is admin-only | Log in as FINANCE | Same as above. |
 | 20.16 | Posting failure rolls back the operation | Delete REVENUE_DEFAULT mapping; create a CASH+PAID payment | Payment creation returns 400 MAPPING_MISSING; no Payment row left in DB. |
 | 20.17 | Arabic RTL | Switch to Arabic; visit mapping and VAT return pages | Layout mirrors correctly. |
+
+## 21. Accounting Module (Phase 3)
+
+**Prerequisites:** Phase 1 + 2 active; `FEATURE_ACCOUNTING=true`; Setup has been run. Log in as ADMIN.
+
+| # | Scenario | Steps | Expected |
+|---|---|---|---|
+| 21.1 | Income statement happy path | Visit `/accounting/income-statement` for the current month after Phase 2 setup + a few posted payments | Income section lists Rental Revenue; total > 0; Net Income > 0 |
+| 21.2 | Income statement CSV export | Click Export CSV | Downloads a `.csv` opening cleanly in Excel |
+| 21.3 | Balance sheet — balanced | Visit `/accounting/balance-sheet` as-of today | Assets total equals Liabilities + Equity + Current Year Earnings (no red banner) |
+| 21.4 | Balance sheet — current year earnings | Compare CYE to the period-to-date net income from Income Statement | They match to the cent |
+| 21.5 | Cash flow — reconciles | Visit `/accounting/cash-flow` for the current month | "Ending Cash" equals "Beginning Cash + Net Cash from Operations"; no red banner |
+| 21.6 | Add Expense (with VAT) | From JE list, click "+ Add Expense"; pick Utilities Expense, amount 210, VAT_STANDARD, Pay From Cash | JE created with 3 lines (Expense 200 net debit, VAT 10 debit, Cash 210 credit) |
+| 21.7 | Add Expense (no VAT) | Same form, tax code "None" | JE has 2 lines (Expense gross debit, Cash gross credit) |
+| 21.8 | Add Expense from AP | Pay From = Accounts Payable | JE credits AP instead of Cash |
+| 21.9 | Period lock blocks posting | Open Periods; lock current month; try to create any new JE dated today | 400 PERIOD_LOCKED |
+| 21.10 | Period unlock restores posting | Unlock the month | New JE succeeds |
+| 21.11 | Reverse a manual JE | On a POSTED manual JE detail page, click "Reverse this entry"; confirm | New JE posted dated today with swapped debit/credit; `reversesEntryId` matches original |
+| 21.12 | Reverse blocked for PAYMENT_AUTO | Find a payment-auto JE; click Reverse | 400 CANNOT_REVERSE with hint pointing to the payment-specific endpoint |
+| 21.13 | Year-end close happy path | Periods page → Close Year YYYY (the previous year if available) | Closing JE posted to Retained Earnings; all 12 months of that year show LOCKED 🔒 |
+| 21.14 | Year-end close idempotency | Click Close Year again | 400 ALREADY_CLOSED |
+| 21.15 | Year-end close with no activity | Try to close a year with no posted entries | 400 MIN_LINES |
+| 21.16 | Statement after year-end close | Balance Sheet as-of Dec 31 of closed year | Retained Earnings absorbs the prior year's net income; Current Year Earnings = 0 if asOf is in the closed year |
+| 21.17 | Arabic RTL | Switch to Arabic; visit all 4 new pages | Layout mirrors correctly |
