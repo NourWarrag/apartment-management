@@ -35,7 +35,7 @@ export default function BuildingFormModal({ building, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-surface rounded-2xl shadow-xl p-6 w-full max-w-md">
+      <div className="bg-surface rounded-2xl shadow-xl p-6 w-full max-w-[90vw] lg:max-w-md">
         <h2 className="text-lg font-bold text-on-surface mb-4">
           {isEdit ? 'Edit Building' : 'Add Building'}
         </h2>
