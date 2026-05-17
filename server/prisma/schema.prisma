@@ -34,25 +34,28 @@ model User {
   auditLogs       AuditLog[]
 
   // Back-relations for audit columns on other models
-  createdApartments     Apartment[]         @relation("ApartmentCreatedBy")
-  updatedApartments     Apartment[]         @relation("ApartmentUpdatedBy")
-  deletedApartments     Apartment[]         @relation("ApartmentDeletedBy")
-  createdTenants        Tenant[]            @relation("TenantCreatedBy")
-  updatedTenants        Tenant[]            @relation("TenantUpdatedBy")
-  deletedTenants        Tenant[]            @relation("TenantDeletedBy")
-  createdBookings       Booking[]           @relation("BookingCreatedBy")
-  updatedBookings       Booking[]           @relation("BookingUpdatedBy")
-  createdPayments       Payment[]           @relation("PaymentCreatedBy")
-  updatedPayments       Payment[]           @relation("PaymentUpdatedBy")
-  createdTickets        MaintenanceTicket[] @relation("TicketCreatedBy")
-  updatedTickets        MaintenanceTicket[] @relation("TicketUpdatedBy")
-  createdBuildings      Building[]          @relation("BuildingCreatedBy")
-  updatedBuildings      Building[]          @relation("BuildingUpdatedBy")
-  createdAccounts       Account[]           @relation("AccountCreatedBy")
-  updatedAccounts       Account[]           @relation("AccountUpdatedBy")
-  postedJournalEntries  JournalEntry[]      @relation("JEPostedBy")
-  createdJournalEntries JournalEntry[]      @relation("JECreatedBy")
-  updatedJournalEntries JournalEntry[]      @relation("JEUpdatedBy")
+  createdApartments      Apartment[]         @relation("ApartmentCreatedBy")
+  updatedApartments      Apartment[]         @relation("ApartmentUpdatedBy")
+  deletedApartments      Apartment[]         @relation("ApartmentDeletedBy")
+  createdTenants         Tenant[]            @relation("TenantCreatedBy")
+  updatedTenants         Tenant[]            @relation("TenantUpdatedBy")
+  deletedTenants         Tenant[]            @relation("TenantDeletedBy")
+  createdBookings        Booking[]           @relation("BookingCreatedBy")
+  updatedBookings        Booking[]           @relation("BookingUpdatedBy")
+  createdPayments        Payment[]           @relation("PaymentCreatedBy")
+  updatedPayments        Payment[]           @relation("PaymentUpdatedBy")
+  createdTickets         MaintenanceTicket[] @relation("TicketCreatedBy")
+  updatedTickets         MaintenanceTicket[] @relation("TicketUpdatedBy")
+  createdBuildings       Building[]          @relation("BuildingCreatedBy")
+  updatedBuildings       Building[]          @relation("BuildingUpdatedBy")
+  createdAccounts        Account[]           @relation("AccountCreatedBy")
+  updatedAccounts        Account[]           @relation("AccountUpdatedBy")
+  postedJournalEntries   JournalEntry[]      @relation("JEPostedBy")
+  createdJournalEntries  JournalEntry[]      @relation("JECreatedBy")
+  updatedJournalEntries  JournalEntry[]      @relation("JEUpdatedBy")
+  accountMappingsUpdated AccountMapping[]    @relation("AccountMappingUpdatedBy")
+  createdTaxCodes        TaxCode[]           @relation("TaxCodeCreatedBy")
+  updatedTaxCodes        TaxCode[]           @relation("TaxCodeUpdatedBy")
 
   assignedBuildingId  Int?
   assignedBuilding    Building?    @relation("UserAssignedBuilding", fields: [assignedBuildingId], references: [id], onDelete: SetNull)
@@ -106,27 +109,33 @@ model Tenant {
 }
 
 model Booking {
-  id                  Int           @id @default(autoincrement())
-  apartmentId         Int
-  tenantId            Int
-  checkIn             DateTime
-  checkOut            DateTime
-  totalAmount         Decimal       @db.Decimal(10, 2)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  createdBy           Int?
-  updatedBy           Int?
-  depositAmount       Decimal?      @db.Decimal(10, 2)
-  depositStatus       DepositStatus @default(NONE)
-  depositRefundAmount Decimal?      @db.Decimal(10, 2)
-  depositCollectedAt  DateTime?
-  checkedOutAt        DateTime?
+  id                   Int           @id @default(autoincrement())
+  apartmentId          Int
+  tenantId             Int
+  checkIn              DateTime
+  checkOut             DateTime
+  totalAmount          Decimal       @db.Decimal(10, 2)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  createdBy            Int?
+  updatedBy            Int?
+  depositAmount        Decimal?      @db.Decimal(10, 2)
+  depositStatus        DepositStatus @default(NONE)
+  depositRefundAmount  Decimal?      @db.Decimal(10, 2)
+  depositCollectedAt   DateTime?
+  checkedOutAt         DateTime?
+  taxCodeId            Int?
+  revenuePostedEntryId Int?
+  depositPostedEntryId Int?
 
-  apartment Apartment @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  creator   User?     @relation("BookingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater   User?     @relation("BookingUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
-  payments  Payment[]
+  apartment          Apartment     @relation(fields: [apartmentId], references: [id], onDelete: Restrict)
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  creator            User?         @relation("BookingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater            User?         @relation("BookingUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  payments           Payment[]
+  taxCode            TaxCode?      @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
+  revenuePostedEntry JournalEntry? @relation("BookingRevenuePostedEntry", fields: [revenuePostedEntryId], references: [id], onDelete: SetNull)
+  depositPostedEntry JournalEntry? @relation("BookingDepositPostedEntry", fields: [depositPostedEntryId], references: [id], onDelete: SetNull)
 
   @@index([apartmentId])
   @@index([tenantId])
@@ -145,13 +154,16 @@ model Payment {
   updatedAt       DateTime      @updatedAt
   createdBy       Int?
   updatedBy       Int?
+  postedEntryId   Int?
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  creator User?   @relation("PaymentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater User?   @relation("PaymentUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  creator     User?         @relation("PaymentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater     User?         @relation("PaymentUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  postedEntry JournalEntry? @relation("PaymentPostedEntry", fields: [postedEntryId], references: [id], onDelete: SetNull)
 
   @@index([bookingId, status])
   @@index([createdAt])
+  @@index([postedEntryId])
 }
 
 model MaintenanceTicket {
@@ -238,6 +250,7 @@ enum PaymentStatus {
   PAID
   PENDING
   FAILED
+  REVERSED
 }
 
 enum Priority {
@@ -332,6 +345,11 @@ enum BooksMode {
   PER_BUILDING
 }
 
+enum AccountingMode {
+  CASH
+  ACCRUAL
+}
+
 model Attachment {
   id          Int              @id @default(autoincrement())
   entityType  AttachmentEntity
@@ -361,9 +379,11 @@ model Account {
   createdBy Int?
   updatedBy Int?
 
-  parent   Account?      @relation("AccountParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children Account[]     @relation("AccountParent")
+  parent   Account?         @relation("AccountParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children Account[]        @relation("AccountParent")
   lines    JournalLine[]
+  mappings AccountMapping[]
+  taxCodes TaxCode[]        @relation("TaxCodeAccount")
 
   creator User? @relation("AccountCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updater User? @relation("AccountUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
@@ -388,11 +408,14 @@ model JournalEntry {
   createdBy Int?
   updatedBy Int?
 
-  building Building?     @relation("JEBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
-  lines    JournalLine[]
-  poster   User?         @relation("JEPostedBy", fields: [postedBy], references: [id], onDelete: SetNull)
-  creator  User?         @relation("JECreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater  User?         @relation("JEUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  building                Building?     @relation("JEBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
+  lines                   JournalLine[]
+  poster                  User?         @relation("JEPostedBy", fields: [postedBy], references: [id], onDelete: SetNull)
+  creator                 User?         @relation("JECreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater                 User?         @relation("JEUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  paymentPostedFor        Payment[]     @relation("PaymentPostedEntry")
+  bookingRevenuePostedFor Booking[]     @relation("BookingRevenuePostedEntry")
+  bookingDepositPostedFor Booking[]     @relation("BookingDepositPostedEntry")
 
   @@index([status, date])
   @@index([date])
@@ -408,22 +431,58 @@ model JournalLine {
   credit         Decimal @default(0) @db.Decimal(14, 2)
   description    String?
   lineOrder      Int
+  taxCodeId      Int?
 
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
   building     Building?    @relation("JLBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
+  taxCode      TaxCode?     @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
 
   @@index([accountId])
   @@index([journalEntryId])
+  @@index([taxCodeId])
+}
+
+model AccountMapping {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  accountId Int
+  updatedAt DateTime @updatedAt
+  updatedBy Int?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  updater User?   @relation("AccountMappingUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+}
+
+model TaxCode {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  ratePct   Decimal  @db.Decimal(5, 2)
+  accountId Int
+  isDefault Boolean  @default(false)
+  isExempt  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+  updatedBy Int?
+
+  account  Account       @relation("TaxCodeAccount", fields: [accountId], references: [id], onDelete: Restrict)
+  lines    JournalLine[]
+  bookings Booking[]
+  creator  User?         @relation("TaxCodeCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater  User?         @relation("TaxCodeUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 }
 
 model SystemSettings {
-  id          Int       @id @default(autoincrement())
-  companyName String    @default("My Property")
-  currency    String    @default("AED")
-  timezone    String    @default("Asia/Dubai")
-  phone       String    @default("")
-  email       String    @default("")
-  address     String    @default("")
-  booksMode   BooksMode @default(CONSOLIDATED)
+  id             Int            @id @default(autoincrement())
+  companyName    String         @default("My Property")
+  currency       String         @default("AED")
+  timezone       String         @default("Asia/Dubai")
+  phone          String         @default("")
+  email          String         @default("")
+  address        String         @default("")
+  booksMode      BooksMode      @default(CONSOLIDATED)
+  accountingMode AccountingMode @default(CASH)
 }
