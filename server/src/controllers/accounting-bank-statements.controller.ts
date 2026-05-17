@@ -55,7 +55,7 @@ export async function deleteStatement(req: AuthRequest, res: Response, next: Nex
   try {
     const id = Number(req.params.id);
     const matchedCount = await prisma.reconciliationMatch.count({
-      where: { bankStatementLine: { bankStatementId: id } },
+      where: { bankStatementLine: { is: { bankStatementId: id } } },
     });
     if (matchedCount > 0) {
       res.status(400).json({ message: 'Cannot delete a statement whose lines are matched in a reconciliation' });

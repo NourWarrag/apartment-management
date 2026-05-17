@@ -19,7 +19,7 @@ import { reverseEntry as reverseEntryHandler } from '../controllers/accounting-r
 import * as bankAccounts from '../controllers/accounting-bank-accounts.controller';
 import * as bankStatements from '../controllers/accounting-bank-statements.controller';
 import * as reconciliations from '../controllers/accounting-reconciliations.controller';
-import { uploadFile } from '../middleware/upload.middleware';
+import { uploadFile, uploadCsv } from '../middleware/upload.middleware';
 
 const router = Router();
 
@@ -103,8 +103,8 @@ router.patch('/bank-accounts/:id/csv-mapping', bankAccounts.updateCsvMapping);
 router.post('/bank-accounts/:id/deactivate', bankAccounts.deactivate);
 
 // Phase 4: Bank statements
-router.post('/bank-accounts/:id/statements/preview', uploadFile, bankStatements.preview);
-router.post('/bank-accounts/:id/statements', uploadFile, bankStatements.importStatement);
+router.post('/bank-accounts/:id/statements/preview', uploadCsv, bankStatements.preview);
+router.post('/bank-accounts/:id/statements', uploadCsv, bankStatements.importStatement);
 router.get('/bank-accounts/:id/statements', bankStatements.listStatements);
 router.delete('/bank-statements/:id', bankStatements.deleteStatement);
 
