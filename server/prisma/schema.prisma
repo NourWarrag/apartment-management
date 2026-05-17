@@ -56,6 +56,7 @@ model User {
   accountMappingsUpdated AccountMapping[]    @relation("AccountMappingUpdatedBy")
   createdTaxCodes        TaxCode[]           @relation("TaxCodeCreatedBy")
   updatedTaxCodes        TaxCode[]           @relation("TaxCodeUpdatedBy")
+  lockedFiscalPeriods    FiscalPeriod[]      @relation("FiscalPeriodLockedBy")
 
   assignedBuildingId  Int?
   assignedBuilding    Building?    @relation("UserAssignedBuilding", fields: [assignedBuildingId], references: [id], onDelete: SetNull)
@@ -338,6 +339,7 @@ enum JESource {
   PAYMENT_AUTO
   VAT_ADJUST
   YEAR_END_CLOSE
+  MANUAL_REVERSAL
 }
 
 enum BooksMode {
@@ -348,6 +350,11 @@ enum BooksMode {
 enum AccountingMode {
   CASH
   ACCRUAL
+}
+
+enum FiscalPeriodStatus {
+  OPEN
+  LOCKED
 }
 
 model Attachment {
@@ -403,19 +410,23 @@ model JournalEntry {
   postedAt    DateTime?
   postedBy    Int?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy Int?
-  updatedBy Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       Int?
+  updatedBy       Int?
+  reversesEntryId Int?
 
-  building                Building?     @relation("JEBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
+  building                Building?      @relation("JEBuilding", fields: [buildingId], references: [id], onDelete: Restrict)
   lines                   JournalLine[]
-  poster                  User?         @relation("JEPostedBy", fields: [postedBy], references: [id], onDelete: SetNull)
-  creator                 User?         @relation("JECreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater                 User?         @relation("JEUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
-  paymentPostedFor        Payment[]     @relation("PaymentPostedEntry")
-  bookingRevenuePostedFor Booking[]     @relation("BookingRevenuePostedEntry")
-  bookingDepositPostedFor Booking[]     @relation("BookingDepositPostedEntry")
+  poster                  User?          @relation("JEPostedBy", fields: [postedBy], references: [id], onDelete: SetNull)
+  creator                 User?          @relation("JECreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater                 User?          @relation("JEUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  reversesEntry           JournalEntry?  @relation("JEReverses", fields: [reversesEntryId], references: [id], onDelete: SetNull)
+  reversedBy              JournalEntry[] @relation("JEReverses")
+  fiscalPeriodsClosed     FiscalPeriod[] @relation("FiscalPeriodClosingEntry")
+  paymentPostedFor        Payment[]      @relation("PaymentPostedEntry")
+  bookingRevenuePostedFor Booking[]      @relation("BookingRevenuePostedEntry")
+  bookingDepositPostedFor Booking[]      @relation("BookingDepositPostedEntry")
 
   @@index([status, date])
   @@index([date])
@@ -452,6 +463,22 @@ model AccountMapping {
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
   updater User?   @relation("AccountMappingUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+}
+
+model FiscalPeriod {
+  id             Int                @id @default(autoincrement())
+  year           Int
+  month          Int
+  status         FiscalPeriodStatus @default(OPEN)
+  lockedAt       DateTime?
+  lockedBy       Int?
+  closingEntryId Int?
+
+  closingEntry JournalEntry? @relation("FiscalPeriodClosingEntry", fields: [closingEntryId], references: [id], onDelete: SetNull)
+  locker       User?         @relation("FiscalPeriodLockedBy", fields: [lockedBy], references: [id], onDelete: SetNull)
+
+  @@unique([year, month])
+  @@index([status])
 }
 
 model TaxCode {
