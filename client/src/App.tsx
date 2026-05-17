@@ -19,6 +19,8 @@ import JournalEntriesPage from './pages/accounting/JournalEntriesPage';
 import JournalEntryEditorPage from './pages/accounting/JournalEntryEditorPage';
 import GeneralLedgerPage from './pages/accounting/GeneralLedgerPage';
 import TrialBalancePage from './pages/accounting/TrialBalancePage';
+import AccountMappingPage from './pages/accounting/AccountMappingPage';
+import VatReturnPage from './pages/accounting/VatReturnPage';
 import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
@@ -203,6 +205,22 @@ function AppRoutes() {
               element={
                 <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
                   <TrialBalancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/mapping"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <AccountMappingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/vat-return"
+              element={
+                <ProtectedRoute allowedRoles={ADMIN_FINANCE}>
+                  <VatReturnPage />
                 </ProtectedRoute>
               }
             />
