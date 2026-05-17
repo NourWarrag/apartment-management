@@ -18,7 +18,8 @@
     "accountingIncome": "قائمة الدخل",
     "accountingBalance": "الميزانية العمومية",
     "accountingCashflow": "التدفقات النقدية",
-    "accountingPeriods": "الفترات المحاسبية"
+    "accountingPeriods": "الفترات المحاسبية",
+    "accountingBanking": "مطابقة البنك"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -153,6 +154,7 @@
     "balance":  { "title": "الميزانية العمومية" },
     "cashflow": { "title": "قائمة التدفقات النقدية" },
     "periods":  { "title": "الفترات المحاسبية" },
+    "banking": { "title": "مطابقة البنك" },
     "expense":  { "title": "إضافة مصروف" }
   },
   "settings": {

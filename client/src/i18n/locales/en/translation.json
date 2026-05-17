@@ -18,7 +18,8 @@
     "accountingIncome": "Income Statement",
     "accountingBalance": "Balance Sheet",
     "accountingCashflow": "Cash Flow",
-    "accountingPeriods": "Periods"
+    "accountingPeriods": "Periods",
+    "accountingBanking": "Bank Reconciliation"
   },
   "auth": {
     "login": "Login",
@@ -153,6 +154,7 @@
     "balance":  { "title": "Balance Sheet" },
     "cashflow": { "title": "Cash Flow Statement" },
     "periods":  { "title": "Fiscal Periods" },
+    "banking": { "title": "Bank Reconciliation" },
     "expense":  { "title": "Add Expense" }
   },
   "settings": {
