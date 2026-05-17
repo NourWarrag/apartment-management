@@ -563,6 +563,62 @@ export class PostingService {
     return this.prisma.$transaction(runner);
   }
 
+  async postExpense(
+    input: {
+      date: Date;
+      memo?: string;
+      buildingId?: number | null;
+      expenseAccountId: number;
+      amount: string | Prisma.Decimal | number;
+      payFromAccountId: number;
+      taxCodeId?: number | null;
+    },
+    userId: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const runner = async (db: Prisma.TransactionClient): Promise<JournalEntry> => {
+      const gross = new Prisma.Decimal(input.amount);
+      const taxCode = input.taxCodeId
+        ? await db.taxCode.findUnique({ where: { id: input.taxCodeId } })
+        : null;
+      const rate = taxCode ? new Prisma.Decimal(taxCode.ratePct) : new Prisma.Decimal(0);
+      const { net, vat } = splitTaxInclusive(gross, rate);
+
+      const lines: LineInput[] = [
+        { accountId: input.expenseAccountId, debit: net, description: input.memo },
+      ];
+      if (vat.gt(0) && taxCode) {
+        const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');
+        lines.push({ accountId: vatAccountId, debit: vat });
+      }
+      lines.push({ accountId: input.payFromAccountId, credit: gross });
+
+      const entry = await this.createAndPost(
+        {
+          date: input.date,
+          memo: input.memo ?? 'Expense',
+          buildingId: input.buildingId ?? null,
+          source: 'MANUAL',
+          lines,
+        },
+        userId,
+        db,
+      );
+
+      if (taxCode) {
+        await db.journalLine.updateMany({
+          where: { journalEntryId: entry.id, accountId: input.expenseAccountId },
+          data: { taxCodeId: taxCode.id },
+        });
+      }
+
+      return entry;
+    };
+
+    if (tx) return runner(tx);
+    return this.prisma.$transaction(runner);
+  }
+
   async postFromPayment(
     paymentId: number,
     userId: number,

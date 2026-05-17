@@ -796,6 +796,89 @@ describe('PostingService.closeFiscalYear', () => {
   });
 });
 
+describe('PostingService.postExpense', () => {
+  let expenseAccountId: number;
+
+  beforeAll(async () => {
+    const existing = await db.account.findUnique({ where: { code: '5099' } });
+    if (existing) {
+      expenseAccountId = existing.id;
+    } else {
+      const e = await db.account.create({ data: { code: '5099', name: 'Test Expense P3', type: 'EXPENSE' } });
+      expenseAccountId = e.id;
+    }
+  });
+
+  it('posts a 3-line JE with VAT split when a tax code is supplied', async () => {
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-10'),
+        memo: 'Utilities',
+        expenseAccountId,
+        amount: '210',
+        payFromAccountId: cashId,
+        taxCodeId: taxCodeStandardId,
+      },
+      userId,
+    );
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry.id } });
+    expect(lines).toHaveLength(3);
+    expect(lines.find((l) => l.accountId === expenseAccountId)?.debit.toFixed(2)).toBe('200.00');
+    expect(lines.find((l) => l.accountId === vatAccountId)?.debit.toFixed(2)).toBe('10.00');
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('210.00');
+  });
+
+  it('posts a 2-line JE (no VAT) when no tax code is supplied', async () => {
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-11'),
+        memo: 'Out-of-scope expense',
+        expenseAccountId,
+        amount: '50',
+        payFromAccountId: cashId,
+      },
+      userId,
+    );
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry.id } });
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.accountId === expenseAccountId)?.debit.toFixed(2)).toBe('50.00');
+    expect(lines.find((l) => l.accountId === cashId)?.credit.toFixed(2)).toBe('50.00');
+  });
+
+  it('tags the expense line with taxCodeId (for VAT return input column)', async () => {
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-12'),
+        expenseAccountId,
+        amount: '105',
+        payFromAccountId: cashId,
+        taxCodeId: taxCodeStandardId,
+      },
+      userId,
+    );
+    const expenseLine = await db.journalLine.findFirst({
+      where: { journalEntryId: entry.id, accountId: expenseAccountId },
+    });
+    expect(expenseLine?.taxCodeId).toBe(taxCodeStandardId);
+  });
+
+  it('accepts an AP account (LIABILITY) as payFromAccountId', async () => {
+    const ap = await db.account.findUnique({ where: { code: '2010' } })
+      ?? await db.account.create({ data: { code: '2010', name: 'Accounts Payable', type: 'LIABILITY' } });
+    const entry = await service().postExpense(
+      {
+        date: new Date('2026-07-13'),
+        expenseAccountId,
+        amount: '100',
+        payFromAccountId: ap.id,
+      },
+      userId,
+    );
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry.id } });
+    expect(lines.find((l) => l.accountId === ap.id)?.credit.toFixed(2)).toBe('100.00');
+  });
+});
+
 describe('PostingService.reverseEntry', () => {
   beforeEach(async () => {
     await db.fiscalPeriod.deleteMany();
