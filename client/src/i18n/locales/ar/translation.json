@@ -19,7 +19,8 @@
     "accountingBalance": "الميزانية العمومية",
     "accountingCashflow": "التدفقات النقدية",
     "accountingPeriods": "الفترات المحاسبية",
-    "accountingBanking": "مطابقة البنك"
+    "accountingBanking": "مطابقة البنك",
+    "accounting": "المحاسبة"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -145,17 +146,40 @@
       "detail": "قيد يومية",
       "confirmPost": "الترحيل نهائي. لتصحيح قيد مرحَّل، سيتم إنشاء قيد عكسي. متابعة؟"
     },
-    "gl": { "title": "دفتر الأستاذ العام" },
-    "tb": { "title": "ميزان المراجعة" },
-    "mapping": { "title": "ربط الحسابات" },
-    "vat":     { "title": "إقرار ضريبة القيمة المضافة" },
-    "taxCodes": { "title": "أكواد الضريبة", "new": "كود ضريبة جديد" },
-    "income":   { "title": "قائمة الدخل" },
-    "balance":  { "title": "الميزانية العمومية" },
-    "cashflow": { "title": "قائمة التدفقات النقدية" },
-    "periods":  { "title": "الفترات المحاسبية" },
-    "banking": { "title": "مطابقة البنك" },
-    "expense":  { "title": "إضافة مصروف" }
+    "gl": {
+      "title": "دفتر الأستاذ العام"
+    },
+    "tb": {
+      "title": "ميزان المراجعة"
+    },
+    "mapping": {
+      "title": "ربط الحسابات"
+    },
+    "vat": {
+      "title": "إقرار ضريبة القيمة المضافة"
+    },
+    "taxCodes": {
+      "title": "أكواد الضريبة",
+      "new": "كود ضريبة جديد"
+    },
+    "income": {
+      "title": "قائمة الدخل"
+    },
+    "balance": {
+      "title": "الميزانية العمومية"
+    },
+    "cashflow": {
+      "title": "قائمة التدفقات النقدية"
+    },
+    "periods": {
+      "title": "الفترات المحاسبية"
+    },
+    "banking": {
+      "title": "مطابقة البنك"
+    },
+    "expense": {
+      "title": "إضافة مصروف"
+    }
   },
   "settings": {
     "accounting": {

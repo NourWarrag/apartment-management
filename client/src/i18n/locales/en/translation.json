@@ -19,7 +19,8 @@
     "accountingBalance": "Balance Sheet",
     "accountingCashflow": "Cash Flow",
     "accountingPeriods": "Periods",
-    "accountingBanking": "Bank Reconciliation"
+    "accountingBanking": "Bank Reconciliation",
+    "accounting": "Accounting"
   },
   "auth": {
     "login": "Login",
@@ -145,17 +146,40 @@
       "detail": "Journal Entry",
       "confirmPost": "Posting is permanent. To correct a posted entry later, you'll create a reversing entry. Continue?"
     },
-    "gl": { "title": "General Ledger" },
-    "tb": { "title": "Trial Balance" },
-    "mapping": { "title": "Account Mapping" },
-    "vat":     { "title": "VAT Return" },
-    "taxCodes": { "title": "Tax Codes", "new": "New Tax Code" },
-    "income":   { "title": "Income Statement" },
-    "balance":  { "title": "Balance Sheet" },
-    "cashflow": { "title": "Cash Flow Statement" },
-    "periods":  { "title": "Fiscal Periods" },
-    "banking": { "title": "Bank Reconciliation" },
-    "expense":  { "title": "Add Expense" }
+    "gl": {
+      "title": "General Ledger"
+    },
+    "tb": {
+      "title": "Trial Balance"
+    },
+    "mapping": {
+      "title": "Account Mapping"
+    },
+    "vat": {
+      "title": "VAT Return"
+    },
+    "taxCodes": {
+      "title": "Tax Codes",
+      "new": "New Tax Code"
+    },
+    "income": {
+      "title": "Income Statement"
+    },
+    "balance": {
+      "title": "Balance Sheet"
+    },
+    "cashflow": {
+      "title": "Cash Flow Statement"
+    },
+    "periods": {
+      "title": "Fiscal Periods"
+    },
+    "banking": {
+      "title": "Bank Reconciliation"
+    },
+    "expense": {
+      "title": "Add Expense"
+    }
   },
   "settings": {
     "accounting": {
