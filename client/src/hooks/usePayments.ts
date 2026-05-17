@@ -6,10 +6,11 @@ export interface PaymentListItem {
   id: number;
   method: 'CASH' | 'CARD' | 'INSTALLMENT';
   amount: string;
-  status: 'PAID' | 'PENDING' | 'FAILED';
+  status: 'PAID' | 'PENDING' | 'FAILED' | 'REVERSED';
   referenceNumber: string | null;
   paidAt: string | null;
   createdAt: string;
+  postedEntryId?: number | null;
   booking: {
     id: number;
     checkIn: string;
