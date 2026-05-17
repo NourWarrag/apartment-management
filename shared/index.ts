@@ -151,7 +151,12 @@ export type AccountingErrorCode =
   | 'ALREADY_REVERSED'
   | 'CANNOT_REVERSE'
   | 'PERIOD_LOCKED'
-  | 'ALREADY_CLOSED';
+  | 'ALREADY_CLOSED'
+  | 'BANK_ACCOUNT_NOT_FOUND'
+  | 'BANK_STATEMENT_INVALID'
+  | 'RECONCILIATION_CLOSED'
+  | 'RECONCILIATION_UNBALANCED'
+  | 'LINE_ALREADY_MATCHED';
 
 export enum AccountingMode {
   CASH = 'CASH',
@@ -173,4 +178,9 @@ export type MappingKey = typeof MAPPING_KEYS[number];
 export enum FiscalPeriodStatus {
   OPEN = 'OPEN',
   LOCKED = 'LOCKED',
+}
+
+export enum ReconciliationStatus {
+  OPEN = 'OPEN',
+  CLOSED = 'CLOSED',
 }

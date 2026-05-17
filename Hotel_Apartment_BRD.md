@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 # Hotel Apartment Management System
 
-**Version:** 2.3 — Updated 2026-05-17 — Accounting module Phase 3 (statements, fiscal periods, year-end close, manual reversal, expense entry)
+**Version:** 2.4 — Updated 2026-05-17 — Accounting module Phase 4 (bank reconciliation). Module complete.
 
 ---
 
@@ -164,6 +164,17 @@ Posting calls participate in the parent transaction so operational write and GL 
 - **Expense entry:** dedicated "Add Expense" form (Date, Memo, Expense Account, Amount, Tax Code, Pay From, Building). Builds a journal entry with optional VAT split.
 
 Period status (CLOSED-but-not-LOCKED), bank reconciliation, configurable fiscal-year-start month, fixed-asset depreciation, and direct-method cash flow are out of v1.
+
+### 4.13 Accounting Module (Phase 4) — Bank Reconciliation
+
+- **Multi-bank:** `BankAccount` table; one bank account per linked GL Asset account.
+- **CSV import:** flexible per-account column mapping; 3-step wizard (preview, configure, confirm).
+- **Matching:** auto-match (exact amount, ±2 day window, sign-aware) + manual 1-to-1 + manual N-to-1.
+- **Reconciliation sessions:** one OPEN session per bank account; close requires balanced state; admin-only reopen.
+- **Inline adjustments:** "Add adjustment" posts a JE via PostingService and matches it. Period-lock fallback (Phase 3 guard inherited).
+- **Reconciliation report:** snapshotted to JSON at close; CSV export.
+
+Phase 4 closes the accounting module. Bank API integration, multi-currency, dedup at import, and other extensions are out of v1.
 
 ---
 

@@ -25,6 +25,9 @@ import IncomeStatementPage from './pages/accounting/IncomeStatementPage';
 import BalanceSheetPage from './pages/accounting/BalanceSheetPage';
 import CashFlowPage from './pages/accounting/CashFlowPage';
 import FiscalPeriodsPage from './pages/accounting/FiscalPeriodsPage';
+import BankingPage from './pages/accounting/BankingPage';
+import BankAccountDetailPage from './pages/accounting/BankAccountDetailPage';
+import ReconciliationPage from './pages/accounting/ReconciliationPage';
 import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
@@ -232,6 +235,9 @@ function AppRoutes() {
             <Route path="accounting/balance-sheet" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><BalanceSheetPage /></ProtectedRoute>} />
             <Route path="accounting/cash-flow" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><CashFlowPage /></ProtectedRoute>} />
             <Route path="accounting/periods" element={<ProtectedRoute allowedRoles={ADMIN_ONLY}><FiscalPeriodsPage /></ProtectedRoute>} />
+            <Route path="accounting/banking" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><BankingPage /></ProtectedRoute>} />
+            <Route path="accounting/banking/:id" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><BankAccountDetailPage /></ProtectedRoute>} />
+            <Route path="accounting/banking/reconciliations/:id" element={<ProtectedRoute allowedRoles={ADMIN_FINANCE}><ReconciliationPage /></ProtectedRoute>} />
           </>
         )}
         <Route
