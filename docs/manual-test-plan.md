@@ -908,3 +908,28 @@ When new features ship, add test cases under the appropriate area before the fea
 | 21.15 | Year-end close with no activity | Try to close a year with no posted entries | 400 MIN_LINES |
 | 21.16 | Statement after year-end close | Balance Sheet as-of Dec 31 of closed year | Retained Earnings absorbs the prior year's net income; Current Year Earnings = 0 if asOf is in the closed year |
 | 21.17 | Arabic RTL | Switch to Arabic; visit all 4 new pages | Layout mirrors correctly |
+
+## 22. Accounting Module (Phase 4) — Bank Reconciliation
+
+**Prerequisites:** Phases 1–3 active; `FEATURE_ACCOUNTING=true`. Log in as ADMIN.
+
+| # | Scenario | Steps | Expected |
+|---|---|---|---|
+| 22.1 | Create bank account | Banking page → + New Bank Account; name "Main Checking"; pick Bank (1020) | Created and visible in list |
+| 22.2 | Configure CSV mapping | Bank account detail → CSV Mapping tab → Edit; pick columns for date/amount/description; date format DD/MM/YYYY | Mapping persists |
+| 22.3 | Preview CSV import | Upload a sample CSV (5 rows) | First rows displayed; nothing persisted |
+| 22.4 | Import CSV | Confirm import | Statement + lines persist; line count matches CSV |
+| 22.5 | Malformed CSV | Upload a CSV with a bad date | 400 BANK_STATEMENT_INVALID with row number; nothing persisted |
+| 22.6 | Start reconciliation | New reconciliation; endDate end-of-month; statementBalance from bank | OPEN reconciliation created |
+| 22.7 | Auto-match | Run auto-match button | Exact-amount matches highlighted; count returned |
+| 22.8 | Manual N-to-1 | Select 1 bank deposit + N journal lines summing to its amount; click Match | Match persists; lines show as matched |
+| 22.9 | Manual match — wrong sum | Select journal lines summing to wrong amount | 400 UNBALANCED |
+| 22.10 | Add bank-fee adjustment | Click unmatched bank fee line → Add adjustment → pick Bank Fees expense | JE posts; line matches |
+| 22.11 | Adjustment for locked-period bank line | Lock previous month; import statement with bank fee dated in locked month; add adjustment | JE posts in current open period with warning shown |
+| 22.12 | Close balanced reconciliation | Match everything; difference 0; Close | Status CLOSED; report snapshot populated |
+| 22.13 | Close unbalanced rejected | Leave a bank line unmatched; Close | 400 RECONCILIATION_UNBALANCED with diff |
+| 22.14 | Admin reopen | On closed rec, click Reopen | Status OPEN; matches preserved; snapshot cleared |
+| 22.15 | Finance cannot reopen | Log in as FINANCE; try to reopen | 403 |
+| 22.16 | Delete unmatched statement | Statements tab → Delete an unmatched statement | Succeeds |
+| 22.17 | Delete matched statement blocked | Try to delete a statement with matched lines | 400 |
+| 22.18 | Arabic RTL | Switch to Arabic; walk all 4 screens | Mirrors correctly |
