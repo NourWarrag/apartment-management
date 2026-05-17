@@ -7,6 +7,7 @@ export interface CreateBookingDto {
   checkIn: string;
   checkOut: string;
   totalAmount: number;
+  taxCodeId?: number | null;
   payment: {
     method: 'CASH' | 'CARD' | 'INSTALLMENT';
     amount: number;
