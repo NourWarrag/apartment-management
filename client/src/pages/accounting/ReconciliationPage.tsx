@@ -157,7 +157,7 @@ export default function ReconciliationPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Bank lines */}
         <section>
           <h2 className="font-bold mb-2">Bank statement lines</h2>
