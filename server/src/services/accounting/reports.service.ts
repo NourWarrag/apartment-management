@@ -339,6 +339,14 @@ export class ReportsService {
     };
   }
 
+  async listFiscalPeriods(year?: number) {
+    return this.prisma.fiscalPeriod.findMany({
+      where: year !== undefined ? { year } : {},
+      include: { closingEntry: { select: { id: true, entryNumber: true } } },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+  }
+
   async generalLedger(opts: {
     accountIds: number[];
     dateFrom: Date;
