@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import TableScroller from '../../components/ui/TableScroller';
 import { bankAccountsApi, bankStatementsApi, type BankAccount } from '../../lib/api/accounting-phase4';
 
 type Props = {
@@ -87,15 +88,17 @@ export default function CsvImportWizard({ bankAccount, onImported, onClose, forc
           <div className="space-y-2 text-sm">
             <p className="text-on-surface-variant mb-3">First 20 rows preview:</p>
             <div className="overflow-auto max-h-48 border border-outline-variant rounded mb-3 text-xs">
-              <table className="w-full">
-                <tbody>
-                  {sampleRows.map((row, i) => (
-                    <tr key={i} className="border-t border-outline-variant">
-                      {row.map((cell, j) => <td key={j} className="px-2 py-1 font-mono">{cell}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <TableScroller minWidth={720}>
+                <table className="w-full">
+                  <tbody>
+                    {sampleRows.map((row, i) => (
+                      <tr key={i} className="border-t border-outline-variant">
+                        {row.map((cell, j) => <td key={j} className="px-2 py-1 font-mono">{cell}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroller>
             </div>
             <label className="block">Date column
               <select value={csvDateColumn} onChange={(e) => setCsvDateColumn(Number(e.target.value))} className="w-full border border-outline-variant rounded px-2 py-1 mt-1">
@@ -137,18 +140,20 @@ export default function CsvImportWizard({ bankAccount, onImported, onClose, forc
           <div className="text-sm">
             <p className="mb-3 text-on-surface-variant">Ready to import {sampleRows.length} previewed rows. The full file will be imported.</p>
             <div className="overflow-auto max-h-64 border border-outline-variant rounded mb-3 text-xs">
-              <table className="w-full">
-                <thead><tr className="bg-surface-container-low"><th className="px-2 py-1 text-left">Date</th><th className="px-2 py-1 text-left">Description</th><th className="px-2 py-1 text-right">Amount</th></tr></thead>
-                <tbody>
-                  {(csvHasHeader ? sampleRows.slice(1) : sampleRows).map((row, i) => (
-                    <tr key={i} className="border-t border-outline-variant">
-                      <td className="px-2 py-1 font-mono">{row[csvDateColumn]}</td>
-                      <td className="px-2 py-1">{row[csvDescriptionColumn]}</td>
-                      <td className="px-2 py-1 text-right font-mono">{row[csvAmountColumn]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <TableScroller minWidth={720}>
+                <table className="w-full">
+                  <thead><tr className="bg-surface-container-low"><th className="px-2 py-1 text-left">Date</th><th className="px-2 py-1 text-left">Description</th><th className="px-2 py-1 text-right">Amount</th></tr></thead>
+                  <tbody>
+                    {(csvHasHeader ? sampleRows.slice(1) : sampleRows).map((row, i) => (
+                      <tr key={i} className="border-t border-outline-variant">
+                        <td className="px-2 py-1 font-mono">{row[csvDateColumn]}</td>
+                        <td className="px-2 py-1">{row[csvDescriptionColumn]}</td>
+                        <td className="px-2 py-1 text-right font-mono">{row[csvAmountColumn]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroller>
             </div>
           </div>
         )}
