@@ -60,7 +60,13 @@ export default function TaxCodesPanel() {
   );
 }
 
-function NewTaxCodeModal({ accounts, onSubmit, onClose }: any) {
+type NewTaxCodeModalProps = {
+  accounts: import('../../lib/api/accounting').Account[];
+  onSubmit: (d: { code: string; name: string; ratePct: number; accountId: number; isDefault: boolean; isExempt: boolean }) => Promise<void>;
+  onClose: () => void;
+};
+
+function NewTaxCodeModal({ accounts, onSubmit, onClose }: NewTaxCodeModalProps) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [ratePct, setRatePct] = useState('5');
