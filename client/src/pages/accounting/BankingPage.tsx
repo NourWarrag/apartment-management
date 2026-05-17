@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import TableScroller from '../../components/ui/TableScroller';
 import { bankAccountsApi, reconciliationsApi } from '../../lib/api/accounting-phase4';
 import { accountsApi } from '../../lib/api/accounting';
 
@@ -55,28 +56,30 @@ export default function BankingPage() {
         {bankAccounts.length === 0 ? (
           <p className="text-on-surface-variant text-sm">No bank accounts yet. Add one to start reconciling.</p>
         ) : (
-          <table className="w-full text-sm bg-surface-container-low rounded">
-            <thead className="text-on-surface-variant">
-              <tr>
-                <th className="px-2 py-1 text-left">Name</th>
-                <th className="px-2 py-1 text-left">GL Account</th>
-                <th className="px-2 py-1 text-right">Statements</th>
-                <th className="px-2 py-1 text-right">Reconciliations</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bankAccounts.map((b) => (
-                <tr key={b.id} className="border-t border-outline-variant">
-                  <td className="px-2 py-1">
-                    <Link to={`/accounting/banking/${b.id}`} className="text-primary">{b.name}</Link>
-                  </td>
-                  <td className="px-2 py-1">{b.account.code} – {b.account.name}</td>
-                  <td className="px-2 py-1 text-right">{b._count.statements}</td>
-                  <td className="px-2 py-1 text-right">{b._count.reconciliations}</td>
+          <TableScroller minWidth={720}>
+            <table className="w-full text-sm bg-surface-container-low rounded">
+              <thead className="text-on-surface-variant">
+                <tr>
+                  <th className="px-2 py-1 text-left">Name</th>
+                  <th className="px-2 py-1 text-left">GL Account</th>
+                  <th className="px-2 py-1 text-right">Statements</th>
+                  <th className="px-2 py-1 text-right">Reconciliations</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {bankAccounts.map((b) => (
+                  <tr key={b.id} className="border-t border-outline-variant">
+                    <td className="px-2 py-1">
+                      <Link to={`/accounting/banking/${b.id}`} className="text-primary">{b.name}</Link>
+                    </td>
+                    <td className="px-2 py-1">{b.account.code} – {b.account.name}</td>
+                    <td className="px-2 py-1 text-right">{b._count.statements}</td>
+                    <td className="px-2 py-1 text-right">{b._count.reconciliations}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroller>
         )}
       </section>
 
@@ -85,30 +88,32 @@ export default function BankingPage() {
         {recs.length === 0 ? (
           <p className="text-on-surface-variant text-sm">No reconciliations yet.</p>
         ) : (
-          <table className="w-full text-sm bg-surface-container-low rounded">
-            <thead className="text-on-surface-variant">
-              <tr>
-                <th className="px-2 py-1 text-left">Bank Account</th>
-                <th className="px-2 py-1 text-left">End Date</th>
-                <th className="px-2 py-1 text-left">Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {recs.map((r) => (
-                <tr key={r.id} className="border-t border-outline-variant">
-                  <td className="px-2 py-1">{r.bankAccount.name}</td>
-                  <td className="px-2 py-1">{r.endDate.slice(0, 10)}</td>
-                  <td className="px-2 py-1">{r.status}</td>
-                  <td className="px-2 py-1 text-right">
-                    <Link to={`/accounting/banking/reconciliations/${r.id}`} className="text-primary text-xs">
-                      {r.status === 'OPEN' ? 'Continue →' : 'View report →'}
-                    </Link>
-                  </td>
+          <TableScroller minWidth={720}>
+            <table className="w-full text-sm bg-surface-container-low rounded">
+              <thead className="text-on-surface-variant">
+                <tr>
+                  <th className="px-2 py-1 text-left">Bank Account</th>
+                  <th className="px-2 py-1 text-left">End Date</th>
+                  <th className="px-2 py-1 text-left">Status</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recs.map((r) => (
+                  <tr key={r.id} className="border-t border-outline-variant">
+                    <td className="px-2 py-1">{r.bankAccount.name}</td>
+                    <td className="px-2 py-1">{r.endDate.slice(0, 10)}</td>
+                    <td className="px-2 py-1">{r.status}</td>
+                    <td className="px-2 py-1 text-right">
+                      <Link to={`/accounting/banking/reconciliations/${r.id}`} className="text-primary text-xs">
+                        {r.status === 'OPEN' ? 'Continue →' : 'View report →'}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroller>
         )}
       </section>
 
