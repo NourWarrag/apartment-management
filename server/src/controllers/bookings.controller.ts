@@ -2,12 +2,17 @@ import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { PaymentMethod, PaymentStatus, ApartmentStatus, DepositStatus } from '@hotel/shared';
+import { Prisma } from '@prisma/client';
+import { PostingService } from '../services/accounting/posting.service';
+import { isAccountingError } from '../services/accounting/posting.errors';
+
+const posting = new PostingService(prisma as any);
 
 const VALID_METHODS = Object.values(PaymentMethod);
 
 export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { apartmentId, tenantId, checkIn, checkOut, totalAmount, payment, deposit } = req.body as {
+    const { apartmentId, tenantId, checkIn, checkOut, totalAmount, payment, deposit, taxCodeId: rawTaxCodeId } = req.body as {
       apartmentId?: number;
       tenantId?: number;
       checkIn?: string;
@@ -15,7 +20,9 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
       totalAmount?: number;
       payment?: { method?: string; amount?: number; referenceNumber?: string };
       deposit?: { amount?: number };
+      taxCodeId?: number;
     };
+    const taxCodeId = typeof rawTaxCodeId === 'number' ? rawTaxCodeId : null;
 
     if (!apartmentId || !tenantId || !checkIn || !checkOut || totalAmount === undefined || totalAmount === null) {
       res.status(400).json({ message: 'apartmentId, tenantId, checkIn, checkOut, and totalAmount are required' });
@@ -82,45 +89,63 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
           }
         : {};
 
-    const booking = await prisma.$transaction(async (tx) => {
-      const newBooking = await tx.booking.create({
-        data: {
-          apartmentId: Number(apartmentId),
-          tenantId: Number(tenantId),
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          totalAmount,
-          ...depositData,
-        },
+    try {
+      const booking = await prisma.$transaction(async (tx) => {
+        const newBooking = await tx.booking.create({
+          data: {
+            apartmentId: Number(apartmentId),
+            tenantId: Number(tenantId),
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            totalAmount,
+            taxCodeId,
+            ...depositData,
+          },
+        });
+
+        const createdPayment = await tx.payment.create({
+          data: {
+            bookingId: newBooking.id,
+            method: payment.method as PaymentMethod,
+            amount: payment.amount as number,
+            referenceNumber: payment.referenceNumber?.trim() || null,
+            status: PaymentStatus.PAID,
+            paidAt: new Date(),
+          },
+        });
+
+        await tx.apartment.update({
+          where: { id: Number(apartmentId) },
+          data: { status: newStatus },
+        });
+
+        const hasMapping = (await tx.accountMapping.count({ where: { key: 'REVENUE_DEFAULT' } })) > 0;
+        if (hasMapping) {
+          await posting.postFromBookingCreated(newBooking.id, req.user!.id, tx as unknown as Prisma.TransactionClient);
+          await posting.postFromPayment(createdPayment.id, req.user!.id, tx as unknown as Prisma.TransactionClient);
+          if (newBooking.depositAmount && Number(newBooking.depositAmount) > 0 && newBooking.depositStatus === 'HELD') {
+            await posting.postFromDepositTransition(newBooking.id, 'NONE', 'HELD', req.user!.id, tx as unknown as Prisma.TransactionClient);
+          }
+        }
+
+        return tx.booking.findUnique({
+          where: { id: newBooking.id },
+          include: {
+            apartment: { select: { id: true, number: true, floor: true } },
+            tenant: { select: { id: true, fullName: true, phone: true } },
+            payments: { select: { id: true, method: true, amount: true, status: true } },
+          },
+        });
       });
 
-      await tx.payment.create({
-        data: {
-          bookingId: newBooking.id,
-          method: payment.method as PaymentMethod,
-          amount: payment.amount as number,
-          referenceNumber: payment.referenceNumber?.trim() || null,
-          status: PaymentStatus.PAID,
-          paidAt: new Date(),
-        },
-      });
-
-      await tx.apartment.update({
-        where: { id: Number(apartmentId) },
-        data: { status: newStatus },
-      });
-
-      return tx.booking.findUnique({
-        where: { id: newBooking.id },
-        include: {
-          apartment: { select: { id: true, number: true, floor: true } },
-          tenant: { select: { id: true, fullName: true, phone: true } },
-          payments: { select: { id: true, method: true, amount: true, status: true } },
-        },
-      });
-    });
-
-    res.status(201).json(booking);
+      res.status(201).json(booking);
+    } catch (err) {
+      if (isAccountingError(err)) {
+        res.status(400).json({ code: err.code, message: err.message, details: err.details });
+        return;
+      }
+      throw err;
+    }
   } catch (err) { next(err); }
 }
 
@@ -152,16 +177,30 @@ export async function collectDeposit(req: AuthRequest, res: Response, next: Next
       return;
     }
 
-    const updated = await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        depositAmount: amount,
-        depositStatus: DepositStatus.HELD,
-        depositCollectedAt: new Date(),
-      },
-    });
-
-    res.json(updated);
+    try {
+      const updated = await prisma.$transaction(async (tx) => {
+        const u = await tx.booking.update({
+          where: { id: bookingId },
+          data: {
+            depositAmount: amount,
+            depositStatus: DepositStatus.HELD,
+            depositCollectedAt: new Date(),
+          },
+        });
+        const hasMapping = (await tx.accountMapping.count({ where: { key: 'REVENUE_DEFAULT' } })) > 0;
+        if (hasMapping) {
+          await posting.postFromDepositTransition(u.id, 'NONE', 'HELD', req.user!.id, tx as unknown as Prisma.TransactionClient);
+        }
+        return u;
+      });
+      res.json(updated);
+    } catch (err) {
+      if (isAccountingError(err)) {
+        res.status(400).json({ code: err.code, message: err.message, details: err.details });
+        return;
+      }
+      throw err;
+    }
   } catch (err) { next(err); }
 }
 
@@ -215,26 +254,39 @@ export async function checkout(req: AuthRequest, res: Response, next: NextFuncti
           : DepositStatus.FORFEITED
         : booking.depositStatus;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.booking.update({
-        where: { id: bookingId },
-        data: {
-          checkedOutAt: new Date(),
-          ...(booking.depositStatus === DepositStatus.HELD
-            ? { depositStatus: newDepositStatus, depositRefundAmount }
-            : {}),
-        },
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const updated = await tx.booking.update({
+          where: { id: bookingId },
+          data: {
+            checkedOutAt: new Date(),
+            ...(booking.depositStatus === DepositStatus.HELD
+              ? { depositStatus: newDepositStatus, depositRefundAmount }
+              : {}),
+          },
+        });
+
+        await tx.apartment.update({
+          where: { id: booking.apartmentId },
+          data: { status: ApartmentStatus.CLEANING },
+        });
+
+        const hasMapping = (await tx.accountMapping.count({ where: { key: 'REVENUE_DEFAULT' } })) > 0;
+        if (hasMapping && booking.depositStatus === DepositStatus.HELD && (newDepositStatus === DepositStatus.RELEASED || newDepositStatus === DepositStatus.FORFEITED)) {
+          await posting.postFromDepositTransition(booking.id, 'HELD', newDepositStatus, req.user!.id, tx as unknown as Prisma.TransactionClient);
+        }
+
+        return updated;
       });
 
-      await tx.apartment.update({
-        where: { id: booking.apartmentId },
-        data: { status: ApartmentStatus.CLEANING },
-      });
-
-      return updated;
-    });
-
-    res.json(result);
+      res.json(result);
+    } catch (err) {
+      if (isAccountingError(err)) {
+        res.status(400).json({ code: err.code, message: err.message, details: err.details });
+        return;
+      }
+      throw err;
+    }
   } catch (err) { next(err); }
 }
 
