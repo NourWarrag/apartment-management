@@ -723,17 +723,38 @@ export class PostingService {
         );
         const scaleToNet = componentTotal.gt(0) ? net.plus(discountShare).dividedBy(componentTotal) : new Prisma.Decimal(0);
 
+        // Build component credits with per-line rounding; absorb the rounding residual into the
+        // last credit so the sum equals (net + discountShareRounded) exactly. Without this, three
+        // or more components scaled by a repeating ratio would leave a 1-2 cent imbalance that
+        // would fail validate()'s UNBALANCED check.
+        const discountShareRounded = discountShare.toDecimalPlaces(2);
+        const componentCredits: { accountId: number; credit: Prisma.Decimal; description: string }[] = [];
         for (const c of componentSpecs) {
           if (c.amount.lte(0)) continue;
           const accountId = c.key === 'REVENUE_DEFAULT'
             ? await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT')
             : await this.mapping.resolveAccountWithFallback(db, c.key, 'REVENUE_DEFAULT');
           const credit = c.amount.times(scaleToNet).toDecimalPlaces(2);
-          if (credit.gt(0)) lines.push({ accountId, credit, description: c.label });
+          if (credit.gt(0)) componentCredits.push({ accountId, credit, description: c.label });
         }
-        if (discountShare.gt(0)) {
+        if (componentCredits.length > 0) {
+          const sumCredits = componentCredits.reduce(
+            (acc, l) => acc.plus(l.credit),
+            new Prisma.Decimal(0),
+          );
+          const expected = net.plus(discountShareRounded);
+          const residual = expected.minus(sumCredits);
+          if (!residual.equals(0)) {
+            const last = componentCredits[componentCredits.length - 1];
+            last.credit = last.credit.plus(residual);
+          }
+        }
+        for (const cc of componentCredits) {
+          lines.push({ accountId: cc.accountId, credit: cc.credit, description: cc.description });
+        }
+        if (discountShareRounded.gt(0)) {
           const contraId = await this.mapping.resolveAccountWithFallback(db, 'DISCOUNT_CONTRA_REVENUE', 'REVENUE_DEFAULT');
-          lines.push({ accountId: contraId, debit: discountShare.toDecimalPlaces(2), description: 'Discount' });
+          lines.push({ accountId: contraId, debit: discountShareRounded, description: 'Discount' });
         }
         if (vat.gt(0) && taxCode) {
           const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');

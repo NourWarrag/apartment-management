@@ -544,7 +544,7 @@ describe('PostingService.postFromBookingCreated (ACCRUAL mode)', () => {
     const revenueLines = lines.filter((l) => new Prisma.Decimal(l.credit).gt(0));
     expect(arLines.length).toBe(1);
     // 3 component credit lines (rent, service, parking) + 1 VAT credit = 4 credit lines
-    expect(revenueLines.length).toBeGreaterThanOrEqual(3);
+    expect(revenueLines.length).toBe(4); // 3 components (rent/service/parking) + 1 VAT
     // cleanup
     await db.booking.update({ where: { id: b.id }, data: { revenuePostedEntryId: null } });
     await db.journalLine.deleteMany({ where: { journalEntryId: entry!.id } });
