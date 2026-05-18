@@ -118,7 +118,7 @@ function validBody(overrides: Record<string, unknown> = {}) {
     tenantId: tenantIdOld,
     checkIn: futureCheckIn,
     checkOut: futureCheckOut,
-    totalAmount: 15000,
+    rentAmount: 15000,
     payment: { method: 'CASH', amount: 5000 },
     ...overrides,
   };
@@ -156,7 +156,7 @@ describe('POST /api/v1/bookings — with deposit', () => {
         tenantId,
         checkIn: '2026-06-01',
         checkOut: '2026-07-01',
-        totalAmount: 5000,
+        rentAmount: 5000,
         payment: { method: 'CASH', amount: 5000 },
         deposit: { amount: 1000 },
       });
@@ -470,6 +470,170 @@ describe('POST /api/v1/bookings — auth, roles, validation', () => {
       .send(validBody({ tenantId: 999999 }));
     expect(res.status).toBe(404);
   });
+
+  it('accepts line-item components and computes totalAmount server-side', async () => {
+    const apt = await testPrisma.apartment.findFirst({ where: { status: 'AVAILABLE' } });
+    const ten = await testPrisma.tenant.findFirst();
+    expect(apt).toBeTruthy();
+    expect(ten).toBeTruthy();
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt!.id,
+        tenantId: ten!.id,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        serviceCharge: 100,
+        parkingFee: 50,
+        cleaningFee: 75,
+        discountAmount: 25,
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(Number(res.body.rentAmount)).toBe(1000);
+      expect(Number(res.body.serviceCharge)).toBe(100);
+      expect(Number(res.body.parkingFee)).toBe(50);
+      expect(Number(res.body.cleaningFee)).toBe(75);
+      expect(Number(res.body.discountAmount)).toBe(25);
+      // totalAmount = 1000+100+50+75-25 = 1200 (+ VAT if default tax code exists)
+      expect(Number(res.body.totalAmount)).toBeGreaterThanOrEqual(1200);
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } }).catch(() => {});
+        await testPrisma.apartment.update({ where: { id: apt!.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+      }
+    }
+  });
+
+  it('ignores any client-supplied totalAmount and recomputes', async () => {
+    const apt = await testPrisma.apartment.findFirst({ where: { status: 'AVAILABLE' } });
+    const ten = await testPrisma.tenant.findFirst();
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt!.id,
+        tenantId: ten!.id,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        totalAmount: 99999, // bogus, must be ignored
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(Number(res.body.totalAmount)).toBeLessThan(99999);
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } }).catch(() => {});
+        await testPrisma.apartment.update({ where: { id: apt!.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+      }
+    }
+  });
+
+  it('rejects creation when rentAmount is missing or <= 0', async () => {
+    const apt = await testPrisma.apartment.findFirst({ where: { status: 'AVAILABLE' } });
+    const ten = await testPrisma.tenant.findFirst();
+    const base = {
+      apartmentId: apt!.id,
+      tenantId: ten!.id,
+      checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+      checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      payment: { method: 'CASH', amount: 100 },
+    };
+
+    const r1 = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({ ...base });
+    expect(r1.status).toBe(400);
+    expect(r1.body.message).toMatch(/rentAmount/i);
+
+    const r2 = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({ ...base, rentAmount: 0 });
+    expect(r2.status).toBe(400);
+    expect(r2.body.message).toMatch(/rentAmount/i);
+  });
+
+  it('rejects negative values on any component', async () => {
+    const apt = await testPrisma.apartment.findFirst({ where: { status: 'AVAILABLE' } });
+    const ten = await testPrisma.tenant.findFirst();
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt!.id,
+        tenantId: ten!.id,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        serviceCharge: -50,
+        payment: { method: 'CASH', amount: 100 },
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/non-negative/i);
+  });
+});
+
+describe('PATCH /api/v1/bookings/:id', () => {
+  it('rejects edits on bookings with revenuePostedEntryId set', async () => {
+    const booking = await testPrisma.booking.findFirst({ where: { revenuePostedEntryId: { not: null } } });
+    if (!booking) {
+      return; // skip if fixtures don't include one
+    }
+    const res = await request(app)
+      .patch(`/api/v1/bookings/${booking.id}`)
+      .set('Cookie', adminToken)
+      .send({ rentAmount: 9999 });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/posted|closed/i);
+  });
+
+  it('recomputes totalAmount when components are updated on a non-posted booking', async () => {
+    const apt = await testPrisma.apartment.findFirst({ where: { status: 'AVAILABLE' } });
+    const ten = await testPrisma.tenant.findFirst();
+
+    const created = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt!.id,
+        tenantId: ten!.id,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 500,
+        payment: { method: 'CASH', amount: 100 },
+      });
+    expect(created.status).toBe(201);
+    const bookingId = created.body.id;
+
+    try {
+      const upd = await request(app)
+        .patch(`/api/v1/bookings/${bookingId}`)
+        .set('Cookie', adminToken)
+        .send({ rentAmount: 800, serviceCharge: 100 });
+      expect(upd.status).toBe(200);
+      expect(Number(upd.body.rentAmount)).toBe(800);
+      expect(Number(upd.body.serviceCharge)).toBe(100);
+      expect(Number(upd.body.totalAmount)).toBeGreaterThanOrEqual(900);
+    } finally {
+      await testPrisma.payment.deleteMany({ where: { bookingId } });
+      await testPrisma.booking.delete({ where: { id: bookingId } }).catch(() => {});
+      await testPrisma.apartment.update({ where: { id: apt!.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+    }
+  });
 });
 
 describe('GET /api/v1/bookings/:id', () => {
@@ -736,7 +900,7 @@ describe('Auto-posting on booking lifecycle (Phase 2)', () => {
           tenantId: p2TenantId,
           checkIn: '2026-08-01',
           checkOut: '2026-09-01',
-          totalAmount: 1050,
+          rentAmount: 1000,
           taxCodeId: p2TaxCodeId,
           payment: { method: 'CASH', amount: 1050 },
         });

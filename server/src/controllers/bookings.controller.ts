@@ -5,6 +5,7 @@ import { PaymentMethod, PaymentStatus, ApartmentStatus, DepositStatus } from '@h
 import { Prisma } from '@prisma/client';
 import { PostingService } from '../services/accounting/posting.service';
 import { isAccountingError } from '../services/accounting/posting.errors';
+import { computeBookingTotal } from '../services/bookings/compute-total';
 
 const posting = new PostingService(prisma as any);
 
@@ -12,21 +13,54 @@ const VALID_METHODS = Object.values(PaymentMethod);
 
 export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { apartmentId, tenantId, checkIn, checkOut, totalAmount, payment, deposit, taxCodeId: rawTaxCodeId } = req.body as {
+    const {
+      apartmentId,
+      tenantId,
+      checkIn,
+      checkOut,
+      rentAmount,
+      serviceCharge,
+      parkingFee,
+      cleaningFee,
+      discountAmount,
+      payment,
+      deposit,
+      taxCodeId: rawTaxCodeId,
+    } = req.body as {
       apartmentId?: number;
       tenantId?: number;
       checkIn?: string;
       checkOut?: string;
-      totalAmount?: number;
+      rentAmount?: number;
+      serviceCharge?: number;
+      parkingFee?: number;
+      cleaningFee?: number;
+      discountAmount?: number;
       payment?: { method?: string; amount?: number; referenceNumber?: string };
       deposit?: { amount?: number };
       taxCodeId?: number;
     };
     const taxCodeId = typeof rawTaxCodeId === 'number' ? rawTaxCodeId : null;
 
-    if (!apartmentId || !tenantId || !checkIn || !checkOut || totalAmount === undefined || totalAmount === null) {
-      res.status(400).json({ message: 'apartmentId, tenantId, checkIn, checkOut, and totalAmount are required' });
+    if (!apartmentId || !tenantId || !checkIn || !checkOut) {
+      res.status(400).json({ message: 'apartmentId, tenantId, checkIn, and checkOut are required' });
       return;
+    }
+    if (typeof rentAmount !== 'number' || rentAmount <= 0) {
+      res.status(400).json({ message: 'rentAmount must be a positive number' });
+      return;
+    }
+    const optionalComponents: Array<[string, number | undefined]> = [
+      ['serviceCharge', serviceCharge],
+      ['parkingFee', parkingFee],
+      ['cleaningFee', cleaningFee],
+      ['discountAmount', discountAmount],
+    ];
+    for (const [name, val] of optionalComponents) {
+      if (val !== undefined && (typeof val !== 'number' || val < 0)) {
+        res.status(400).json({ message: `${name} must be a non-negative number` });
+        return;
+      }
     }
     if (!payment || !payment.method || payment.amount === undefined || payment.amount === null) {
       res.status(400).json({ message: 'payment.method and payment.amount are required' });
@@ -38,10 +72,6 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
     }
     if (typeof payment.amount !== 'number' || payment.amount <= 0) {
       res.status(400).json({ message: 'payment.amount must be a positive number' });
-      return;
-    }
-    if (typeof totalAmount !== 'number' || totalAmount <= 0) {
-      res.status(400).json({ message: 'totalAmount must be a positive number' });
       return;
     }
     if (deposit !== undefined && (typeof deposit.amount !== 'number' || deposit.amount <= 0)) {
@@ -76,6 +106,30 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
       return;
     }
 
+    const settings = await prisma.systemSettings.findUnique({ where: { id: 1 } });
+    const taxableFlags = {
+      rentTaxable: settings?.rentTaxable ?? true,
+      serviceChargeTaxable: settings?.serviceChargeTaxable ?? true,
+      parkingTaxable: settings?.parkingTaxable ?? true,
+      cleaningTaxable: settings?.cleaningTaxable ?? true,
+    };
+    const taxCode = taxCodeId
+      ? await prisma.taxCode.findUnique({ where: { id: taxCodeId } })
+      : await prisma.taxCode.findFirst({ where: { isDefault: true, isActive: true } });
+    const taxRatePct = taxCode ? taxCode.ratePct : new Prisma.Decimal(0);
+
+    const totals = computeBookingTotal(
+      {
+        rentAmount,
+        serviceCharge: serviceCharge ?? 0,
+        parkingFee: parkingFee ?? 0,
+        cleaningFee: cleaningFee ?? 0,
+        discountAmount: discountAmount ?? 0,
+      },
+      taxRatePct,
+      taxableFlags,
+    );
+
     const todayStr = new Date().toISOString().split('T')[0];
     const checkInStr = checkIn.slice(0, 10);
     const newStatus = checkInStr <= todayStr ? ApartmentStatus.OCCUPIED : ApartmentStatus.RESERVED;
@@ -97,8 +151,13 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
             tenantId: Number(tenantId),
             checkIn: checkInDate,
             checkOut: checkOutDate,
-            totalAmount,
-            taxCodeId,
+            totalAmount: totals.totalAmount,
+            rentAmount,
+            serviceCharge: serviceCharge ?? 0,
+            parkingFee: parkingFee ?? 0,
+            cleaningFee: cleaningFee ?? 0,
+            discountAmount: discountAmount ?? 0,
+            taxCodeId: taxCodeId ?? null,
             ...depositData,
           },
         });
@@ -371,6 +430,102 @@ export async function list(req: AuthRequest, res: Response, next: NextFunction):
 
     res.json({ data, total, page, limit });
   } catch (err) { next(err); }
+}
+
+export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ message: 'Invalid booking id' });
+      return;
+    }
+    const existing = await prisma.booking.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: 'Booking not found' });
+      return;
+    }
+    if (existing.revenuePostedEntryId !== null) {
+      res.status(409).json({
+        message: 'Booking has posted revenue and is closed for edits. Reverse the revenue entry first.',
+      });
+      return;
+    }
+
+    const {
+      rentAmount,
+      serviceCharge,
+      parkingFee,
+      cleaningFee,
+      discountAmount,
+      taxCodeId: rawTaxCodeId,
+    } = req.body as {
+      rentAmount?: number;
+      serviceCharge?: number;
+      parkingFee?: number;
+      cleaningFee?: number;
+      discountAmount?: number;
+      taxCodeId?: number | null;
+    };
+
+    if (rentAmount !== undefined && (typeof rentAmount !== 'number' || rentAmount <= 0)) {
+      res.status(400).json({ message: 'rentAmount must be a positive number' });
+      return;
+    }
+    for (const [name, val] of [
+      ['serviceCharge', serviceCharge],
+      ['parkingFee', parkingFee],
+      ['cleaningFee', cleaningFee],
+      ['discountAmount', discountAmount],
+    ] as const) {
+      if (val !== undefined && (typeof val !== 'number' || val < 0)) {
+        res.status(400).json({ message: `${name} must be a non-negative number` });
+        return;
+      }
+    }
+
+    const merged = {
+      rentAmount: rentAmount ?? Number(existing.rentAmount),
+      serviceCharge: serviceCharge ?? Number(existing.serviceCharge),
+      parkingFee: parkingFee ?? Number(existing.parkingFee),
+      cleaningFee: cleaningFee ?? Number(existing.cleaningFee),
+      discountAmount: discountAmount ?? Number(existing.discountAmount),
+    };
+
+    const taxCodeId =
+      rawTaxCodeId === undefined ? existing.taxCodeId : rawTaxCodeId;
+
+    const settings = await prisma.systemSettings.findUnique({ where: { id: 1 } });
+    const taxableFlags = {
+      rentTaxable: settings?.rentTaxable ?? true,
+      serviceChargeTaxable: settings?.serviceChargeTaxable ?? true,
+      parkingTaxable: settings?.parkingTaxable ?? true,
+      cleaningTaxable: settings?.cleaningTaxable ?? true,
+    };
+    const taxCode = taxCodeId
+      ? await prisma.taxCode.findUnique({ where: { id: taxCodeId } })
+      : await prisma.taxCode.findFirst({ where: { isDefault: true, isActive: true } });
+    const taxRatePct = taxCode ? taxCode.ratePct : new Prisma.Decimal(0);
+
+    const totals = computeBookingTotal(merged, taxRatePct, taxableFlags);
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: {
+        rentAmount: merged.rentAmount,
+        serviceCharge: merged.serviceCharge,
+        parkingFee: merged.parkingFee,
+        cleaningFee: merged.cleaningFee,
+        discountAmount: merged.discountAmount,
+        totalAmount: totals.totalAmount,
+        taxCodeId,
+        updatedBy: req.user?.id ?? null,
+      },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
