@@ -6,7 +6,11 @@ export interface CreateBookingDto {
   tenantId: number;
   checkIn: string;
   checkOut: string;
-  totalAmount: number;
+  rentAmount: number;
+  serviceCharge?: number;
+  parkingFee?: number;
+  cleaningFee?: number;
+  discountAmount?: number;
   taxCodeId?: number | null;
   payment: {
     method: 'CASH' | 'CARD' | 'INSTALLMENT';
@@ -21,6 +25,11 @@ export interface BookingDetail {
   checkIn: string;
   checkOut: string;
   totalAmount: string;
+  rentAmount: string;
+  serviceCharge: string;
+  parkingFee: string;
+  cleaningFee: string;
+  discountAmount: string;
   depositAmount: string | null;
   depositStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
   depositRefundAmount: string | null;
@@ -64,6 +73,11 @@ export interface BookingListItem {
   checkIn: string;
   checkOut: string;
   totalAmount: string;
+  rentAmount: string;
+  serviceCharge: string;
+  parkingFee: string;
+  cleaningFee: string;
+  discountAmount: string;
   depositStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
   checkedOutAt: string | null;
   createdAt: string;

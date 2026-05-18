@@ -17,14 +17,18 @@ const schema = z.object({
   tenantId: z.coerce.number().min(1, 'Tenant is required'),
   checkIn: z.string().min(1, 'Check-in date is required'),
   checkOut: z.string().min(1, 'Check-out date is required'),
-  totalAmount: z.coerce.number().min(0.01, 'Total amount must be greater than 0'),
+  rentAmount: z.coerce.number().min(0.01, 'Rent must be greater than 0'),
+  serviceCharge: z.coerce.number().min(0).default(0),
+  parkingFee: z.coerce.number().min(0).default(0),
+  cleaningFee: z.coerce.number().min(0).default(0),
+  discountAmount: z.coerce.number().min(0).default(0),
   paymentMethod: z.enum(['CASH', 'CARD', 'INSTALLMENT']),
   paymentAmount: z.coerce.number().min(0.01, 'Payment amount must be greater than 0'),
   referenceNumber: z.string().optional(),
   depositAmount: z.coerce.number().min(0).optional(),
 }).refine(
   (d) => !d.checkIn || !d.checkOut || new Date(d.checkOut) > new Date(d.checkIn),
-  { message: 'Check-out must be after check-in', path: ['checkOut'] }
+  { message: 'Check-out must be after check-in', path: ['checkOut'] },
 );
 
 type FormValues = z.infer<typeof schema>;
@@ -34,6 +38,26 @@ interface BookingFormModalProps {
   onClose: () => void;
   prefilledApartmentId?: number;
   prefilledTenantId?: number;
+}
+
+function BookingTotalsPreview(props: {
+  rentAmount?: number;
+  serviceCharge?: number;
+  parkingFee?: number;
+  cleaningFee?: number;
+  discountAmount?: number;
+}) {
+  const n = (v: number | undefined) => Number(v ?? 0) || 0;
+  const subtotal = n(props.rentAmount) + n(props.serviceCharge) + n(props.parkingFee) + n(props.cleaningFee);
+  const total = subtotal - n(props.discountAmount);
+  return (
+    <div className="grid grid-cols-[1fr_8rem] gap-3 pt-2 mt-2 border-t border-outline-variant">
+      <span className="text-sm text-on-surface-variant">Subtotal</span>
+      <span className="text-right font-mono text-sm text-on-surface">AED {subtotal.toFixed(2)}</span>
+      <span className="text-sm font-bold text-on-surface">Total (excl. VAT)</span>
+      <span className="text-right font-mono text-sm font-bold text-on-surface">AED {total.toFixed(2)}</span>
+    </div>
+  );
 }
 
 export default function BookingFormModal({
@@ -84,7 +108,11 @@ export default function BookingFormModal({
         tenantId: values.tenantId,
         checkIn: values.checkIn,
         checkOut: values.checkOut,
-        totalAmount: values.totalAmount,
+        rentAmount: values.rentAmount,
+        serviceCharge: values.serviceCharge || undefined,
+        parkingFee: values.parkingFee || undefined,
+        cleaningFee: values.cleaningFee || undefined,
+        discountAmount: values.discountAmount || undefined,
         ...(accountingOn && taxCodeId ? { taxCodeId } : {}),
         payment: {
           method: values.paymentMethod,
@@ -195,20 +223,40 @@ export default function BookingFormModal({
             </div>
           </div>
 
-          {/* Total Amount */}
-          <div>
-            <label className={labelCls}>Total Amount (AED)</label>
-            <input
-              {...register('totalAmount')}
-              type="number"
-              min="0.01"
-              step="0.01"
-              placeholder="0.00"
-              className={inputCls}
-            />
-            {errors.totalAmount && (
-              <p className="text-red-600 text-xs mt-1">{errors.totalAmount.message}</p>
+          {/* Line items */}
+          <div className="space-y-2 border-t border-outline-variant pt-4">
+            <p className="text-sm font-bold text-on-surface mb-3">Charges</p>
+            {[
+              { name: 'rentAmount' as const, label: 'Rent', required: true },
+              { name: 'serviceCharge' as const, label: 'Service charge' },
+              { name: 'parkingFee' as const, label: 'Parking' },
+              { name: 'cleaningFee' as const, label: 'Cleaning fee' },
+              { name: 'discountAmount' as const, label: 'Discount (deducted)' },
+            ].map(({ name, label, required }) => (
+              <div key={name} className="grid grid-cols-[1fr_8rem] items-center gap-3">
+                <label className="text-sm text-on-surface">
+                  {label}{required && ' *'}
+                </label>
+                <input
+                  {...register(name)}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  className={inputCls + ' text-right'}
+                />
+              </div>
+            ))}
+            {errors.rentAmount && (
+              <p className="text-red-600 text-xs">{errors.rentAmount.message}</p>
             )}
+            <BookingTotalsPreview
+              rentAmount={watch('rentAmount')}
+              serviceCharge={watch('serviceCharge')}
+              parkingFee={watch('parkingFee')}
+              cleaningFee={watch('cleaningFee')}
+              discountAmount={watch('discountAmount')}
+            />
           </div>
 
           {/* Tax Code */}
