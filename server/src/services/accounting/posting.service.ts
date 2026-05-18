@@ -206,16 +206,47 @@ export class PostingService {
       }
 
       const arId = await this.mapping.resolveAccount(db, 'AR_DEFAULT');
-      const revenueAccountId = await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT');
       const gross = new Prisma.Decimal(booking.totalAmount);
       const taxCode = await this.getEffectiveTaxCode(db, booking.taxCodeId);
       const rate = taxCode ? new Prisma.Decimal(taxCode.ratePct) : new Prisma.Decimal(0);
-      const { net, vat } = splitTaxInclusive(gross, rate);
 
-      const lines: LineInput[] = [
-        { accountId: arId, debit: gross },
-        { accountId: revenueAccountId, credit: net },
+      const settings = await db.systemSettings.findUnique({ where: { id: 1 } });
+      const flags = {
+        rentTaxable: settings?.rentTaxable ?? true,
+        serviceChargeTaxable: settings?.serviceChargeTaxable ?? true,
+        parkingTaxable: settings?.parkingTaxable ?? true,
+        cleaningTaxable: settings?.cleaningTaxable ?? true,
+      };
+      const componentSpecs = [
+        { amount: new Prisma.Decimal(booking.rentAmount), key: 'REVENUE_DEFAULT' as const, taxable: flags.rentTaxable, label: 'Rent' },
+        { amount: new Prisma.Decimal(booking.serviceCharge), key: 'SERVICE_CHARGE_REVENUE' as const, taxable: flags.serviceChargeTaxable, label: 'Service charge' },
+        { amount: new Prisma.Decimal(booking.parkingFee), key: 'PARKING_REVENUE' as const, taxable: flags.parkingTaxable, label: 'Parking' },
+        { amount: new Prisma.Decimal(booking.cleaningFee), key: 'CLEANING_REVENUE' as const, taxable: flags.cleaningTaxable, label: 'Cleaning' },
       ];
+
+      const lines: LineInput[] = [{ accountId: arId, debit: gross }];
+
+      for (const c of componentSpecs) {
+        if (c.amount.lte(0)) continue;
+        const accountId = c.key === 'REVENUE_DEFAULT'
+          ? await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT')
+          : await this.mapping.resolveAccountWithFallback(db, c.key, 'REVENUE_DEFAULT');
+        lines.push({ accountId, credit: c.amount, description: c.label });
+      }
+
+      const discount = new Prisma.Decimal(booking.discountAmount);
+      if (discount.gt(0)) {
+        const contraId = await this.mapping.resolveAccountWithFallback(db, 'DISCOUNT_CONTRA_REVENUE', 'REVENUE_DEFAULT');
+        lines.push({ accountId: contraId, debit: discount, description: 'Discount' });
+      }
+
+      const taxableSubtotal = componentSpecs
+        .filter((c) => c.taxable)
+        .reduce((acc, c) => acc.plus(c.amount), new Prisma.Decimal(0))
+        .minus(discount);
+      const vat = taxableSubtotal.gt(0)
+        ? taxableSubtotal.times(rate).dividedBy(100).toDecimalPlaces(2)
+        : new Prisma.Decimal(0);
       if (vat.gt(0) && taxCode) {
         const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');
         lines.push({ accountId: vatAccountId, credit: vat });
@@ -662,15 +693,48 @@ export class PostingService {
         memo = `Cash collection: Payment #${payment.id}`;
       } else {
         // CASH mode
-        const revenueAccountId = await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT');
         const taxCode = await this.getEffectiveTaxCode(db, payment.booking.taxCodeId);
         const rate = taxCode ? new Prisma.Decimal(taxCode.ratePct) : new Prisma.Decimal(0);
+        const bookingTotal = new Prisma.Decimal(payment.booking.totalAmount);
+        const ratio = bookingTotal.gt(0) ? gross.dividedBy(bookingTotal) : new Prisma.Decimal(0);
+
+        const settings = await db.systemSettings.findUnique({ where: { id: 1 } });
+        const flags = {
+          rentTaxable: settings?.rentTaxable ?? true,
+          serviceChargeTaxable: settings?.serviceChargeTaxable ?? true,
+          parkingTaxable: settings?.parkingTaxable ?? true,
+          cleaningTaxable: settings?.cleaningTaxable ?? true,
+        };
+        const componentSpecs = [
+          { amount: new Prisma.Decimal(payment.booking.rentAmount).times(ratio), key: 'REVENUE_DEFAULT' as const, taxable: flags.rentTaxable, label: 'Rent' },
+          { amount: new Prisma.Decimal(payment.booking.serviceCharge).times(ratio), key: 'SERVICE_CHARGE_REVENUE' as const, taxable: flags.serviceChargeTaxable, label: 'Service charge' },
+          { amount: new Prisma.Decimal(payment.booking.parkingFee).times(ratio), key: 'PARKING_REVENUE' as const, taxable: flags.parkingTaxable, label: 'Parking' },
+          { amount: new Prisma.Decimal(payment.booking.cleaningFee).times(ratio), key: 'CLEANING_REVENUE' as const, taxable: flags.cleaningTaxable, label: 'Cleaning' },
+        ];
+        const discountShare = new Prisma.Decimal(payment.booking.discountAmount).times(ratio);
+
         const { net, vat } = splitTaxInclusive(gross, rate);
 
-        lines = [
-          { accountId: methodAccountId, debit: gross },
-          { accountId: revenueAccountId, credit: net },
-        ];
+        lines = [{ accountId: methodAccountId, debit: gross }];
+
+        const componentTotal = componentSpecs.reduce(
+          (acc, c) => acc.plus(c.amount),
+          new Prisma.Decimal(0),
+        );
+        const scaleToNet = componentTotal.gt(0) ? net.plus(discountShare).dividedBy(componentTotal) : new Prisma.Decimal(0);
+
+        for (const c of componentSpecs) {
+          if (c.amount.lte(0)) continue;
+          const accountId = c.key === 'REVENUE_DEFAULT'
+            ? await this.mapping.resolveAccount(db, 'REVENUE_DEFAULT')
+            : await this.mapping.resolveAccountWithFallback(db, c.key, 'REVENUE_DEFAULT');
+          const credit = c.amount.times(scaleToNet).toDecimalPlaces(2);
+          if (credit.gt(0)) lines.push({ accountId, credit, description: c.label });
+        }
+        if (discountShare.gt(0)) {
+          const contraId = await this.mapping.resolveAccountWithFallback(db, 'DISCOUNT_CONTRA_REVENUE', 'REVENUE_DEFAULT');
+          lines.push({ accountId: contraId, debit: discountShare.toDecimalPlaces(2), description: 'Discount' });
+        }
         if (vat.gt(0) && taxCode) {
           const vatAccountId = await this.mapping.resolveAccount(db, 'VAT_PAYABLE');
           lines.push({ accountId: vatAccountId, credit: vat });

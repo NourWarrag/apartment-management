@@ -55,7 +55,7 @@ beforeAll(async () => {
   const ten = await db.tenant.create({ data: { fullName: 'T', phone: '+9712', idNumber: 'BF-001' } });
   const b = await db.booking.create({
     data: { apartmentId: apt.id, tenantId: ten.id, checkIn: new Date('2026-01-01'), checkOut: new Date('2026-04-01'),
-            totalAmount: 1000, taxCodeId: tcId },
+            totalAmount: 1000, rentAmount: 952.38, taxCodeId: tcId },
   });
   bookingId = b.id;
 

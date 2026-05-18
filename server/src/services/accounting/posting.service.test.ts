@@ -86,6 +86,7 @@ async function setUpPhase2Fixtures() {
       checkIn: new Date('2026-04-01'),
       checkOut: new Date('2026-07-01'),
       totalAmount: 10000,
+      rentAmount: 9523.81,
       taxCodeId: taxCodeStandardId,
     },
   });
@@ -377,6 +378,7 @@ describe('PostingService.postFromPayment (CASH mode)', () => {
         checkIn: new Date('2026-08-01'),
         checkOut: new Date('2026-09-01'),
         totalAmount: 500,
+        rentAmount: 500,
         taxCodeId: tcZero.id,
       },
     });
@@ -444,6 +446,7 @@ describe('PostingService.postFromBookingCreated (ACCRUAL mode)', () => {
         checkIn: new Date('2026-06-01'),
         checkOut: new Date('2026-09-01'),
         totalAmount: 10500,
+        rentAmount: 10000,
         taxCodeId: taxCodeStandardId,
       },
     });
@@ -494,7 +497,8 @@ describe('PostingService.postFromBookingCreated (ACCRUAL mode)', () => {
         tenantId: tenant.id,
         checkIn: new Date('2026-10-01'),
         checkOut: new Date('2026-12-01'),
-        totalAmount: 500,
+        totalAmount: 525,
+        rentAmount: 500,
         taxCodeId: taxCodeStandardId,
       },
     });
@@ -510,6 +514,73 @@ describe('PostingService.postFromBookingCreated (ACCRUAL mode)', () => {
       await db.journalLine.deleteMany({ where: { journalEntryId: first.id } });
       await db.journalEntry.delete({ where: { id: first.id } });
     }
+    await db.booking.delete({ where: { id: b.id } });
+  });
+
+  it('splits revenue across non-zero components — one credit line per component present', async () => {
+    const apt = (await db.apartment.findFirst())!;
+    const tenant = (await db.tenant.findFirst())!;
+    // rentAmount 1000 + serviceCharge 100 + parkingFee 50 = 1150 subtotal
+    // vat = 1150 * 5% = 57.50  → totalAmount = 1207.50
+    const b = await db.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-06-10'),
+        checkOut: new Date('2026-09-10'),
+        totalAmount: 1207.5,
+        rentAmount: 1000,
+        serviceCharge: 100,
+        parkingFee: 50,
+        cleaningFee: 0,
+        discountAmount: 0,
+        taxCodeId: taxCodeStandardId,
+      },
+    });
+    const entry = await service().postFromBookingCreated(b.id, userId);
+    expect(entry).toBeTruthy();
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id } });
+    const arLines = lines.filter((l) => new Prisma.Decimal(l.debit).gt(0) && new Prisma.Decimal(l.credit).equals(0));
+    const revenueLines = lines.filter((l) => new Prisma.Decimal(l.credit).gt(0));
+    expect(arLines.length).toBe(1);
+    // 3 component credit lines (rent, service, parking) + 1 VAT credit = 4 credit lines
+    expect(revenueLines.length).toBeGreaterThanOrEqual(3);
+    // cleanup
+    await db.booking.update({ where: { id: b.id }, data: { revenuePostedEntryId: null } });
+    await db.journalLine.deleteMany({ where: { journalEntryId: entry!.id } });
+    await db.journalEntry.delete({ where: { id: entry!.id } });
+    await db.booking.delete({ where: { id: b.id } });
+  });
+
+  it('adds a discount contra-revenue debit line for non-zero discountAmount', async () => {
+    const apt = (await db.apartment.findFirst())!;
+    const tenant = (await db.tenant.findFirst())!;
+    // rentAmount 1000, discount 100 → taxableSubtotal 900, vat = 45, total = 945
+    const b = await db.booking.create({
+      data: {
+        apartmentId: apt.id,
+        tenantId: tenant.id,
+        checkIn: new Date('2026-07-01'),
+        checkOut: new Date('2026-10-01'),
+        totalAmount: 945,
+        rentAmount: 1000,
+        serviceCharge: 0,
+        parkingFee: 0,
+        cleaningFee: 0,
+        discountAmount: 100,
+        taxCodeId: taxCodeStandardId,
+      },
+    });
+    const entry = await service().postFromBookingCreated(b.id, userId);
+    expect(entry).toBeTruthy();
+    const lines = await db.journalLine.findMany({ where: { journalEntryId: entry!.id } });
+    // expect a debit line for exactly 100 (the discount contra-revenue)
+    const discountLine = lines.find((l) => new Prisma.Decimal(l.debit).equals(100));
+    expect(discountLine).toBeTruthy();
+    // cleanup
+    await db.booking.update({ where: { id: b.id }, data: { revenuePostedEntryId: null } });
+    await db.journalLine.deleteMany({ where: { journalEntryId: entry!.id } });
+    await db.journalEntry.delete({ where: { id: entry!.id } });
     await db.booking.delete({ where: { id: b.id } });
   });
 });

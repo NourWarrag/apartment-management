@@ -59,7 +59,7 @@ beforeAll(async () => {
   const b = await db.booking.create({
     data: { apartmentId: apt.id, tenantId: ten.id,
             checkIn: new Date('2026-04-01'), checkOut: new Date('2026-07-01'),
-            totalAmount: 1000, taxCodeId: tcStandardId },
+            totalAmount: 1000, rentAmount: 952.38, taxCodeId: tcStandardId },
   });
   bookingId = b.id;
 

@@ -62,7 +62,7 @@ beforeAll(async () => {
     data: {
       apartmentId: apt.id, tenantId: ten.id,
       checkIn: new Date('2026-05-01'), checkOut: new Date('2026-08-01'),
-      totalAmount: 1000, taxCodeId: tc.id,
+      totalAmount: 1000, rentAmount: 952.38, taxCodeId: tc.id,
     },
   });
 

@@ -54,6 +54,7 @@ beforeAll(async () => {
       checkIn: new Date('2026-04-01'),
       checkOut: new Date('2026-07-01'),
       totalAmount: 10000,
+      rentAmount: 9523.81,
     },
   });
   bookingId = booking.id;

@@ -41,7 +41,7 @@ describe('GET /accounting/mapping', () => {
       .get('/api/v1/accounting/mapping')
       .set('Cookie', adminCookie);
     expect(r.status).toBe(200);
-    expect(r.body.length).toBe(8);
+    expect(r.body.length).toBe(12);
     expect(r.body.every((row: any) => row.accountId === null)).toBe(true);
   });
 

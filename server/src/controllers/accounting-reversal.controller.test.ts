@@ -86,6 +86,7 @@ beforeAll(async () => {
       checkIn: new Date('2026-04-01'),
       checkOut: new Date('2026-07-01'),
       totalAmount: 1000,
+      rentAmount: 952.38,
       taxCodeId: tc.id,
     },
   });

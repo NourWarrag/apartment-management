@@ -13,6 +13,16 @@ export class MappingService {
     return m.accountId;
   }
 
+  async resolveAccountWithFallback(
+    tx: Prisma.TransactionClient | PrismaClient,
+    key: MappingKey,
+    fallbackKey: MappingKey,
+  ): Promise<number> {
+    const m = await tx.accountMapping.findUnique({ where: { key } });
+    if (m) return m.accountId;
+    return this.resolveAccount(tx, fallbackKey);
+  }
+
   async setMapping(key: MappingKey, accountId: number, userId: number) {
     return this.prisma.accountMapping.upsert({
       where: { key },
