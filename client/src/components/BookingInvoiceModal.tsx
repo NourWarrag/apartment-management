@@ -102,6 +102,41 @@ export default function BookingInvoiceModal({ bookingId, onClose }: BookingInvoi
                 </div>
               </div>
 
+              {/* Charges Breakdown */}
+              {(() => {
+                const components = [
+                  { label: 'Rent', amount: Number(booking.rentAmount) },
+                  { label: 'Service charge', amount: Number(booking.serviceCharge) },
+                  { label: 'Parking', amount: Number(booking.parkingFee) },
+                  { label: 'Cleaning fee', amount: Number(booking.cleaningFee) },
+                ].filter((c) => c.amount > 0);
+                const discount = Number(booking.discountAmount);
+
+                if (components.length === 0 && discount <= 0) {
+                  return null;
+                }
+
+                return (
+                  <div className="mb-6 pb-6 border-b border-outline-variant">
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Charges</p>
+                    <div className="space-y-1">
+                      {components.map((c) => (
+                        <div key={c.label} className="flex justify-between text-sm">
+                          <span className="text-on-surface-variant">{c.label}</span>
+                          <span className="font-mono text-on-surface">AED {c.amount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {discount > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-on-surface-variant">Discount</span>
+                          <span className="font-mono text-error">− AED {discount.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Payment Breakdown Table */}
               <div className="mb-6">
                 <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Payment Breakdown</p>
