@@ -163,6 +163,21 @@ export enum AccountingMode {
   ACCRUAL = 'ACCRUAL',
 }
 
+export enum BrokerStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
+export enum BrokerAgentStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
+export enum CommissionType {
+  PERCENT = 'PERCENT',
+  FLAT = 'FLAT',
+}
+
 export const MAPPING_KEYS = [
   'CASH_METHOD',
   'CARD_METHOD',
