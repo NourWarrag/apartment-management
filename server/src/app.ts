@@ -16,6 +16,8 @@ import accountingRoutes from './routes/accounting.routes';
 import reportsRoutes from './routes/reports.routes';
 import settingsRoutes from './routes/settings.routes';
 import configRoutes from './routes/config.routes';
+import brokersRoutes from './routes/brokers.routes';
+import brokerAgentsRoutes from './routes/broker-agents.routes';
 import { requireFeature } from './middleware/requireFeature';
 import { FeatureFlag } from '@hotel/shared';
 
@@ -38,6 +40,8 @@ app.use('/api/v1/buildings', buildingsRoutes);
 app.use('/api/v1/reports', requireFeature(FeatureFlag.REPORTS), reportsRoutes);
 app.use('/api/v1/accounting', requireFeature(FeatureFlag.ACCOUNTING), accountingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/brokers', brokersRoutes);
+app.use('/api/v1/agents', brokerAgentsRoutes);
 
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
