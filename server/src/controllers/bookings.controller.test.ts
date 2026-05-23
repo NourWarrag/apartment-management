@@ -585,6 +585,189 @@ describe('POST /api/v1/bookings — auth, roles, validation', () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/non-negative/i);
   });
+
+  it('accepts a broker + agent and stores both on the booking', async () => {
+    const apt = await createAvailableApartment('BRK-1');
+    const broker = await testPrisma.broker.create({
+      data: { name: 'B', phone: '+1', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+    const agent = await testPrisma.brokerAgent.create({
+      data: { brokerId: broker.id, fullName: 'A', phone: '+1' },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        brokerId: broker.id,
+        agentId: agent.id,
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.brokerId).toBe(broker.id);
+      expect(res.body.agentId).toBe(agent.id);
+      expect(res.body.commissionType).toBe('PERCENT');
+      expect(Number(res.body.commissionAmount)).toBe(50);
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } }).catch(() => {});
+      }
+      await testPrisma.apartment.update({ where: { id: apt.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+      await testPrisma.brokerAgent.delete({ where: { id: agent.id } }).catch(() => {});
+      await testPrisma.broker.delete({ where: { id: broker.id } }).catch(() => {});
+    }
+  });
+
+  it('rejects (422) when agent.brokerId does not match booking.brokerId', async () => {
+    const apt = await createAvailableApartment('BRK-2');
+    const b1 = await testPrisma.broker.create({
+      data: { name: 'B1', phone: '+1', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+    const b2 = await testPrisma.broker.create({
+      data: { name: 'B2', phone: '+2', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+    const agentOfB1 = await testPrisma.brokerAgent.create({
+      data: { brokerId: b1.id, fullName: 'A', phone: '+1' },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        brokerId: b2.id,
+        agentId: agentOfB1.id,
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(422);
+      expect(res.body.message).toMatch(/agent.*broker/i);
+    } finally {
+      await testPrisma.brokerAgent.delete({ where: { id: agentOfB1.id } }).catch(() => {});
+      await testPrisma.broker.delete({ where: { id: b1.id } }).catch(() => {});
+      await testPrisma.broker.delete({ where: { id: b2.id } }).catch(() => {});
+    }
+  });
+
+  it('uses agent commission override when both type and value are set on the agent', async () => {
+    const apt = await createAvailableApartment('BRK-3');
+    const broker = await testPrisma.broker.create({
+      data: { name: 'B', phone: '+1', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+    const agent = await testPrisma.brokerAgent.create({
+      data: {
+        brokerId: broker.id,
+        fullName: 'A',
+        phone: '+1',
+        commissionType: 'PERCENT',
+        commissionValueOverride: 10,
+      },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        brokerId: broker.id,
+        agentId: agent.id,
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(Number(res.body.commissionAmount)).toBe(100);
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } }).catch(() => {});
+      }
+      await testPrisma.apartment.update({ where: { id: apt.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+      await testPrisma.brokerAgent.delete({ where: { id: agent.id } }).catch(() => {});
+      await testPrisma.broker.delete({ where: { id: broker.id } }).catch(() => {});
+    }
+  });
+
+  it('staff-supplied commissionAmount overrides computed value', async () => {
+    const apt = await createAvailableApartment('BRK-4');
+    const broker = await testPrisma.broker.create({
+      data: { name: 'B', phone: '+1', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        brokerId: broker.id,
+        commissionAmount: 75,
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(Number(res.body.commissionAmount)).toBe(75);
+      expect(res.body.commissionType).toBe('PERCENT');
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } }).catch(() => {});
+      }
+      await testPrisma.apartment.update({ where: { id: apt.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+      await testPrisma.broker.delete({ where: { id: broker.id } }).catch(() => {});
+    }
+  });
+
+  it('with no broker, commission fields are null', async () => {
+    const apt = await createAvailableApartment('BRK-5');
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Cookie', adminToken)
+      .send({
+        apartmentId: apt.id,
+        tenantId,
+        checkIn: new Date(Date.now() + 86_400_000).toISOString(),
+        checkOut: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        rentAmount: 1000,
+        payment: { method: 'CASH', amount: 100 },
+      });
+
+    try {
+      expect(res.status).toBe(201);
+      expect(res.body.brokerId).toBeNull();
+      expect(res.body.agentId).toBeNull();
+      expect(res.body.commissionType).toBeNull();
+      expect(res.body.commissionAmount).toBeNull();
+    } finally {
+      if (res.body.id) {
+        await testPrisma.payment.deleteMany({ where: { bookingId: res.body.id } });
+        await testPrisma.booking.delete({ where: { id: res.body.id } }).catch(() => {});
+      }
+      await testPrisma.apartment.update({ where: { id: apt.id }, data: { status: 'AVAILABLE' } }).catch(() => {});
+    }
+  });
 });
 
 describe('PATCH /api/v1/bookings/:id', () => {

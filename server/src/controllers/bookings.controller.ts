@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { PostingService } from '../services/accounting/posting.service';
 import { isAccountingError } from '../services/accounting/posting.errors';
 import { computeBookingTotal } from '../services/bookings/compute-total';
+import { resolveCommission } from '../services/bookings/commission';
 
 const posting = new PostingService(prisma as any);
 
@@ -26,6 +27,9 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
       payment,
       deposit,
       taxCodeId: rawTaxCodeId,
+      brokerId,
+      agentId,
+      commissionAmount: rawCommissionAmount,
     } = req.body as {
       apartmentId?: number;
       tenantId?: number;
@@ -39,6 +43,9 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
       payment?: { method?: string; amount?: number; referenceNumber?: string };
       deposit?: { amount?: number };
       taxCodeId?: number;
+      brokerId?: number;
+      agentId?: number;
+      commissionAmount?: number;
     };
     const taxCodeId = typeof rawTaxCodeId === 'number' ? rawTaxCodeId : null;
 
@@ -143,6 +150,55 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
           }
         : {};
 
+    let resolvedBrokerId: number | null = null;
+    let resolvedAgentId: number | null = null;
+    let resolvedCommissionType: 'PERCENT' | 'FLAT' | null = null;
+    let resolvedCommissionAmount: number | null = null;
+
+    if (brokerId !== undefined && brokerId !== null) {
+      const broker = await prisma.broker.findFirst({
+        where: { id: Number(brokerId), deletedAt: null },
+      });
+      if (!broker) {
+        res.status(404).json({ message: 'Broker not found' });
+        return;
+      }
+      resolvedBrokerId = broker.id;
+
+      let agentRecord: { commissionType: 'PERCENT' | 'FLAT' | null; commissionValueOverride: any; brokerId: number } | null = null;
+      if (agentId !== undefined && agentId !== null) {
+        agentRecord = await prisma.brokerAgent.findFirst({
+          where: { id: Number(agentId), deletedAt: null },
+          select: { commissionType: true, commissionValueOverride: true, brokerId: true },
+        });
+        if (!agentRecord) {
+          res.status(404).json({ message: 'Agent not found' });
+          return;
+        }
+        if (agentRecord.brokerId !== broker.id) {
+          res.status(422).json({ message: 'Agent does not belong to the specified broker' });
+          return;
+        }
+        resolvedAgentId = Number(agentId);
+      }
+
+      const commission = resolveCommission({
+        broker: { commissionType: broker.commissionType, defaultCommissionValue: broker.defaultCommissionValue },
+        agent: agentRecord
+          ? { commissionType: agentRecord.commissionType, commissionValueOverride: agentRecord.commissionValueOverride }
+          : null,
+        bookingTotal: totals.totalAmount,
+        override: rawCommissionAmount,
+      });
+      if (commission) {
+        resolvedCommissionType = commission.commissionType;
+        resolvedCommissionAmount = Number(commission.commissionAmount);
+      }
+    } else if (agentId !== undefined && agentId !== null) {
+      res.status(422).json({ message: 'agentId requires brokerId to be set' });
+      return;
+    }
+
     try {
       const booking = await prisma.$transaction(async (tx) => {
         const newBooking = await tx.booking.create({
@@ -158,6 +214,10 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
             cleaningFee: cleaningFee ?? 0,
             discountAmount: discountAmount ?? 0,
             taxCodeId: taxCodeId ?? null,
+            brokerId: resolvedBrokerId,
+            agentId: resolvedAgentId,
+            commissionType: resolvedCommissionType,
+            commissionAmount: resolvedCommissionAmount,
             ...depositData,
           },
         });
@@ -508,6 +568,61 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
 
     const totals = computeBookingTotal(merged, taxRatePct, taxableFlags);
 
+    let brokerUpdate: {
+      brokerId?: number | null;
+      agentId?: number | null;
+      commissionType?: 'PERCENT' | 'FLAT' | null;
+      commissionAmount?: number | null;
+    } = {};
+
+    const brokerTouched = 'brokerId' in req.body || 'agentId' in req.body || 'commissionAmount' in req.body;
+    if (brokerTouched) {
+      const nextBrokerId = req.body.brokerId === undefined ? existing.brokerId : req.body.brokerId;
+      const nextAgentId = req.body.agentId === undefined ? existing.agentId : req.body.agentId;
+      const nextOverride = req.body.commissionAmount;
+
+      if (nextBrokerId === null || nextBrokerId === undefined) {
+        brokerUpdate = { brokerId: null, agentId: null, commissionType: null, commissionAmount: null };
+      } else {
+        const broker = await prisma.broker.findFirst({
+          where: { id: Number(nextBrokerId), deletedAt: null },
+        });
+        if (!broker) {
+          res.status(404).json({ message: 'Broker not found' });
+          return;
+        }
+        let agentRecord: { commissionType: 'PERCENT' | 'FLAT' | null; commissionValueOverride: any; brokerId: number } | null = null;
+        if (nextAgentId !== null && nextAgentId !== undefined) {
+          agentRecord = await prisma.brokerAgent.findFirst({
+            where: { id: Number(nextAgentId), deletedAt: null },
+            select: { commissionType: true, commissionValueOverride: true, brokerId: true },
+          });
+          if (!agentRecord) {
+            res.status(404).json({ message: 'Agent not found' });
+            return;
+          }
+          if (agentRecord.brokerId !== broker.id) {
+            res.status(422).json({ message: 'Agent does not belong to the specified broker' });
+            return;
+          }
+        }
+        const commission = resolveCommission({
+          broker: { commissionType: broker.commissionType, defaultCommissionValue: broker.defaultCommissionValue },
+          agent: agentRecord
+            ? { commissionType: agentRecord.commissionType, commissionValueOverride: agentRecord.commissionValueOverride }
+            : null,
+          bookingTotal: totals.totalAmount,
+          override: nextOverride,
+        });
+        brokerUpdate = {
+          brokerId: broker.id,
+          agentId: nextAgentId ?? null,
+          commissionType: commission?.commissionType ?? null,
+          commissionAmount: commission ? Number(commission.commissionAmount) : null,
+        };
+      }
+    }
+
     const updated = await prisma.booking.update({
       where: { id },
       data: {
@@ -519,6 +634,7 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
         totalAmount: totals.totalAmount,
         taxCodeId,
         updatedBy: req.user?.id ?? null,
+        ...brokerUpdate,
       },
     });
 
