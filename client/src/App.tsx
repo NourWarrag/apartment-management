@@ -44,6 +44,7 @@ const ALL_STAFF = [
 const ADMIN_ONLY = [Role.SUPER_ADMIN, Role.ADMIN];
 const ADMIN_RECEPTIONIST = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST];
 const ADMIN_FINANCE = [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE];
+const BROKERS_ROLES = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.FINANCE];
 const TICKETS_ROLES = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUILDING_ADMIN, Role.RECEPTIONIST, Role.MAINTENANCE];
 
 export default function App() {
@@ -122,7 +123,7 @@ function AppRoutes() {
         <Route
           path="brokers"
           element={
-            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+            <ProtectedRoute allowedRoles={BROKERS_ROLES}>
               <BrokersPage />
             </ProtectedRoute>
           }
@@ -130,7 +131,7 @@ function AppRoutes() {
         <Route
           path="brokers/:id"
           element={
-            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+            <ProtectedRoute allowedRoles={BROKERS_ROLES}>
               <BrokerDetailPage />
             </ProtectedRoute>
           }
