@@ -8,6 +8,7 @@ import { useApartments } from '../../hooks/useApartments';
 import { useTenants } from '../../hooks/useTenants';
 import type { TenantListItem } from '../../hooks/useTenants';
 import QuickAddTenantModal from './QuickAddTenantModal';
+import BrokerAgentSelector, { BrokerAgentSelection } from '../../components/BrokerAgentSelector';
 import { ApartmentStatus, FeatureFlag } from '@hotel/shared';
 import { taxCodesApi } from '../../lib/api/accounting-phase2';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -69,6 +70,8 @@ export default function BookingFormModal({
   const [apiError, setApiError] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [taxCodeId, setTaxCodeId] = useState<number | null>(null);
+  const [brokerSelection, setBrokerSelection] = useState<BrokerAgentSelection>({ brokerId: null, agentId: null });
+  const [commissionOverride, setCommissionOverride] = useState<string>('');
   const { data: flags } = useFeatureFlags();
   const accountingOn = !!flags?.[FeatureFlag.ACCOUNTING];
   const { data: taxCodes = [] } = useQuery({
@@ -114,6 +117,9 @@ export default function BookingFormModal({
         cleaningFee: values.cleaningFee || undefined,
         discountAmount: values.discountAmount || undefined,
         ...(accountingOn && taxCodeId ? { taxCodeId } : {}),
+        ...(brokerSelection.brokerId !== null ? { brokerId: brokerSelection.brokerId } : {}),
+        ...(brokerSelection.agentId !== null ? { agentId: brokerSelection.agentId } : {}),
+        ...(commissionOverride !== '' ? { commissionAmount: Number(commissionOverride) } : {}),
         payment: {
           method: values.paymentMethod,
           amount: values.paymentAmount,
@@ -202,6 +208,30 @@ export default function BookingFormModal({
             </div>
             {errors.tenantId && (
               <p className="text-red-600 text-xs mt-1">{errors.tenantId.message}</p>
+            )}
+          </div>
+
+          {/* Referrer (optional) */}
+          <div className="border-t border-outline-variant pt-4">
+            <p className="text-sm font-bold text-on-surface mb-3">Referrer <span className="font-normal text-on-surface-variant">(optional)</span></p>
+            <BrokerAgentSelector
+              value={brokerSelection}
+              onChange={setBrokerSelection}
+            />
+            {brokerSelection.brokerId && (
+              <div className="mt-3">
+                <label className={labelCls}>Commission override <span className="font-normal text-on-surface-variant">(optional)</span></label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Use computed default"
+                  value={commissionOverride}
+                  onChange={(e) => setCommissionOverride(e.target.value)}
+                  className={inputCls}
+                />
+                <p className="text-xs text-on-surface-variant mt-1">Leave blank to compute from the agent/broker default rate.</p>
+              </div>
             )}
           </div>
 

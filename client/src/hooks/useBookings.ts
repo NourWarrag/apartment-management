@@ -12,6 +12,9 @@ export interface CreateBookingDto {
   cleaningFee?: number;
   discountAmount?: number;
   taxCodeId?: number | null;
+  brokerId?: number;
+  agentId?: number;
+  commissionAmount?: number;
   payment: {
     method: 'CASH' | 'CARD' | 'INSTALLMENT';
     amount: number;
@@ -35,6 +38,10 @@ export interface BookingDetail {
   depositRefundAmount: string | null;
   checkedOutAt: string | null;
   createdAt: string;
+  brokerId: number | null;
+  agentId: number | null;
+  commissionType: 'PERCENT' | 'FLAT' | null;
+  commissionAmount: string | null;
   tenant: {
     id: number;
     fullName: string;
@@ -81,6 +88,10 @@ export interface BookingListItem {
   depositStatus: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
   checkedOutAt: string | null;
   createdAt: string;
+  brokerId: number | null;
+  agentId: number | null;
+  commissionType: 'PERCENT' | 'FLAT' | null;
+  commissionAmount: string | null;
   tenant: { id: number; fullName: string; phone: string };
   apartment: {
     id: number;
