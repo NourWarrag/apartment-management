@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
       fileParallelism: false,
       env: {
         DATABASE_URL: env.TEST_DATABASE_URL ?? env.DATABASE_URL,
+        TEST_DATABASE_URL: env.TEST_DATABASE_URL ?? env.DATABASE_URL,
         FEATURE_BOOKINGS: 'true',
         FEATURE_PAYMENTS: 'true',
         FEATURE_TICKETS: 'true',

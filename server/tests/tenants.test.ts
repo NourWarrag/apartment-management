@@ -286,3 +286,64 @@ describe('PUT /api/v1/tenants/:id', () => {
     expect(res.body.notes).toBe('Prefers email contact.');
   });
 });
+
+describe('defaultAgentId', () => {
+  it('accepts defaultAgentId on create', async () => {
+    const broker = await prisma.broker.create({
+      data: { name: 'B', phone: '+1', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+    const agent = await prisma.brokerAgent.create({
+      data: { brokerId: broker.id, fullName: 'A', phone: '+1' },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/tenants')
+      .set('Cookie', adminCookie)
+      .send({
+        fullName: 'New Tenant',
+        phone: '+97150000000',
+        idNumber: 'ID-NEW-1',
+        defaultAgentId: agent.id,
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.defaultAgentId).toBe(agent.id);
+  });
+
+  it('rejects defaultAgentId pointing to a non-existent agent (404)', async () => {
+    const res = await request(app)
+      .post('/api/v1/tenants')
+      .set('Cookie', adminCookie)
+      .send({
+        fullName: 'Bad',
+        phone: '+97150000001',
+        idNumber: 'ID-NEW-2',
+        defaultAgentId: 999999,
+      });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toMatch(/agent/i);
+  });
+
+  it('clears defaultAgentId on update when set to null', async () => {
+    const broker = await prisma.broker.create({
+      data: { name: 'B', phone: '+1', commissionType: 'PERCENT', defaultCommissionValue: 5 },
+    });
+    const agent = await prisma.brokerAgent.create({
+      data: { brokerId: broker.id, fullName: 'A', phone: '+1' },
+    });
+    const tenant = await prisma.tenant.create({
+      data: {
+        fullName: 'T',
+        phone: '+1',
+        idNumber: 'ID-T-1',
+        defaultAgentId: agent.id,
+      },
+    });
+
+    const res = await request(app)
+      .put(`/api/v1/tenants/${tenant.id}`)
+      .set('Cookie', adminCookie)
+      .send({ defaultAgentId: null });
+    expect(res.status).toBe(200);
+    expect(res.body.defaultAgentId).toBeNull();
+  });
+});

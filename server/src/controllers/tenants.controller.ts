@@ -56,13 +56,14 @@ export async function list(req: AuthRequest, res: Response, next: NextFunction):
 }
 
 export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  const { fullName, phone, idNumber, kycStatus, tier, notes } = req.body as {
+  const { fullName, phone, idNumber, kycStatus, tier, notes, defaultAgentId } = req.body as {
     fullName?: string;
     phone?: string;
     idNumber?: string;
     kycStatus?: string;
     tier?: string;
     notes?: string;
+    defaultAgentId?: number | null;
   };
 
   if (!fullName?.trim() || !phone?.trim() || !idNumber?.trim()) {
@@ -78,6 +79,16 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
     return;
   }
 
+  if (defaultAgentId !== undefined && defaultAgentId !== null) {
+    const agent = await prisma.brokerAgent.findFirst({
+      where: { id: Number(defaultAgentId), deletedAt: null },
+    });
+    if (!agent) {
+      res.status(404).json({ message: 'Default agent not found' });
+      return;
+    }
+  }
+
   const data: Prisma.TenantCreateInput = {
     fullName: fullName.trim(),
     phone: phone.trim(),
@@ -86,6 +97,7 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
   if (kycStatus) data.kycStatus = kycStatus as KycStatus;
   if (tier) data.tier = tier as TenantTier;
   if (notes !== undefined) data.notes = notes.trim() || null;
+  if (defaultAgentId !== undefined) data.defaultAgentId = defaultAgentId ?? null;
 
   try {
     const tenant = await prisma.tenant.create({ data });
@@ -158,13 +170,14 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
     return;
   }
 
-  const { fullName, phone, idNumber, kycStatus, tier, notes } = req.body as {
+  const { fullName, phone, idNumber, kycStatus, tier, notes, defaultAgentId } = req.body as {
     fullName?: string;
     phone?: string;
     idNumber?: string;
     kycStatus?: string;
     tier?: string;
     notes?: string;
+    defaultAgentId?: number | null;
   };
 
   if (kycStatus !== undefined && !VALID_KYC.includes(kycStatus as KycStatus)) {
@@ -176,6 +189,16 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
     return;
   }
 
+  if (defaultAgentId !== undefined && defaultAgentId !== null) {
+    const agent = await prisma.brokerAgent.findFirst({
+      where: { id: Number(defaultAgentId), deletedAt: null },
+    });
+    if (!agent) {
+      res.status(404).json({ message: 'Default agent not found' });
+      return;
+    }
+  }
+
   const data: Prisma.TenantUpdateInput = {};
   if (fullName !== undefined) data.fullName = fullName.trim();
   if (phone !== undefined) data.phone = phone.trim();
@@ -183,6 +206,7 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
   if (kycStatus !== undefined) data.kycStatus = kycStatus as KycStatus;
   if (tier !== undefined) data.tier = tier as TenantTier;
   if (notes !== undefined) data.notes = notes.trim() || null;
+  if (defaultAgentId !== undefined) data.defaultAgentId = defaultAgentId ?? null;
 
   try {
     const tenant = await prisma.tenant.update({ where: { id }, data });
