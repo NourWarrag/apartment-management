@@ -30,6 +30,8 @@ import BankAccountDetailPage from './pages/accounting/BankAccountDetailPage';
 import ReconciliationPage from './pages/accounting/ReconciliationPage';
 import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import BrokersPage from './pages/brokers/BrokersPage';
+import BrokerDetailPage from './pages/brokers/BrokerDetailPage';
 
 const ALL_STAFF = [
   Role.SUPER_ADMIN,
@@ -114,6 +116,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
               <TenantDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="brokers"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+              <BrokersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="brokers/:id"
+          element={
+            <ProtectedRoute allowedRoles={ADMIN_RECEPTIONIST}>
+              <BrokerDetailPage />
             </ProtectedRoute>
           }
         />
