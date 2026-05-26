@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { ApartmentStatus, Role, DepositStatus } from '@hotel/shared';
@@ -10,10 +10,12 @@ import { useAuth } from '../../hooks/useAuth';
 import CollectDepositModal from './CollectDepositModal';
 import AttachmentPanel from '../../components/AttachmentPanel';
 import BookingInvoiceModal from '../../components/BookingInvoiceModal';
+import BrokerAgentSelector from '../../components/BrokerAgentSelector';
 
 export default function ApartmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const aptId = Number(id);
   const { data: user } = useAuth();
   const { data: apartment, isLoading } = useApartment(aptId);
@@ -84,6 +86,16 @@ export default function ApartmentDetailPage() {
             Download Invoice
           </button>
         )}
+      </div>
+
+      <div className="w-64">
+        <p className="text-xs text-on-surface-variant mb-1">Quick: find broker</p>
+        <BrokerAgentSelector
+          value={{ brokerId: null, agentId: null }}
+          onChange={(next) => {
+            if (next.brokerId) navigate(`/brokers/${next.brokerId}`);
+          }}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-widget-gap">

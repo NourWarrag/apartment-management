@@ -10,6 +10,7 @@ export interface TenantListItem {
   kycStatus: KycStatus;
   tier: TenantTier;
   notes: string | null;
+  defaultAgentId: number | null;
   createdAt: string;
   currentBooking: {
     id: number;
@@ -20,6 +21,7 @@ export interface TenantListItem {
 }
 
 export interface TenantDetail extends Omit<TenantListItem, 'currentBooking'> {
+  defaultAgent?: { id: number; fullName: string } | null;
   bookings: {
     id: number;
     checkIn: string;
@@ -37,6 +39,7 @@ export interface CreateTenantDto {
   kycStatus?: KycStatus;
   tier?: TenantTier;
   notes?: string;
+  defaultAgentId?: number | null;
 }
 
 export interface UpdateTenantDto {
@@ -46,6 +49,7 @@ export interface UpdateTenantDto {
   kycStatus?: KycStatus;
   tier?: TenantTier;
   notes?: string;
+  defaultAgentId?: number | null;
 }
 
 export function useTenants(search?: string) {

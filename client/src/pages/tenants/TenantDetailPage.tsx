@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { Role } from '@hotel/shared';
-import { useTenant } from '../../hooks/useTenants';
+import { useTenant, useUpdateTenant } from '../../hooks/useTenants';
 import TenantFormModal from './TenantFormModal';
 import BookingFormModal from '../bookings/BookingFormModal';
 import { useAuth } from '../../hooks/useAuth';
 import AttachmentPanel from '../../components/AttachmentPanel';
+import BrokerAgentSelector from '../../components/BrokerAgentSelector';
 
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,8 +16,10 @@ export default function TenantDetailPage() {
   const tenantId = Number(id);
   const { data: user } = useAuth();
   const { data: tenant, isLoading } = useTenant(tenantId);
+  const updateTenant = useUpdateTenant(tenantId);
   const [showEdit, setShowEdit] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectorOpen, setSelectorOpen] = useState(false);
 
   const canEdit = user?.role === Role.ADMIN || user?.role === Role.RECEPTIONIST;
 
@@ -80,6 +84,19 @@ export default function TenantDetailPage() {
           <div>
             <p className="text-xs text-on-surface-variant mb-1">{t('tenants.registeredOn')}</p>
             <p className="text-on-surface">{new Date(tenant.createdAt).toLocaleDateString()}</p>
+          </div>
+          <div>
+            <p className="text-xs text-on-surface-variant mb-1">Default agent</p>
+            {tenant.defaultAgentId ? (
+              <p className="text-on-surface">{tenant.defaultAgent?.fullName ?? `Agent #${tenant.defaultAgentId}`}</p>
+            ) : (
+              <p className="text-on-surface-variant text-sm">None</p>
+            )}
+            {canEdit && (
+              <button onClick={() => setSelectorOpen(true)} className="text-xs text-primary hover:underline mt-1">
+                Change
+              </button>
+            )}
           </div>
           <div>
             <p className="text-xs text-on-surface-variant mb-1">{t('tenants.totalBookings')}</p>
@@ -166,6 +183,27 @@ export default function TenantDetailPage() {
           onClose={() => setShowBookingModal(false)}
           prefilledTenantId={tenant.id}
         />
+      )}
+      {selectorOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-surface-container-lowest rounded-xl p-6 w-full max-w-md">
+            <BrokerAgentSelector
+              value={{ brokerId: null, agentId: tenant.defaultAgentId }}
+              onChange={async (next) => {
+                try {
+                  await updateTenant.mutateAsync({ defaultAgentId: next.agentId });
+                  toast.success('Default agent updated');
+                  setSelectorOpen(false);
+                } catch {
+                  toast.error('Failed to update');
+                }
+              }}
+            />
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setSelectorOpen(false)} className="text-sm text-on-surface-variant">Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
